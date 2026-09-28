@@ -71,6 +71,32 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+  }
+
+  /* Global Button & Interactive Focus Styling:
+     Eliminate browser default blue outlines on mouse clicks & mobile touch taps
+     while enforcing clear, accessible focus-visible rings for keyboard users. */
+  button:focus:not(:focus-visible),
+  a:focus:not(:focus-visible),
+  [role="button"]:focus:not(:focus-visible),
+  input[type="button"]:focus:not(:focus-visible),
+  input[type="submit"]:focus:not(:focus-visible),
+  input[type="reset"]:focus:not(:focus-visible) {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 2px solid #4f46e5;
+    outline-offset: 2px;
+  }
+
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: none;
   }
 }

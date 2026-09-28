@@ -1,0 +1,58 @@
+/**
+ * Core Automation Event Types and Interface Definitions
+ * Avencia 2.0 Automation Engine
+ */
+
+export enum BusinessEventType {
+  // Sales Events
+  SALE_CREATED = "SALE_CREATED",
+  SALE_COMPLETED = "SALE_COMPLETED",
+  SALE_PARTIAL_PAYMENT = "SALE_PARTIAL_PAYMENT",
+  SALE_UNPAID = "SALE_UNPAID",
+  SALE_VOIDED = "SALE_VOIDED",
+  SALE_REFUNDED = "SALE_REFUNDED",
+  PAYMENT_RECEIVED = "PAYMENT_RECEIVED",
+
+  // Inventory & Product Events
+  PRODUCT_CREATED = "PRODUCT_CREATED",
+  PRODUCT_UPDATED = "PRODUCT_UPDATED",
+  STOCK_CHANGED = "STOCK_CHANGED",
+  STOCK_LOW = "STOCK_LOW",
+  STOCK_OUT = "STOCK_OUT",
+  STOCK_RESTORED = "STOCK_RESTORED",
+  STOCK_ADJUSTED = "STOCK_ADJUSTED",
+
+  // Batch Events
+  BATCH_CREATED = "BATCH_CREATED",
+  BATCH_UPDATED = "BATCH_UPDATED",
+  BATCH_NEAR_COMPLETION = "BATCH_NEAR_COMPLETION",
+  BATCH_COMPLETED = "BATCH_COMPLETED",
+
+  // Customer & Debt Events
+  CUSTOMER_CREATED = "CUSTOMER_CREATED",
+  CUSTOMER_DEBT_CREATED = "CUSTOMER_DEBT_CREATED",
+  CUSTOMER_PAYMENT_RECEIVED = "CUSTOMER_PAYMENT_RECEIVED",
+  CUSTOMER_DEBT_OVERDUE = "CUSTOMER_DEBT_OVERDUE",
+  CUSTOMER_DORMANT = "CUSTOMER_DORMANT",
+
+  // Expense & Finance Events
+  EXPENSE_CREATED = "EXPENSE_CREATED",
+  LARGE_EXPENSE_DETECTED = "LARGE_EXPENSE_DETECTED",
+  PROFIT_AVAILABLE = "PROFIT_AVAILABLE",
+  PROFIT_ALLOCATED = "PROFIT_ALLOCATED",
+
+  // System Events
+  SYSTEM_ERROR = "SYSTEM_ERROR",
+  SYSTEM_WARNING = "SYSTEM_WARNING",
+}
+
+export interface BusinessEvent {
+  id?: string;
+  eventType: BusinessEventType | string;
+  businessId: string;
+  entityType?: string;
+  entityId?: string;
+  timestamp?: Date | string;
+  metadata?: Record<string, any>;
+  dedupeKey?: string;
+}

@@ -1,5 +1,8 @@
 import { prisma, ensureDefaultBusiness } from "@/lib/db/prisma";
 import { formatGhanaPhoneNumber } from "@/lib/utils";
+import { createNotification } from "./notifications";
+import { automationEngine } from "@/lib/automation/engine";
+import { BusinessEventType } from "@/lib/automation/events";
 
 export interface CreateCustomerInput {
   businessId: string;
@@ -28,7 +31,7 @@ export async function createCustomer(input: CreateCustomerInput) {
 
   const formattedPhone = input.phone ? formatGhanaPhoneNumber(input.phone) : null;
 
-  return await prisma.customer.create({
+  const customer = await prisma.customer.create({
     data: {
       businessId: input.businessId,
       name: input.name.trim(),
@@ -37,6 +40,39 @@ export async function createCustomer(input: CreateCustomerInput) {
       notes: input.notes?.trim() || null,
     },
   });
+
+  try {
+    await createNotification({
+      businessId: input.businessId,
+      type: "CUSTOMER_CREATED",
+      category: "CUSTOMERS",
+      severity: "INFO",
+      title: "New Customer Added",
+      message: `Customer ${customer.name} was added to directory.`,
+      actionLabel: "View Customers",
+      actionUrl: "/customers",
+      entityType: "CUSTOMER",
+      entityId: customer.id,
+    });
+
+    automationEngine.emit({
+      eventType: BusinessEventType.CUSTOMER_CREATED,
+      businessId: input.businessId,
+      entityType: "CUSTOMER",
+      entityId: customer.id,
+      dedupeKey: `CUSTOMER_CREATED:${customer.id}`,
+      metadata: {
+        customerId: customer.id,
+        name: customer.name,
+        phone: customer.phone,
+        email: customer.email,
+      },
+    });
+  } catch (err) {
+    console.error("Failed to trigger customer notification/event:", err);
+  }
+
+  return customer;
 }
 
 export async function getCustomers(businessId: string, search?: string) {

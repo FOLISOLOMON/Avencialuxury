@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { formatCurrency } from "@/lib/utils";
+import { normalizeBarcode } from "@/lib/barcode/decoder";
 import { voidSaleAction } from "@/lib/actions/sale-actions";
 import { ReceiptModal } from "@/components/sales/ReceiptModal";
+import { PageHeader } from "@/components/ui/PageHeader";
 import {
   ShoppingBag,
   Plus,
@@ -28,7 +30,6 @@ import {
 import dynamic from "next/dynamic";
 
 const CameraScanner = dynamic(() => import("@/components/scanner/CameraScanner"), { ssr: false });
-
 
 interface Product {
   id: string;
@@ -106,7 +107,6 @@ export default function SalesPage() {
   const [scanNotice, setScanNotice] = useState<string | null>(null);
   const [showCamera, setShowCamera] = useState(false);
 
-
   // Form Fields
   const [customerId, setCustomerId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("CASH");
@@ -154,21 +154,24 @@ export default function SalesPage() {
     return () => window.removeEventListener("avencia:open-add-sale", handler);
   }, []);
 
-
   const handleScanBarcode = async (rawCode: string) => {
-    const code = rawCode.trim();
+    const code = normalizeBarcode(rawCode);
     if (!code) return;
     setScanNotice(null);
 
-    // Look up in local products array first
+    console.log("[BARCODE] Image/scan received");
+    console.log("[BARCODE] Decoder result:", rawCode);
+    console.log("[BARCODE] Normalized value:", code);
+    console.log("[BARCODE] Product lookup started");
+    console.log("[BARCODE] Lookup query:", code);
+
     let matched = products.find(
       (p) =>
-        p.barcode === code ||
+        (p.barcode && normalizeBarcode(p.barcode) === code) ||
         (p.sku && p.sku.toLowerCase() === code.toLowerCase()) ||
         p.name.toLowerCase() === code.toLowerCase()
     );
 
-    // Fallback to API barcode lookup
     if (!matched) {
       try {
         const res = await fetch(`/api/products/barcode?code=${encodeURIComponent(code)}`);
@@ -180,6 +183,7 @@ export default function SalesPage() {
     }
 
     if (matched) {
+      console.log(`[BARCODE] Product found: true (${matched.name})`);
       const existingIdx = items.findIndex((i) => i.productId === matched!.id);
       if (existingIdx >= 0) {
         const updated = [...items];
@@ -194,10 +198,11 @@ export default function SalesPage() {
           setItems([...items, { productId: matched.id, quantity: "1", unitPrice: priceStr }]);
         }
       }
-      setScanNotice(`Added 1x ${matched.name} to cart`);
+      setScanNotice(`Barcode detected (${code}). Product found: ${matched.name}`);
       setScanInput("");
     } else {
-      setScanNotice(`No product found matching barcode "${code}".`);
+      console.log("[BARCODE] Product found: false");
+      setScanNotice(`Barcode detected (${code}), but no matching product was found in Avencia.`);
     }
   };
 
@@ -387,16 +392,43 @@ export default function SalesPage() {
     }
   };
 
-  // Filter completed sales for KPI summary
+  // Filter completed sales & today's metrics
+  const todayStr = new Date().toISOString().split("T")[0];
   const completedSales = sales.filter((s) => s.status === "COMPLETED");
+  const todaySales = completedSales.filter(
+    (s) => new Date(s.saleDate).toISOString().split("T")[0] === todayStr
+  );
+  const todayRevenue = todaySales.reduce((acc, s) => acc + Number(s.totalAmount), 0);
   const totalRevenue = completedSales.reduce((acc, s) => acc + Number(s.totalAmount), 0);
-  const totalGrossProfit = completedSales.reduce((acc, s) => acc + Number(s.grossProfit), 0);
-  const totalSalesCount = completedSales.length;
-  const avgOrderValue = totalSalesCount > 0 ? totalRevenue / totalSalesCount : 0;
+  const transactionsCount = completedSales.length;
+  const avgOrderValue = transactionsCount > 0 ? totalRevenue / transactionsCount : 0;
+
+  const outstandingCredit = sales.reduce((sum, s) => {
+    const isUnsettled =
+      s.status === "PARTIAL" ||
+      s.status === "UNPAID" ||
+      (s as any).paymentStatus === "PARTIAL" ||
+      (s as any).paymentStatus === "UNPAID";
+    if (isUnsettled && s.status !== "VOIDED") {
+      const amtPaid =
+        (s as any).amountPaid !== undefined && (s as any).amountPaid !== null
+          ? Number((s as any).amountPaid)
+          : Number(s.totalAmount);
+      const due =
+        (s as any).balanceDue !== undefined && (s as any).balanceDue !== null
+          ? Number((s as any).balanceDue)
+          : s.status === "PARTIAL"
+          ? Number(s.totalAmount) - amtPaid
+          : Number(s.totalAmount);
+      return sum + due;
+    }
+    return sum;
+  }, 0);
+
   const renderStatusBadge = (s: Sale) => {
     if (s.status === "VOIDED") {
       return (
-        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-200 text-slate-600 line-through">
+        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 line-through">
           VOIDED
         </span>
       );
@@ -407,7 +439,7 @@ export default function SalesPage() {
 
     if (isPartial) {
       return (
-        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-100 text-amber-900 border border-amber-300">
+        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
           PARTIAL (Due: {formatCurrency(due)})
         </span>
       );
@@ -415,118 +447,110 @@ export default function SalesPage() {
     if (isUnpaid) {
       const unpaidDue = due > 0 ? due : Number(s.totalAmount);
       return (
-        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-rose-100 text-rose-800 border border-rose-300">
+        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
           UNPAID (Due: {formatCurrency(unpaidDue)})
         </span>
       );
     }
     return (
-      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
+      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
         COMPLETED
       </span>
     );
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header & Quick Action */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">Sales & POS Terminal</h2>
-          <p className="text-xs text-slate-500">
-            Process rapid sales, FIFO batch deductions & live profit calculations.
-          </p>
-        </div>
-
-        <button
-          onClick={() => {
-            setFormError(null);
-            setScanNotice(null);
-            if (products.length > 0 && !items[0].productId) {
-              setItems([{ productId: products[0].id, quantity: "1", unitPrice: products[0].sellingPriceNum.toString() }]);
-            }
-            setIsModalOpen(true);
-          }}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-lg shadow-indigo-500/25 transition-all touch-manipulation"
-        >
-          <Plus className="w-4 h-4 text-amber-400" /> Rapid Sale Entry
-        </button>
-      </div>
-
-      {/* KPI Cards */}
+    <div className="space-y-6 font-sans">
+      {/* Summary Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 p-5 bg-white space-y-2">
+        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase">Total Revenue</span>
-            <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
+            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Today's Revenue</span>
+            <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400">
               <DollarSign className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900">{formatCurrency(totalRevenue)}</div>
-          <p className="text-[11px] text-slate-500">Gross sales collected</p>
+          <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{formatCurrency(todayRevenue)}</div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">Gross sales collected today</p>
         </div>
 
-        <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 p-5 bg-white space-y-2">
+        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase">Gross Profit</span>
-            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-slate-900">{formatCurrency(totalGrossProfit)}</div>
-          <p className="text-[11px] text-slate-500">Revenue minus FIFO product cost</p>
-        </div>
-
-        <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 p-5 bg-white space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase">Total Orders</span>
-            <div className="p-2 rounded-xl bg-violet-50 text-violet-600">
+            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Transactions Count</span>
+            <div className="p-2 rounded-xl bg-violet-50 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400">
               <ShoppingBag className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900">{totalSalesCount}</div>
-          <p className="text-[11px] text-slate-500">Completed transactions</p>
+          <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{transactionsCount}</div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">Completed sales invoices</p>
         </div>
 
-        <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 p-5 bg-white space-y-2">
+        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase">Avg Order Value</span>
-            <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
+            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Outstanding Credit</span>
+            <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400">
+              <AlertTriangle className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl font-black text-rose-600 dark:text-rose-400">{formatCurrency(outstandingCredit)}</div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">Customer debt balance due</p>
+        </div>
+
+        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Average Sale Value</span>
+            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400">
               <CreditCard className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900">{formatCurrency(avgOrderValue)}</div>
-          <p className="text-[11px] text-slate-500">Average spend per receipt</p>
+          <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{formatCurrency(avgOrderValue)}</div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">Average value per transaction</p>
         </div>
       </div>
 
       {/* Sales History Table */}
-      <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 p-6 bg-white space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <ShoppingBag className="w-4 h-4 text-slate-900" />
+      <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-6 bg-white dark:bg-slate-900 space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 flex-wrap gap-2">
+          <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <ShoppingBag className="w-4 h-4 text-slate-900 dark:text-slate-100" />
             Sales History Log
           </h3>
-          <span className="text-xs font-bold text-slate-500">{sales.length} Invoices</span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{sales.length} Invoices</span>
+            <button
+              onClick={() => {
+                setFormError(null);
+                setScanNotice(null);
+                if (products.length > 0 && !items[0].productId) {
+                  setItems([{ productId: products[0].id, quantity: "1", unitPrice: products[0].sellingPriceNum.toString() }]);
+                }
+                setIsModalOpen(true);
+              }}
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-lg shadow-indigo-500/25 transition-all whitespace-nowrap active:scale-95"
+            >
+              <Plus className="w-4 h-4 text-amber-300" />
+              <span>New Sale</span>
+            </button>
+          </div>
         </div>
 
         {loading ? (
           <div className="p-12 text-center space-y-3">
-            <Loader2 className="w-8 h-8 text-slate-400 animate-spin mx-auto" />
-            <p className="text-xs text-slate-500">Loading sales history...</p>
+            <Loader2 className="w-8 h-8 text-slate-400 dark:text-slate-500 animate-spin mx-auto" />
+            <p className="text-xs text-slate-500 dark:text-slate-400">Loading sales history...</p>
           </div>
         ) : error ? (
-          <div className="bg-rose-50 border border-rose-200 p-4 rounded-2xl text-rose-700 text-xs flex items-center gap-3">
+          <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-4 rounded-2xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 flex-shrink-0" />
             <span>{error}</span>
           </div>
         ) : sales.length === 0 ? (
           <div className="text-center py-12 space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 mx-auto flex items-center justify-center">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 mx-auto flex items-center justify-center">
               <ShoppingBag className="w-6 h-6" />
             </div>
-            <h3 className="font-bold text-slate-800 text-sm">No Sales Recorded Yet</h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm">No Sales Recorded Yet</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
               Click 'Rapid Sale Entry' to process your first perfume sale.
             </p>
           </div>
@@ -536,7 +560,7 @@ export default function SalesPage() {
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="text-slate-400 border-b border-slate-200 pb-2">
+                  <tr className="text-slate-400 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 pb-2">
                     <th className="font-semibold pb-2">Date & Time</th>
                     <th className="font-semibold pb-2">Invoice Ref</th>
                     <th className="font-semibold pb-2">Status</th>
@@ -546,19 +570,19 @@ export default function SalesPage() {
                     <th className="font-semibold pb-2 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {sales.map((sale) => (
-                    <tr key={sale.id} className="text-slate-800 hover:bg-slate-50/60">
-                      <td className="py-3 text-slate-500">
+                    <tr key={sale.id} className="text-slate-800 dark:text-slate-200 hover:bg-slate-50/60 dark:hover:bg-slate-800/50">
+                      <td className="py-3 text-slate-500 dark:text-slate-400">
                         {new Date(sale.saleDate).toLocaleString()}
                       </td>
-                      <td className="py-3 font-bold text-slate-900">#{sale.id.slice(-6)}</td>
+                      <td className="py-3 font-bold text-slate-900 dark:text-slate-100">#{sale.id.slice(-6)}</td>
                       <td className="py-3">{renderStatusBadge(sale)}</td>
-                      <td className="py-3 font-medium text-slate-700">
+                      <td className="py-3 font-medium text-slate-700 dark:text-slate-300">
                         {sale.customer ? sale.customer.name : "Walk-in Client"}
                       </td>
-                      <td className="py-3 font-black text-slate-900">{formatCurrency(sale.totalAmount)}</td>
-                      <td className="py-3 font-extrabold text-emerald-600">
+                      <td className="py-3 font-black text-slate-900 dark:text-slate-100">{formatCurrency(sale.totalAmount)}</td>
+                      <td className="py-3 font-extrabold text-emerald-600 dark:text-emerald-400">
                         {formatCurrency(sale.grossProfit)}
                       </td>
                       <td className="py-3 px-3 text-right">
@@ -576,15 +600,15 @@ export default function SalesPage() {
                           })()}
                           <button
                             onClick={() => setSelectedSale(sale)}
-                            className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-xs inline-flex items-center gap-1 transition-colors"
+                            className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold text-xs inline-flex items-center gap-1 transition-colors"
                           >
-                            <Eye className="w-3.5 h-3.5 text-slate-500" /> View
+                            <Eye className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" /> View
                           </button>
                           <button
                             onClick={() => setReceiptSale(sale)}
-                            className="px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold text-xs inline-flex items-center gap-1 transition-colors"
+                            className="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 font-bold text-xs inline-flex items-center gap-1 transition-colors"
                           >
-                            <Share2 className="w-3.5 h-3.5 text-indigo-600" /> Receipt
+                            <Share2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> Receipt
                           </button>
                         </div>
                       </td>
@@ -594,7 +618,7 @@ export default function SalesPage() {
               </table>
             </div>
 
-            {/* MOBILE cards - Redesigned spacious layout with clear card separation */}
+            {/* MOBILE cards */}
             <div className="md:hidden space-y-6 mb-8">
               {sales.map((sale) => {
                 const isUnsettled =
@@ -608,15 +632,15 @@ export default function SalesPage() {
                 return (
                   <div
                     key={sale.id}
-                    className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-lg shadow-indigo-500/5 space-y-4"
+                    className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-lg shadow-indigo-500/5 space-y-4"
                   >
-                    {/* Card Header: Invoice Ref + Status Badge (with top space for date) */}
-                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3 pt-1">
+                    {/* Card Header: Invoice Ref + Status Badge */}
+                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3 pt-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono font-black text-xs text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-xl">
+                        <span className="font-mono font-black text-xs text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2.5 py-1 rounded-xl">
                           #{sale.id.slice(-6)}
                         </span>
-                        <span className="text-xs text-slate-500 font-semibold pt-0.5">
+                        <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold pt-0.5">
                           {new Date(sale.saleDate).toLocaleDateString()}
                         </span>
                       </div>
@@ -626,27 +650,26 @@ export default function SalesPage() {
                     {/* Card Body: Amount & Client */}
                     <div className="flex items-center justify-between gap-2 py-1">
                       <div>
-                        <span className="text-[10px] text-slate-400 font-bold uppercase block">Total Amount</span>
-                        <span className="font-black text-xl text-slate-900">{formatCurrency(sale.totalAmount)}</span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase block">Total Amount</span>
+                        <span className="font-black text-xl text-slate-900 dark:text-slate-100">{formatCurrency(sale.totalAmount)}</span>
                       </div>
                       <div className="text-right">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase block">Gross Profit</span>
-                        <span className="font-extrabold text-base text-emerald-600">{formatCurrency(sale.grossProfit)}</span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase block">Gross Profit</span>
+                        <span className="font-extrabold text-base text-emerald-600 dark:text-emerald-400">{formatCurrency(sale.grossProfit)}</span>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-slate-600 bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                      <span className="font-semibold text-slate-800 truncate">
+                    <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-100 dark:border-slate-700">
+                      <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
                         👤 {sale.customer ? sale.customer.name : "Walk-in Client"}
                       </span>
-                      <span className="text-[11px] font-bold text-slate-500 uppercase px-2.5 py-0.5 rounded-full bg-white border border-slate-200">
+                      <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase px-2.5 py-0.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                         {sale.paymentMethod}
                       </span>
                     </div>
 
-                    {/* Action Buttons: Clean 2-Row Grid Structure (with bottom space under View/Receipt) */}
+                    {/* Action Buttons */}
                     <div className="space-y-2.5 pt-2 pb-1">
-                      {/* Primary Action if Unsettled / Due */}
                       {isUnsettled && (
                         <button
                           onClick={() => openPaymentModal(sale)}
@@ -656,19 +679,18 @@ export default function SalesPage() {
                         </button>
                       )}
 
-                      {/* Secondary Actions Row */}
                       <div className="flex items-center gap-2.5">
                         <button
                           onClick={() => setSelectedSale(sale)}
-                          className="flex-1 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                          className="flex-1 py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
                         >
-                          <Eye className="w-4 h-4 text-slate-500" /> View
+                          <Eye className="w-4 h-4 text-slate-500 dark:text-slate-400" /> View
                         </button>
                         <button
                           onClick={() => setReceiptSale(sale)}
-                          className="flex-1 py-2.5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                          className="flex-1 py-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
                         >
-                          <Share2 className="w-4 h-4 text-indigo-600" /> Receipt
+                          <Share2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /> Receipt
                         </button>
                       </div>
                     </div>
@@ -678,7 +700,6 @@ export default function SalesPage() {
             </div>
           </>
         )}
-
       </div>
 
       {/* WhatsApp Sales Receipt Modal */}
@@ -690,55 +711,55 @@ export default function SalesPage() {
 
       {/* Sale Details & Void Action Modal */}
       {selectedSale && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-100 max-w-lg w-full p-6 shadow-2xl space-y-4 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 z-50 bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 max-w-lg w-full p-6 shadow-2xl space-y-4 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-base text-slate-900">Invoice #{selectedSale.id.slice(-6)}</h3>
+                  <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Invoice #{selectedSale.id.slice(-6)}</h3>
                   {renderStatusBadge(selectedSale)}
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   {new Date(selectedSale.saleDate).toLocaleString()}
                 </p>
               </div>
               <button
                 onClick={() => setSelectedSale(null)}
-                className="p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+                className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
               <div>
-                <span className="text-slate-400 block text-[10px]">Customer</span>
-                <span className="font-bold text-slate-800">
+                <span className="text-slate-400 dark:text-slate-500 block text-[10px]">Customer</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">
                   {selectedSale.customer ? selectedSale.customer.name : "Walk-in Client"}
                 </span>
               </div>
               <div>
-                <span className="text-slate-400 block text-[10px]">Payment Method</span>
-                <span className="font-bold text-slate-800">{selectedSale.paymentMethod}</span>
+                <span className="text-slate-400 dark:text-slate-500 block text-[10px]">Payment Method</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">{selectedSale.paymentMethod}</span>
               </div>
             </div>
 
             {/* Line Items */}
             <div className="space-y-2 pt-1">
-              <h4 className="font-bold text-xs text-slate-700">Line Items</h4>
+              <h4 className="font-bold text-xs text-slate-700 dark:text-slate-300">Line Items</h4>
               <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                 {selectedSale.saleItems.map((item) => (
                   <div
                     key={item.id}
-                    className="p-2.5 bg-white border border-slate-200 rounded-xl flex items-center justify-between text-xs"
+                    className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-between text-xs"
                   >
                     <div>
-                      <span className="font-bold text-slate-900">{item.product.name}</span>
-                      <p className="text-[10px] text-slate-400">
+                      <span className="font-bold text-slate-900 dark:text-slate-100">{item.product.name}</span>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500">
                         {item.quantity} units × {formatCurrency(item.unitPrice)} (Batch: {item.batch.reference})
                       </p>
                     </div>
-                    <span className="font-bold text-slate-900">{formatCurrency(item.revenue)}</span>
+                    <span className="font-bold text-slate-900 dark:text-slate-100">{formatCurrency(item.revenue)}</span>
                   </div>
                 ))}
               </div>
@@ -754,7 +775,7 @@ export default function SalesPage() {
                 : (selectedSale.status === "PARTIAL" ? Number(selectedSale.totalAmount) - amtPaid : 0);
 
               return (
-                <div className="p-4 bg-slate-900 text-white rounded-2xl space-y-2 text-xs">
+                <div className="p-4 bg-slate-900 dark:bg-slate-800/90 text-white border border-slate-800 rounded-2xl space-y-2 text-xs">
                   <div className="flex justify-between text-slate-300">
                     <span>Subtotal:</span>
                     <span>{formatCurrency(selectedSale.subtotal)}</span>
@@ -794,7 +815,7 @@ export default function SalesPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setReceiptSale(selectedSale)}
-                  className="px-3.5 py-2 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-xs hover:bg-emerald-100 transition-colors flex items-center gap-1.5"
+                  className="px-3.5 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold text-xs hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-colors flex items-center gap-1.5"
                 >
                   <Share2 className="w-3.5 h-3.5" /> WhatsApp Receipt
                 </button>
@@ -815,7 +836,7 @@ export default function SalesPage() {
               {selectedSale.status !== "VOIDED" && (
                 <button
                   onClick={() => setVoidingSale(selectedSale)}
-                  className="px-3.5 py-2 rounded-xl bg-rose-50 text-rose-700 font-bold text-xs hover:bg-rose-100 transition-colors flex items-center gap-1.5"
+                  className="px-3.5 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 font-bold text-xs hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors flex items-center gap-1.5"
                 >
                   <RotateCcw className="w-3.5 h-3.5" /> Void / Return
                 </button>
@@ -827,17 +848,17 @@ export default function SalesPage() {
 
       {/* Void Sale Confirmation Modal */}
       {voidingSale && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-100 max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in duration-200">
-            <div className="flex items-center gap-3 text-rose-600">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in duration-200">
+            <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
               <AlertTriangle className="w-6 h-6" />
-              <h3 className="font-extrabold text-base text-slate-900">Void / Return Sale</h3>
+              <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100">Void / Return Sale</h3>
             </div>
-            <p className="text-xs text-slate-500">
-              Voiding invoice <strong className="text-slate-900">#{voidingSale.id.slice(-6)}</strong> will restore product stock back to original batches and log a RETURN inventory transaction.
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Voiding invoice <strong className="text-slate-900 dark:text-slate-100">#{voidingSale.id.slice(-6)}</strong> will restore product stock back to original batches and log a RETURN inventory transaction.
             </p>
 
-            <form onSubmit={handleVoidSale} className="space-y-4 text-xs font-bold text-slate-700">
+            <form onSubmit={handleVoidSale} className="space-y-4 text-xs font-bold text-slate-700 dark:text-slate-300">
               <div>
                 <label className="block mb-1">Reason for Return / Void</label>
                 <input
@@ -846,7 +867,7 @@ export default function SalesPage() {
                   placeholder="e.g. Customer brought back item, wrong order"
                   value={voidReason}
                   onChange={(e) => setVoidReason(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                  className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-500"
                 />
               </div>
 
@@ -854,7 +875,7 @@ export default function SalesPage() {
                 <button
                   type="button"
                   onClick={() => setVoidingSale(null)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold hover:bg-slate-100"
+                  className="flex-1 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-100 dark:hover:bg-slate-800"
                 >
                   Cancel
                 </button>
@@ -873,37 +894,37 @@ export default function SalesPage() {
 
       {/* Rapid Sale Entry Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-100 max-w-2xl w-full p-6 shadow-2xl space-y-5 animate-in fade-in duration-200 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 z-50 bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 max-w-2xl w-full p-6 shadow-2xl space-y-5 animate-in fade-in duration-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
-                <h3 className="font-bold text-base text-slate-900">Rapid Sale Entry</h3>
-                <p className="text-xs text-slate-500">Record customer purchase & automatic FIFO stock allocation</p>
+                <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Rapid Sale Entry</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Record customer purchase & automatic FIFO stock allocation</p>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+                className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {scanNotice && (
-              <div className="bg-sky-50 border border-sky-200 p-3 rounded-xl text-sky-800 text-xs flex items-center gap-2">
-                <ScanLine className="w-4 h-4 flex-shrink-0 text-sky-600" />
+              <div className="bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 p-3 rounded-xl text-sky-800 dark:text-sky-300 text-xs flex items-center gap-2">
+                <ScanLine className="w-4 h-4 flex-shrink-0 text-sky-600 dark:text-sky-400" />
                 <span>{scanNotice}</span>
               </div>
             )}
 
             {formError && (
-              <div className="bg-rose-50 border border-rose-200 p-3 rounded-xl text-rose-700 text-xs flex items-center gap-2">
+              <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 flex-shrink-0" />
                 <span>{formError}</span>
               </div>
             )}
 
             {formSuccess && (
-              <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-emerald-700 text-xs flex items-center gap-2">
+              <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
                 <span>Sale processed successfully!</span>
               </div>
@@ -912,14 +933,14 @@ export default function SalesPage() {
             <form onSubmit={handleCreateSale} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Customer {isPartialCredit && <span className="text-rose-600 font-bold">* Required for Credit</span>}
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Customer {isPartialCredit && <span className="text-rose-600 dark:text-rose-400 font-bold">* Required for Credit</span>}
                   </label>
                   <select
                     value={customerId}
                     onChange={(e) => setCustomerId(e.target.value)}
-                    className={`w-full px-3.5 py-2 border rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600 ${
-                      isPartialCredit && !customerId ? "bg-rose-50 border-rose-300" : "bg-slate-50 border-slate-200"
+                    className={`w-full px-3.5 py-2 border rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 ${
+                      isPartialCredit && !customerId ? "bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800" : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
                     }`}
                   >
                     <option value="">Walk-in Client (Guest)</option>
@@ -932,11 +953,11 @@ export default function SalesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Payment Method</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Payment Method</label>
                   <select
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   >
                     <option value="CASH">Cash</option>
                     <option value="MOBILE_MONEY">Mobile Money (MoMo)</option>
@@ -949,13 +970,13 @@ export default function SalesPage() {
 
               {/* Payment Type Selector */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Payment Type</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Payment Type</label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => { setIsPartialCredit(false); setAmountPaid(""); }}
                     className={`py-2 px-3 rounded-full text-xs font-bold transition-all ${
-                      !isPartialCredit ? "rounded-full bg-indigo-600 text-white shadow-md shadow-indigo-500/20" : "rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      !isPartialCredit ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                     }`}
                   >
                     Full Payment (Paid)
@@ -964,7 +985,7 @@ export default function SalesPage() {
                     type="button"
                     onClick={() => { setIsPartialCredit(true); setAmountPaid(""); }}
                     className={`py-2 px-3 rounded-full text-xs font-bold transition-all ${
-                      isPartialCredit ? "rounded-full bg-amber-500 text-slate-900 shadow-md" : "rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      isPartialCredit ? "bg-amber-500 text-slate-900 shadow-md" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                     }`}
                   >
                     Partial / Credit Sale 💳
@@ -974,10 +995,10 @@ export default function SalesPage() {
 
               {/* Partial Credit Input Box */}
               {isPartialCredit && (
-                <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-2xl space-y-3 animate-in fade-in duration-150">
+                <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-3.5 rounded-2xl space-y-3 animate-in fade-in duration-150">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-amber-900 mb-1">Amount Paid Now (GH₵)</label>
+                      <label className="block text-xs font-bold text-amber-900 dark:text-amber-300 mb-1">Amount Paid Now (GH₵)</label>
                       <input
                         type="number"
                         step="0.01"
@@ -986,18 +1007,18 @@ export default function SalesPage() {
                         placeholder="0.00"
                         value={amountPaid}
                         onChange={(e) => setAmountPaid(e.target.value)}
-                        className="w-full px-3.5 py-2 bg-white border border-amber-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        className="w-full px-3.5 py-2 bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-amber-900 mb-1">Remaining Balance Due</label>
-                      <div className="px-3.5 py-2 bg-white border border-amber-300 rounded-xl text-xs font-black text-rose-600 flex items-center h-[34px]">
+                      <label className="block text-xs font-bold text-amber-900 dark:text-amber-300 mb-1">Remaining Balance Due</label>
+                      <div className="px-3.5 py-2 bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 rounded-xl text-xs font-black text-rose-600 dark:text-rose-400 flex items-center h-[34px]">
                         {formatCurrency(Math.max(0, totalAmountDue - (parseFloat(amountPaid) || 0)))}
                       </div>
                     </div>
                   </div>
                   {!customerId && (
-                    <p className="text-[11px] font-bold text-rose-700 flex items-center gap-1">
+                    <p className="text-[11px] font-bold text-rose-700 dark:text-rose-400 flex items-center gap-1">
                       <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" /> Select a Customer above to track this debt balance.
                     </p>
                   )}
@@ -1006,13 +1027,12 @@ export default function SalesPage() {
 
               {/* Items List */}
               <div className="space-y-3 pt-2">
-
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-900">Sale Products *</label>
+                  <label className="text-xs font-bold text-slate-900 dark:text-slate-100">Sale Products *</label>
                   <button
                     type="button"
                     onClick={handleAddItemRow}
-                    className="text-xs text-indigo-600 font-bold hover:underline flex items-center gap-1"
+                    className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline flex items-center gap-1"
                   >
                     <Plus className="w-3.5 h-3.5" /> Add Product Item
                   </button>
@@ -1025,13 +1045,13 @@ export default function SalesPage() {
                     return (
                       <div
                         key={idx}
-                        className="p-3 bg-slate-50 rounded-xl border border-slate-200 grid grid-cols-12 gap-2 items-center"
+                        className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 grid grid-cols-12 gap-2 items-center"
                       >
                         <div className="col-span-5">
                           <select
                             value={item.productId}
                             onChange={(e) => handleItemChange(idx, "productId", e.target.value)}
-                            className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-600"
+                            className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-600"
                           >
                             <option value="">-- Select Product --</option>
                             {products.map((p) => (
@@ -1050,7 +1070,7 @@ export default function SalesPage() {
                             placeholder="Qty"
                             value={item.quantity}
                             onChange={(e) => handleItemChange(idx, "quantity", e.target.value)}
-                            className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-600"
+                            className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-600"
                           />
                         </div>
 
@@ -1061,7 +1081,7 @@ export default function SalesPage() {
                             placeholder="Unit Price"
                             value={item.unitPrice}
                             onChange={(e) => handleItemChange(idx, "unitPrice", e.target.value)}
-                            className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-600"
+                            className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-600"
                           />
                         </div>
 
@@ -1070,7 +1090,7 @@ export default function SalesPage() {
                             type="button"
                             disabled={items.length <= 1}
                             onClick={() => handleRemoveItemRow(idx)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 disabled:opacity-30"
+                            className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 disabled:opacity-30"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -1082,25 +1102,25 @@ export default function SalesPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Discount Amount (GH₵)</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Discount Amount (GH₵)</label>
                 <input
                   type="number"
                   step="0.01"
                   placeholder="0.00"
                   value={discount}
                   onChange={(e) => setDiscount(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                 />
               </div>
 
               {/* Live Totals Box */}
-              <div className="p-4 bg-slate-900 text-white rounded-2xl flex items-center justify-between text-xs">
+              <div className="p-4 bg-slate-900 dark:bg-slate-800/90 text-white border border-slate-800 rounded-2xl flex items-center justify-between text-xs">
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Subtotal</span>
+                  <span className="text-slate-400 dark:text-slate-400 block text-[10px]">Subtotal</span>
                   <span className="font-bold text-sm">{formatCurrency(subtotal)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Discount</span>
+                  <span className="text-slate-400 dark:text-slate-400 block text-[10px]">Discount</span>
                   <span className="font-bold text-rose-400">-{formatCurrency(discountAmount)}</span>
                 </div>
                 <div className="text-right">
@@ -1110,21 +1130,21 @@ export default function SalesPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Notes</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Notes</label>
                 <textarea
                   rows={2}
                   placeholder="Optional sale notes..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
                   Cancel
                 </button>
@@ -1162,37 +1182,37 @@ export default function SalesPage() {
 
       {/* Record Debt Payment Modal for specific sale */}
       {paymentSale && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-100 max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 z-50 bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
-                <h3 className="font-bold text-base text-slate-900">Add Payment to Invoice</h3>
-                <p className="text-xs text-slate-500">Invoice #{paymentSale.id.slice(-6)} • {paymentSale.customer?.name || "Customer"}</p>
+                <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Add Payment to Invoice</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Invoice #{paymentSale.id.slice(-6)} • {paymentSale.customer?.name || "Customer"}</p>
               </div>
               <button
                 onClick={() => setPaymentSale(null)}
-                className="p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+                className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Summary Box */}
-            <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-2xl space-y-1.5 text-xs font-sans">
-              <div className="flex justify-between text-slate-600">
+            <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 p-3.5 rounded-2xl space-y-1.5 text-xs font-sans">
+              <div className="flex justify-between text-slate-600 dark:text-slate-400">
                 <span>Total Invoice Amount:</span>
-                <span className="font-bold text-slate-900">{formatCurrency(paymentSale.totalAmount)}</span>
+                <span className="font-bold text-slate-900 dark:text-slate-100">{formatCurrency(paymentSale.totalAmount)}</span>
               </div>
               {(() => {
                 const amtPaid = (paymentSale as any).amountPaid !== undefined && (paymentSale as any).amountPaid !== null ? Number((paymentSale as any).amountPaid) : Number(paymentSale.totalAmount);
                 const balDue = (paymentSale as any).balanceDue !== undefined && (paymentSale as any).balanceDue !== null ? Number((paymentSale as any).balanceDue) : (paymentSale.status === "PARTIAL" ? Number(paymentSale.totalAmount) - amtPaid : 0);
                 return (
                   <>
-                    <div className="flex justify-between text-slate-600">
+                    <div className="flex justify-between text-slate-600 dark:text-slate-400">
                       <span>Amount Paid So Far:</span>
-                      <span className="font-bold text-slate-800">{formatCurrency(amtPaid)}</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">{formatCurrency(amtPaid)}</span>
                     </div>
-                    <div className="flex justify-between text-rose-600 font-bold border-t border-slate-200 pt-1">
+                    <div className="flex justify-between text-rose-600 dark:text-rose-400 font-bold border-t border-slate-200 dark:border-slate-700 pt-1">
                       <span>Remaining Balance Due:</span>
                       <span>{formatCurrency(balDue)}</span>
                     </div>
@@ -1202,14 +1222,14 @@ export default function SalesPage() {
             </div>
 
             {paymentError && (
-              <div className="bg-rose-50 border border-rose-200 p-3 rounded-xl text-rose-700 text-xs flex items-center gap-2">
+              <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 flex-shrink-0" />
                 <span>{paymentError}</span>
               </div>
             )}
 
             {paymentSuccess && (
-              <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-emerald-700 text-xs flex items-center gap-2">
+              <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
                 <span>Payment recorded! Invoice balance updated.</span>
               </div>
@@ -1217,7 +1237,7 @@ export default function SalesPage() {
 
             <form onSubmit={handleRecordPayment} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Payment Amount (GH₵) *</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Payment Amount (GH₵) *</label>
                 <input
                   type="number"
                   step="0.01"
@@ -1226,16 +1246,16 @@ export default function SalesPage() {
                   placeholder="0.00"
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Payment Method</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Payment Method</label>
                 <select
                   value={paymentMethodSelect}
                   onChange={(e) => setPaymentMethodSelect(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                 >
                   <option value="CASH">Cash</option>
                   <option value="MOBILE_MONEY">Mobile Money (MoMo)</option>
@@ -1246,21 +1266,21 @@ export default function SalesPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Notes (Optional)</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Notes (Optional)</label>
                 <input
                   type="text"
                   placeholder="e.g. Paid part balance via MoMo"
                   value={paymentNotes}
                   onChange={(e) => setPaymentNotes(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setPaymentSale(null)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
                   Cancel
                 </button>

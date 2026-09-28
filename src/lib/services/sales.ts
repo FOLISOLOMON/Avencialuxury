@@ -2,6 +2,9 @@ import { prisma, ensureDefaultBusiness } from "@/lib/db/prisma";
 import { allocateStockFIFO, AvailableBatchStock } from "@/lib/inventory/fifo";
 import { syncBatchStatus } from "./batches";
 import { PaymentMethod, Prisma } from "@prisma/client";
+import { createNotification, evaluateInventoryTransitions } from "./notifications";
+import { automationEngine } from "@/lib/automation/engine";
+import { BusinessEventType } from "@/lib/automation/events";
 
 export interface SaleProductInput {
   productId: string;
@@ -28,7 +31,7 @@ export async function createSale(input: CreateSaleInput) {
   }
 
   // Interactive transaction with extended 20-second timeout for cloud database resilience
-  return await prisma.$transaction(
+  const createdSale = await prisma.$transaction(
     async (tx) => {
       const saleItemAllocations: Array<{
         productId: string;
@@ -244,6 +247,100 @@ export async function createSale(input: CreateSaleInput) {
     },
     { maxWait: 10000, timeout: 20000 }
   );
+
+  // 5. Trigger Notifications & Inventory Transition Checks & Automation Events
+  try {
+    const isPartial = createdSale.paymentStatus === "PARTIAL";
+    const isUnpaid = createdSale.paymentStatus === "UNPAID";
+
+    let eventType = BusinessEventType.SALE_COMPLETED;
+    if (isPartial) {
+      eventType = BusinessEventType.SALE_PARTIAL_PAYMENT;
+      await createNotification({
+        businessId: input.businessId,
+        type: "PARTIAL_PAYMENT",
+        category: "SALES",
+        severity: "WARNING",
+        title: "Partial Payment Received",
+        message: `Sale #${createdSale.id.slice(-6)} received GH₵${Number(createdSale.amountPaid).toFixed(2)}. GH₵${Number(createdSale.balanceDue).toFixed(2)} remains outstanding.`,
+        actionLabel: "View Sales",
+        actionUrl: "/sales",
+        entityType: "SALE",
+        entityId: createdSale.id,
+        dedupeKey: `SALE:${createdSale.id}`,
+      });
+    } else if (isUnpaid) {
+      eventType = BusinessEventType.SALE_UNPAID;
+      await createNotification({
+        businessId: input.businessId,
+        type: "UNPAID_SALE",
+        category: "SALES",
+        severity: "WARNING",
+        title: "Unpaid Sale Recorded",
+        message: `Sale #${createdSale.id.slice(-6)} has an outstanding balance of GH₵${Number(createdSale.totalAmount).toFixed(2)}.`,
+        actionLabel: "View Sales",
+        actionUrl: "/sales",
+        entityType: "SALE",
+        entityId: createdSale.id,
+        dedupeKey: `SALE:${createdSale.id}`,
+      });
+    } else {
+      await createNotification({
+        businessId: input.businessId,
+        type: "SALE_COMPLETED",
+        category: "SALES",
+        severity: "SUCCESS",
+        title: "Sale Completed",
+        message: `Sale #${createdSale.id.slice(-6)} for GH₵${Number(createdSale.totalAmount).toFixed(2)} was completed successfully.`,
+        actionLabel: "View Sales",
+        actionUrl: "/sales",
+        entityType: "SALE",
+        entityId: createdSale.id,
+        dedupeKey: `SALE:${createdSale.id}`,
+      });
+    }
+
+    automationEngine.emit({
+      eventType,
+      businessId: input.businessId,
+      entityType: "SALE",
+      entityId: createdSale.id,
+      dedupeKey: `SALE:${createdSale.id}:${eventType}`,
+      metadata: {
+        saleId: createdSale.id,
+        totalAmount: Number(createdSale.totalAmount),
+        amountPaid: Number(createdSale.amountPaid),
+        balanceDue: Number(createdSale.balanceDue),
+        paymentStatus: createdSale.paymentStatus,
+        customerId: createdSale.customerId,
+      },
+    });
+
+    if (createdSale.customerId && Number(createdSale.balanceDue) > 0) {
+      automationEngine.emit({
+        eventType: BusinessEventType.CUSTOMER_DEBT_CREATED,
+        businessId: input.businessId,
+        entityType: "CUSTOMER",
+        entityId: createdSale.customerId,
+        dedupeKey: `CUSTOMER_DEBT_CREATED:${createdSale.id}`,
+        metadata: {
+          saleId: createdSale.id,
+          customerId: createdSale.customerId,
+          balanceDue: Number(createdSale.balanceDue),
+          totalAmount: Number(createdSale.totalAmount),
+        },
+      });
+    }
+
+    const soldProductIds = Array.from(new Set(input.items.map((i) => i.productId)));
+    await Promise.all(
+      soldProductIds.map((pId) => evaluateInventoryTransitions(pId, input.businessId))
+    );
+  } catch (err) {
+    console.error("Failed to trigger sale notification/automation event:", err);
+  }
+
+  return createdSale;
 }
 
 export async function voidSale(saleId: string, reason?: string) {
@@ -261,7 +358,7 @@ export async function voidSale(saleId: string, reason?: string) {
     throw new Error("This sale is already voided");
   }
 
-  return await prisma.$transaction(
+  const updatedSale = await prisma.$transaction(
     async (tx) => {
       // 1. Mark Sale as VOIDED
       const updatedSale = await tx.sale.update({
@@ -318,6 +415,25 @@ export async function voidSale(saleId: string, reason?: string) {
     },
     { maxWait: 10000, timeout: 20000 }
   );
+
+  try {
+    automationEngine.emit({
+      eventType: BusinessEventType.SALE_VOIDED,
+      businessId: updatedSale.businessId,
+      entityType: "SALE",
+      entityId: updatedSale.id,
+      dedupeKey: `SALE_VOIDED:${updatedSale.id}`,
+      metadata: {
+        saleId: updatedSale.id,
+        reason,
+        totalAmount: Number(updatedSale.totalAmount),
+      },
+    });
+  } catch (err) {
+    console.error("Failed to emit sale voided automation event:", err);
+  }
+
+  return updatedSale;
 }
 
 export async function getSales(businessId: string) {

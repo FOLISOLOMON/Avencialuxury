@@ -1,5 +1,8 @@
 import { prisma, ensureDefaultBusiness } from "@/lib/db/prisma";
 import { BatchStatus, Prisma } from "@prisma/client";
+import { createNotification } from "./notifications";
+import { automationEngine } from "@/lib/automation/engine";
+import { BusinessEventType } from "@/lib/automation/events";
 
 export interface BatchItemInput {
   productId: string;
@@ -50,8 +53,8 @@ export async function createBatch(input: CreateBatchInput) {
   const additionalCosts = Math.round((input.additionalCosts || 0) * 100) / 100;
   const totalInvestment = Math.round((totalPurchaseCost + additionalCosts) * 100) / 100;
 
-  return await prisma.$transaction(async (tx) => {
-    const batch = await tx.batch.create({
+  const batch = await prisma.$transaction(async (tx) => {
+    const createdBatch = await tx.batch.create({
       data: {
         businessId: input.businessId,
         supplierId: input.supplierId || null,
@@ -80,17 +83,48 @@ export async function createBatch(input: CreateBatchInput) {
         data: {
           businessId: input.businessId,
           productId: item.productId,
-          batchId: batch.id,
+          batchId: createdBatch.id,
           type: "PURCHASE",
           quantity: item.quantityPurchased,
-          referenceId: batch.id,
-          note: `Batch ${batch.reference} purchase`,
+          referenceId: createdBatch.id,
+          note: `Batch ${createdBatch.reference} purchase`,
         },
       });
     }
 
-    return batch;
+    return createdBatch;
   });
+
+  try {
+    await createNotification({
+      businessId: input.businessId,
+      type: "BATCH_CREATED",
+      category: "BATCHES",
+      severity: "INFO",
+      title: "New Batch Ingested",
+      message: `Batch #${batch.reference} was created with total investment of GH₵${Number(batch.totalInvestment).toFixed(2)}.`,
+      actionLabel: "View Batches",
+      actionUrl: `/batches/${batch.id}`,
+      entityType: "BATCH",
+      entityId: batch.id,
+    });
+
+    automationEngine.emit({
+      eventType: BusinessEventType.BATCH_CREATED,
+      businessId: input.businessId,
+      entityType: "BATCH",
+      entityId: batch.id,
+      dedupeKey: `BATCH_CREATED:${batch.id}`,
+      metadata: {
+        reference: batch.reference,
+        totalInvestment: Number(batch.totalInvestment),
+      },
+    });
+  } catch (err) {
+    console.error("Failed to trigger batch created notification/event:", err);
+  }
+
+  return batch;
 }
 
 export async function getActiveBatches(businessId: string) {
@@ -157,10 +191,41 @@ export async function toggleBatchStatus(batchId: string, newStatus: BatchStatus)
 }
 
 export async function closeBatch(batchId: string) {
-  return await prisma.batch.update({
+  const updated = await prisma.batch.update({
     where: { id: batchId },
     data: { status: "COMPLETED" },
   });
+
+  try {
+    await createNotification({
+      businessId: updated.businessId,
+      type: "BATCH_COMPLETED",
+      category: "BATCHES",
+      severity: "SUCCESS",
+      title: "Batch Completed",
+      message: `Batch #${updated.reference} has been marked as completed.`,
+      actionLabel: "View Batches",
+      actionUrl: `/batches/${updated.id}`,
+      entityType: "BATCH",
+      entityId: updated.id,
+      dedupeKey: `BATCH_COMPLETED:${updated.id}`,
+    });
+
+    automationEngine.emit({
+      eventType: BusinessEventType.BATCH_COMPLETED,
+      businessId: updated.businessId,
+      entityType: "BATCH",
+      entityId: updated.id,
+      dedupeKey: `BATCH_COMPLETED:${updated.id}`,
+      metadata: {
+        reference: updated.reference,
+      },
+    });
+  } catch (err) {
+    console.error("Failed to trigger batch completed notification/event:", err);
+  }
+
+  return updated;
 }
 
 /**
@@ -179,18 +244,72 @@ export async function syncBatchStatus(
 
   if (!batch || batch.status === "ARCHIVED") return batch;
 
+  const totalPurchased = batch.batchItems.reduce((sum, item) => sum + item.quantityPurchased, 0);
   const totalRemaining = batch.batchItems.reduce((sum, item) => sum + item.quantityRemaining, 0);
 
   if (totalRemaining === 0 && batch.status === "ACTIVE") {
-    return await tx.batch.update({
+    const updated = await tx.batch.update({
       where: { id: batchId },
       data: { status: "COMPLETED" },
     });
-  } else if (totalRemaining > 0 && batch.status === "COMPLETED") {
-    return await tx.batch.update({
-      where: { id: batchId },
-      data: { status: "ACTIVE" },
-    });
+
+    try {
+      await createNotification({
+        businessId: batch.businessId,
+        type: "BATCH_COMPLETED",
+        category: "BATCHES",
+        severity: "SUCCESS",
+        title: "Batch Sold Out",
+        message: `Batch #${batch.reference} is now 100% sold out and marked as completed.`,
+        actionLabel: "View Batches",
+        actionUrl: `/batches/${batch.id}`,
+        entityType: "BATCH",
+        entityId: batch.id,
+        dedupeKey: `BATCH_COMPLETED:${batch.id}`,
+      });
+
+      automationEngine.emit({
+        eventType: BusinessEventType.BATCH_COMPLETED,
+        businessId: batch.businessId,
+        entityType: "BATCH",
+        entityId: batch.id,
+        dedupeKey: `BATCH_COMPLETED:${batch.id}`,
+        metadata: {
+          reference: batch.reference,
+        },
+      });
+    } catch (err) {
+      console.error("Failed to trigger batch completed notification/event:", err);
+    }
+
+    return updated;
+  } else {
+    if (totalRemaining > 0 && totalPurchased > 0 && (totalPurchased - totalRemaining) / totalPurchased >= 0.8) {
+      try {
+        automationEngine.emit({
+          eventType: BusinessEventType.BATCH_NEAR_COMPLETION,
+          businessId: batch.businessId,
+          entityType: "BATCH",
+          entityId: batch.id,
+          dedupeKey: `BATCH_NEAR_COMPLETED:${batch.id}`,
+          metadata: {
+            reference: batch.reference,
+            totalPurchased,
+            totalRemaining,
+            sellThroughRate: Math.round(((totalPurchased - totalRemaining) / totalPurchased) * 100),
+          },
+        });
+      } catch (err) {
+        console.error("Failed to emit batch near completion event:", err);
+      }
+    }
+
+    if (totalRemaining > 0 && batch.status === "COMPLETED") {
+      return await tx.batch.update({
+        where: { id: batchId },
+        data: { status: "ACTIVE" },
+      });
+    }
   }
 
   return batch;

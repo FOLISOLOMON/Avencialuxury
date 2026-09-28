@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import { PageHeader } from "@/components/ui/PageHeader";
 import {
   Building2,
   User,
@@ -214,32 +215,31 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="p-12 text-center space-y-3">
-        <Loader2 className="w-8 h-8 text-slate-400 animate-spin mx-auto" />
-        <p className="text-xs text-slate-500">Loading business profile...</p>
+        <Loader2 className="w-8 h-8 text-slate-400 dark:text-slate-500 animate-spin mx-auto" />
+        <p className="text-xs text-slate-500 dark:text-slate-400">Loading business profile...</p>
       </div>
     );
   }
 
   if (error || !profile) {
     return (
-      <div className="bg-rose-50 border border-rose-200 p-4 rounded-2xl text-rose-700 text-xs flex items-center gap-3">
+      <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-4 rounded-2xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-3">
         <AlertTriangle className="w-5 h-5 flex-shrink-0" />
         <span>{error || "Failed to load profile"}</span>
       </div>
     );
   }
 
-  const initials = profile.name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .substring(0, 2)
-    .toUpperCase();
-
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
+      {/* Standardized Page Header */}
+      <PageHeader
+        title="Profile"
+        subtitle="User info & business details"
+      />
+
       {/* Profile Header Banner */}
-      <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl flex flex-col sm:flex-row items-center sm:items-start gap-5">
+      <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-800 flex flex-col sm:flex-row items-center sm:items-start gap-5">
         <div className="w-16 h-16 rounded-2xl bg-slate-800 p-2 flex items-center justify-center shadow-lg border border-slate-700/60 flex-shrink-0 overflow-hidden">
           <Image
             src="/logo/Avencia gold logo.png"
@@ -252,7 +252,7 @@ export default function ProfilePage() {
         <div className="flex-1 text-center sm:text-left space-y-1">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
             <h2 className="text-2xl font-black tracking-tight">{profile.name}</h2>
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 w-fit mx-auto sm:mx-0">
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 w-fit mx-auto sm:mx-0">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Active Business
             </span>
           </div>
@@ -272,7 +272,7 @@ export default function ProfilePage() {
           className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-2 ${
             activeTab === "BUSINESS"
               ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
-              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
           }`}
         >
           <Building2 className={`w-4 h-4 ${activeTab === "BUSINESS" ? "text-amber-300" : "text-slate-400"}`} /> Business Info
@@ -283,7 +283,7 @@ export default function ProfilePage() {
           className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-2 ${
             activeTab === "OWNER"
               ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
-              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
           }`}
         >
           <User className={`w-4 h-4 ${activeTab === "OWNER" ? "text-indigo-200" : "text-slate-400"}`} /> Account Owner
@@ -294,7 +294,7 @@ export default function ProfilePage() {
           className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-2 ${
             activeTab === "SECURITY"
               ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
-              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
           }`}
         >
           <ShieldCheck className={`w-4 h-4 ${activeTab === "SECURITY" ? "text-emerald-300" : "text-slate-400"}`} /> PIN Security
@@ -305,7 +305,7 @@ export default function ProfilePage() {
           className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-2 ${
             activeTab === "SYSTEM"
               ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
-              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
           }`}
         >
           <Boxes className={`w-4 h-4 ${activeTab === "SYSTEM" ? "text-rose-300" : "text-slate-400"}`} /> System Metrics
@@ -314,23 +314,23 @@ export default function ProfilePage() {
 
       {/* TAB 1: Business Info Form */}
       {activeTab === "BUSINESS" && (
-        <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 p-6 bg-white space-y-5">
-          <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-6 bg-white dark:bg-slate-900 space-y-5">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-3 flex items-center justify-between">
             <div>
-              <h3 className="font-bold text-base text-slate-900">Business Identity Details</h3>
-              <p className="text-xs text-slate-500">Update store name, contact numbers & physical shop address</p>
+              <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Business Identity Details</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Update store name, contact numbers & physical shop address</p>
             </div>
           </div>
 
           {busSuccess && (
-            <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl text-emerald-700 text-xs flex items-center gap-2">
+            <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3.5 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
               <span>Business profile updated successfully!</span>
             </div>
           )}
 
           {busError && (
-            <div className="bg-rose-50 border border-rose-200 p-3.5 rounded-xl text-rose-700 text-xs flex items-center gap-2">
+            <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3.5 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 flex-shrink-0" />
               <span>{busError}</span>
             </div>
@@ -339,68 +339,68 @@ export default function ProfilePage() {
           <form onSubmit={handleSaveBusiness} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="col-span-1 sm:col-span-2">
-                <label className="block text-xs font-bold text-slate-700 mb-1">Business Name *</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Business Name *</label>
                 <div className="relative">
-                  <Building2 className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Building2 className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                   <input
                     type="text"
                     required
                     placeholder="e.g. Avencia Perfumes"
                     value={busName}
                     onChange={(e) => setBusName(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Business Phone / WhatsApp</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Business Phone / WhatsApp</label>
                 <div className="relative">
-                  <Phone className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Phone className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                   <input
                     type="tel"
                     placeholder="e.g. +233 24 000 0000"
                     value={busPhone}
                     onChange={(e) => setBusPhone(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Physical Location / Address</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Physical Location / Address</label>
                 <div className="relative">
-                  <MapPin className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <MapPin className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                   <input
                     type="text"
                     placeholder="e.g. Accra, Ghana"
                     value={busAddress}
                     onChange={(e) => setBusAddress(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500"
                   />
                 </div>
               </div>
 
               <div className="col-span-1 sm:col-span-2">
-                <label className="block text-xs font-bold text-slate-700 mb-1">Business Description / Tagline</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Business Description / Tagline</label>
                 <div className="relative">
-                  <FileText className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+                  <FileText className="w-4 h-4 absolute left-3.5 top-3 text-slate-400 dark:text-slate-500" />
                   <textarea
                     rows={3}
                     placeholder="e.g. Premium luxury fragrances, designer colognes & oil perfumes"
                     value={busDescription}
                     onChange={(e) => setBusDescription(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-end pt-3 border-t border-slate-100">
+            <div className="flex justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="submit"
                 disabled={busSubmitting}
-                className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25 transition-all text-xs font-bold disabled:opacity-50 flex items-center gap-2"
+                className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25 transition-all text-xs font-bold disabled:opacity-50 flex items-center gap-2 active:scale-95"
               >
                 {busSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : "Save Business Profile ✓"}
               </button>
@@ -411,21 +411,21 @@ export default function ProfilePage() {
 
       {/* TAB 2: Owner Account Form */}
       {activeTab === "OWNER" && (
-        <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 p-6 bg-white space-y-5">
-          <div className="border-b border-slate-100 pb-3">
-            <h3 className="font-bold text-base text-slate-900">Account Owner Information</h3>
-            <p className="text-xs text-slate-500">Manage owner credentials & primary email address</p>
+        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-6 bg-white dark:bg-slate-900 space-y-5">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+            <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Account Owner Information</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Manage owner credentials & primary email address</p>
           </div>
 
           {ownerSuccess && (
-            <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl text-emerald-700 text-xs flex items-center gap-2">
+            <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3.5 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
               <span>Owner account details saved!</span>
             </div>
           )}
 
           {ownerError && (
-            <div className="bg-rose-50 border border-rose-200 p-3.5 rounded-xl text-rose-700 text-xs flex items-center gap-2">
+            <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3.5 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 flex-shrink-0" />
               <span>{ownerError}</span>
             </div>
@@ -434,41 +434,41 @@ export default function ProfilePage() {
           <form onSubmit={handleSaveOwner} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Owner Full Name *</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Owner Full Name *</label>
                 <div className="relative">
-                  <User className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <User className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                   <input
                     type="text"
                     required
                     placeholder="e.g. Business Owner"
                     value={ownerName}
                     onChange={(e) => setOwnerName(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Owner Email Address *</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Owner Email Address *</label>
                 <div className="relative">
-                  <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                   <input
                     type="email"
                     required
                     placeholder="e.g. owner@avencia.com"
                     value={ownerEmail}
                     onChange={(e) => setOwnerEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-end pt-3 border-t border-slate-100">
+            <div className="flex justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="submit"
                 disabled={ownerSubmitting}
-                className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25 transition-all text-xs font-bold disabled:opacity-50 flex items-center gap-2"
+                className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25 transition-all text-xs font-bold disabled:opacity-50 flex items-center gap-2 active:scale-95"
               >
                 {ownerSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : "Update Owner Account ✓"}
               </button>
@@ -479,24 +479,24 @@ export default function ProfilePage() {
 
       {/* TAB 3: Quick PIN Security */}
       {activeTab === "SECURITY" && (
-        <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 p-6 bg-white space-y-5">
-          <div className="border-b border-slate-100 pb-3 flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-emerald-600" />
+        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-6 bg-white dark:bg-slate-900 space-y-5">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-3 flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
             <div>
-              <h3 className="font-bold text-base text-slate-900">Security & 4-Digit Quick PIN</h3>
-              <p className="text-xs text-slate-500">Require 4-digit PIN authentication upon opening the app</p>
+              <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Security & 4-Digit Quick PIN</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Require 4-digit PIN authentication upon opening the app</p>
             </div>
           </div>
 
           {pinSuccess && (
-            <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl text-emerald-700 text-xs flex items-center gap-2">
+            <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3.5 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
               <span>{storedPin ? "PIN updated! PIN prompt active." : "PIN removed. App will open without authentication."}</span>
             </div>
           )}
 
           {pinError && (
-            <div className="bg-rose-50 border border-rose-200 p-3.5 rounded-xl text-rose-700 text-xs flex items-center gap-2">
+            <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3.5 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 flex-shrink-0" />
               <span>{pinError}</span>
             </div>
@@ -506,27 +506,27 @@ export default function ProfilePage() {
             <div className="space-y-4 max-w-md mx-auto">
               {storedPin ? (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
+                  <div className="flex items-center justify-between p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-300 flex items-center justify-center">
                         <Lock className="w-5 h-5" />
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-emerald-900">PIN Protection Active</p>
-                        <p className="text-[11px] text-emerald-700">4-digit PIN ●●●● is active</p>
+                        <p className="text-xs font-bold text-emerald-900 dark:text-emerald-200">PIN Protection Active</p>
+                        <p className="text-[11px] text-emerald-700 dark:text-emerald-400">4-digit PIN ●●●● is active</p>
                       </div>
                     </div>
                   </div>
                   <div className="flex gap-3">
                     <button
                       onClick={() => { setNewPin(""); setConfirmPin(""); setPinMode("set"); setPinError(null); }}
-                      className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+                      className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                     >
                       Change PIN
                     </button>
                     <button
                       onClick={handleRemovePin}
-                      className="flex-1 py-2.5 rounded-xl border border-rose-200 text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors"
+                      className="flex-1 py-2.5 rounded-xl border border-rose-200 dark:border-rose-800 text-xs font-bold text-rose-600 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
                     >
                       Remove PIN
                     </button>
@@ -534,13 +534,13 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
-                    <div className="w-10 h-10 rounded-xl bg-slate-200 text-slate-500 flex items-center justify-center">
+                  <div className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl">
+                    <div className="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 flex items-center justify-center">
                       <ShieldCheck className="w-5 h-5" />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-800">No PIN Set</p>
-                      <p className="text-[11px] text-slate-500">App opens without authentication. Set a PIN to secure access.</p>
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">No PIN Set</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">App opens without authentication. Set a PIN to secure access.</p>
                     </div>
                   </div>
                   <button
@@ -556,7 +556,7 @@ export default function ProfilePage() {
 
           {(pinMode === "set" || pinMode === "confirm") && (
             <div className="space-y-4 max-w-xs mx-auto text-center">
-              <p className="text-xs font-bold text-slate-700">
+              <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
                 {pinMode === "set" ? "Enter a 4-digit PIN" : "Confirm your 4-digit PIN"}
               </p>
 
@@ -568,7 +568,9 @@ export default function ProfilePage() {
                     <div
                       key={i}
                       className={`w-12 h-12 rounded-xl border-2 flex items-center justify-center text-xl font-black transition-all ${
-                        i < val.length ? "border-indigo-600 bg-indigo-600 text-white" : "border-slate-200 bg-slate-50 text-slate-300"
+                        i < val.length
+                          ? "border-indigo-600 bg-indigo-600 text-white"
+                          : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-300 dark:text-slate-600"
                       }`}
                     >
                       {i < val.length ? "●" : "○"}
@@ -587,7 +589,7 @@ export default function ProfilePage() {
                       if (pinMode === "set" && newPin.length < 4) setNewPin(newPin + num);
                       if (pinMode === "confirm" && confirmPin.length < 4) setConfirmPin(confirmPin + num);
                     }}
-                    className="w-14 h-14 rounded-xl bg-slate-100 text-slate-900 font-bold text-lg hover:bg-slate-200 active:scale-95 transition-all flex items-center justify-center"
+                    className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold text-lg hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all flex items-center justify-center"
                   >
                     {num}
                   </button>
@@ -595,7 +597,7 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   onClick={() => (pinMode === "set" ? setNewPin("") : setConfirmPin(""))}
-                  className="w-14 h-14 rounded-xl bg-slate-100 text-slate-500 text-xs font-bold hover:bg-slate-200 transition-colors flex items-center justify-center"
+                  className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center justify-center"
                 >
                   CLR
                 </button>
@@ -605,7 +607,7 @@ export default function ProfilePage() {
                     if (pinMode === "set" && newPin.length < 4) setNewPin(newPin + "0");
                     if (pinMode === "confirm" && confirmPin.length < 4) setConfirmPin(confirmPin + "0");
                   }}
-                  className="w-14 h-14 rounded-xl bg-slate-100 text-slate-900 font-bold text-lg hover:bg-slate-200 active:scale-95 transition-all flex items-center justify-center"
+                  className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold text-lg hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all flex items-center justify-center"
                 >
                   0
                 </button>
@@ -615,7 +617,7 @@ export default function ProfilePage() {
                     if (pinMode === "set") setNewPin(newPin.slice(0, -1));
                     if (pinMode === "confirm") setConfirmPin(confirmPin.slice(0, -1));
                   }}
-                  className="w-14 h-14 rounded-xl bg-slate-100 text-slate-500 font-bold hover:bg-slate-200 transition-colors flex items-center justify-center text-lg"
+                  className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center justify-center text-lg"
                 >
                   ⌫
                 </button>
@@ -625,7 +627,7 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   onClick={() => { setPinMode("view"); setNewPin(""); setConfirmPin(""); setPinError(null); }}
-                  className="flex-1 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                  className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
                   Cancel
                 </button>
@@ -657,42 +659,42 @@ export default function ProfilePage() {
 
       {/* TAB 4: System Metrics */}
       {activeTab === "SYSTEM" && (
-        <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 p-6 bg-white space-y-5">
-          <div className="border-b border-slate-100 pb-3">
-            <h3 className="font-bold text-base text-slate-900">Operating System Summary</h3>
-            <p className="text-xs text-slate-500">Live operational counts & configuration parameters</p>
+        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-6 bg-white dark:bg-slate-900 space-y-5">
+          <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+            <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Operating System Summary</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Live operational counts & configuration parameters</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl space-y-1">
-              <div className="flex items-center gap-2 text-slate-500">
+            <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 p-4 rounded-2xl space-y-1">
+              <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
                 <Package className="w-4 h-4 text-amber-500" />
                 <span className="text-xs font-bold">Product Catalog</span>
               </div>
-              <p className="text-2xl font-black text-slate-900">{profile.metrics.productCount}</p>
-              <p className="text-[10px] text-slate-400">Active product items</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{profile.metrics.productCount}</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500">Active product items</p>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl space-y-1">
-              <div className="flex items-center gap-2 text-slate-500">
+            <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 p-4 rounded-2xl space-y-1">
+              <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
                 <Layers className="w-4 h-4 text-emerald-500" />
                 <span className="text-xs font-bold">Active Batches</span>
               </div>
-              <p className="text-2xl font-black text-slate-900">{profile.metrics.activeBatchCount}</p>
-              <p className="text-[10px] text-slate-400">Stock batches in rotation</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{profile.metrics.activeBatchCount}</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500">Stock batches in rotation</p>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl space-y-1">
-              <div className="flex items-center gap-2 text-slate-500">
+            <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 p-4 rounded-2xl space-y-1">
+              <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
                 <Users className="w-4 h-4 text-indigo-500" />
                 <span className="text-xs font-bold">Client Directory</span>
               </div>
-              <p className="text-2xl font-black text-slate-900">{profile.metrics.customerCount}</p>
-              <p className="text-[10px] text-slate-400">Registered customers</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{profile.metrics.customerCount}</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500">Registered customers</p>
             </div>
           </div>
 
-          <div className="p-4 bg-slate-900 text-white rounded-2xl text-xs space-y-2">
+          <div className="p-4 bg-slate-900 border border-slate-800 text-white rounded-2xl text-xs space-y-2">
             <div className="flex justify-between">
               <span className="text-slate-400">Database Currency:</span>
               <span className="font-bold text-amber-400">{profile.currency} (Ghana Cedi)</span>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, use } from "react";
 import { useRouter } from "next/navigation";
 import { formatCurrency, generateProductSku } from "@/lib/utils";
+import { PageHeader } from "@/components/ui/PageHeader";
 import {
   Layers,
   ArrowLeft,
@@ -30,7 +31,6 @@ import {
 import dynamic from "next/dynamic";
 
 const CameraScanner = dynamic(() => import("@/components/scanner/CameraScanner"), { ssr: false });
-
 
 interface Product {
   id: string;
@@ -100,6 +100,34 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
   const [closing, setClosing] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
+  // Add Cost Modal state
+  const [isCostModalOpen, setIsCostModalOpen] = useState(false);
+  const [additionalCostInput, setAdditionalCostInput] = useState("");
+  const [costSubmitting, setCostSubmitting] = useState(false);
+
+  const handleSaveCost = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCostSubmitting(true);
+    try {
+      const res = await fetch(`/api/batches/${batchId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ additionalCosts: parseFloat(additionalCostInput || "0") }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        await fetchBatch();
+        setIsCostModalOpen(false);
+      } else {
+        alert(json.error || "Failed to update cost");
+      }
+    } catch {
+      alert("Server error");
+    } finally {
+      setCostSubmitting(false);
+    }
+  };
+
   // Add Product Panel State
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [step, setStep] = useState<AddProductStep>("scan");
@@ -129,7 +157,6 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
   // Tab: scan barcode vs search by name
   const [inputMode, setInputMode] = useState<"barcode" | "search">("barcode");
 
-
   const fetchBatch = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -149,14 +176,12 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
     fetchBatch();
   }, [fetchBatch]);
 
-  // Focus barcode input when panel opens in barcode mode
   useEffect(() => {
     if (isPanelOpen && step === "scan" && inputMode === "barcode") {
       setTimeout(() => barcodeInputRef.current?.focus(), 150);
     }
   }, [isPanelOpen, step, inputMode]);
 
-  // Debounced product name search
   useEffect(() => {
     if (inputMode !== "search" || searchQuery.trim().length < 2) {
       setSearchResults([]);
@@ -209,13 +234,11 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
       const res = await fetch(`/api/products/barcode?code=${encodeURIComponent(barcode.trim())}`);
       const json = await res.json();
       if (json.success && json.data) {
-        // Product found — go to fill-existing
         const product: Product = json.data;
         setSelectedProduct(product);
         setUnitCost(product.defaultCostPrice?.toString() || "0");
         setStep("fill-existing");
       } else {
-        // Not found — go to fill-new with barcode pre-filled
         setNewProduct({ ...emptyNewProduct, barcode: barcode.trim() });
         setStep("fill-new");
       }
@@ -234,7 +257,6 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
     setStep("fill-existing");
   };
 
-  // Existing product → save item to batch
   const handleSaveExistingItem = async () => {
     if (!selectedProduct) return;
     const qty = parseInt(quantity);
@@ -260,7 +282,6 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
         await fetchBatch();
         setTimeout(() => {
           resetPanel();
-          // Stay in scan step ready for next product
         }, 1500);
       } else {
         setPanelError(json.error || "Failed to add product");
@@ -272,7 +293,6 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
     }
   };
 
-  // New product → create product first, then add to batch
   const handleSaveNewProduct = async () => {
     if (!newProduct.name.trim()) {
       setPanelError("Product name is required.");
@@ -292,7 +312,6 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
     setPanelLoading(true);
     setPanelError(null);
     try {
-      // Step 1: Create the product in catalog
       const prodRes = await fetch("/api/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -316,7 +335,6 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
 
       const createdProduct: Product = prodJson.data;
 
-      // Step 2: Add to batch
       const itemRes = await fetch(`/api/batches/${batchId}/items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -364,14 +382,14 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
+        <Loader2 className="w-8 h-8 text-slate-400 dark:text-slate-500 animate-spin" />
       </div>
     );
   }
 
   if (error || !batch) {
     return (
-      <div className="bg-rose-50 border border-rose-200 p-6 rounded-2xl text-rose-700 text-sm flex items-center gap-3">
+      <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-6 rounded-2xl text-rose-700 dark:text-rose-300 text-sm flex items-center gap-3">
         <AlertTriangle className="w-5 h-5 flex-shrink-0" />
         <span>{error || "Batch not found"}</span>
       </div>
@@ -385,126 +403,113 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
   const isHighSellThrough = sellThrough >= 80;
   const isActive = batch.status === "ACTIVE";
 
+  const totalRevenue = batch.batchItems.reduce(
+    (sum, item) => sum + (item.quantityPurchased - item.quantityRemaining) * Number(item.product.sellingPrice),
+    0
+  );
+  const totalCostOfSold = batch.batchItems.reduce(
+    (sum, item) => sum + (item.quantityPurchased - item.quantityRemaining) * Number(item.unitCost),
+    0
+  );
+  const batchProfit = totalRevenue - totalCostOfSold;
+
   return (
-    <div className="space-y-6">
-      {/* Breadcrumb + Back */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => router.push("/batches")}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" /> Batches
-        </button>
-        <span className="text-slate-300">/</span>
-        <span className="text-xs font-bold text-slate-900 truncate">{batch.reference}</span>
-      </div>
-
-      {/* Batch Header Card */}
-      <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 p-6 bg-white space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-indigo-500/20">
-              <Layers className="w-6 h-6 text-amber-300" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-base font-extrabold text-slate-900">{batch.reference}</h2>
-                <span
-                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                    isActive ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-slate-100 text-slate-600"
-                  }`}
-                >
-                  {batch.status}
-                </span>
-                {isActive && isHighSellThrough && (
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                    🔥 {sellThrough}% Sold — Ready to Close
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-400 flex-wrap">
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  {new Date(batch.purchaseDate).toLocaleDateString("en-GH", {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </span>
-                {batch.additionalCosts > 0 && (
-                  <span className="flex items-center gap-1">
-                    <Truck className="w-3 h-3" />
-                    Transport: {formatCurrency(batch.additionalCosts)}
-                  </span>
-                )}
-                {batch.notes && (
-                  <span className="flex items-center gap-1">
-                    <Info className="w-3 h-3" />
-                    {batch.notes}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {isActive && (
-              <>
-                <button
-                  onClick={openPanel}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25 transition-all font-bold text-xs"
-                >
-                  <Plus className="w-3.5 h-3.5 text-amber-300" /> Add Product
-                </button>
-                <button
-                  onClick={() => setShowCloseConfirm(true)}
-                  disabled={!isHighSellThrough && batch.batchItems.length === 0}
-                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs transition-colors ${
-                    isHighSellThrough
-                      ? "bg-amber-500 text-slate-900 hover:bg-amber-400 shadow-sm"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
-                >
-                  <CheckCheck className="w-3.5 h-3.5" /> Close Batch
-                </button>
-              </>
+    <div className="space-y-6 font-sans">
+      {/* Detail Workspace Header */}
+      <PageHeader
+        backLink={{ href: "/batches", label: "Back to Batches" }}
+        title={batch.reference}
+        subtitle={`Purchased on ${new Date(batch.purchaseDate).toLocaleDateString()} ${
+          batch.additionalCosts > 0 ? `• Landing Transport Cost: ${formatCurrency(batch.additionalCosts)}` : ""
+        }`}
+        badge={
+          <div className="flex items-center gap-2">
+            <span
+              className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                isActive ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+              }`}
+            >
+              {batch.status}
+            </span>
+            {isActive && isHighSellThrough && (
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                🔥 {sellThrough}% Sold — Ready to Close
+              </span>
             )}
           </div>
+        }
+        actions={
+          isActive ? (
+            <>
+              <button
+                onClick={openPanel}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-lg shadow-indigo-500/25 transition-all"
+              >
+                <Plus className="w-3.5 h-3.5 text-amber-300" /> Add Item
+              </button>
+              <button
+                onClick={() => {
+                  setAdditionalCostInput(batch.additionalCosts.toString());
+                  setIsCostModalOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs transition-colors"
+              >
+                <Truck className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" /> Add Cost
+              </button>
+              <button
+                onClick={() => setShowCloseConfirm(true)}
+                disabled={!isHighSellThrough && batch.batchItems.length === 0}
+                className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl font-bold text-xs transition-colors ${
+                  isHighSellThrough
+                    ? "bg-amber-500 text-slate-900 hover:bg-amber-400 shadow-sm"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                }`}
+              >
+                <CheckCheck className="w-3.5 h-3.5" /> Close Batch
+              </button>
+            </>
+          ) : undefined
+        }
+      />
+
+      {/* Financial Summary Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="bg-slate-900 dark:bg-slate-800/80 p-4 rounded-3xl text-white border border-slate-800 space-y-1 shadow-lg shadow-slate-900/10">
+          <span className="text-[10px] text-amber-400 font-extrabold uppercase tracking-wider block">Investment</span>
+          <span className="font-black text-xl text-white block">{formatCurrency(batch.totalInvestment)}</span>
+          <span className="text-[10px] text-slate-400 font-medium block">Total Landing Cost</span>
         </div>
 
-        {/* Summary Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-slate-100">
-          <div className="bg-slate-50 rounded-xl p-3 text-center">
-            <span className="text-[10px] text-slate-400 font-medium block">Products</span>
-            <span className="font-extrabold text-slate-900 text-lg">{batch.batchItems.length}</span>
-          </div>
-          <div className="bg-slate-50 rounded-xl p-3 text-center">
-            <span className="text-[10px] text-slate-400 font-medium block">Total Units</span>
-            <span className="font-extrabold text-slate-900 text-lg">{totalPurchased}</span>
-          </div>
-          <div className="bg-emerald-50 rounded-xl p-3 text-center">
-            <span className="text-[10px] text-emerald-600 font-medium block">Remaining</span>
-            <span className="font-extrabold text-emerald-700 text-lg">{totalRemaining}</span>
-          </div>
-          <div className="bg-slate-900 rounded-xl p-3 text-center">
-            <span className="text-[10px] text-amber-400 font-medium block">Total Investment</span>
-            <span className="font-extrabold text-white text-sm">{formatCurrency(batch.totalInvestment)}</span>
-          </div>
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 space-y-1">
+          <span className="text-[10px] text-slate-400 dark:text-slate-400 font-bold uppercase tracking-wider block">Revenue</span>
+          <span className="font-black text-xl text-slate-900 dark:text-slate-100 block">{formatCurrency(totalRevenue)}</span>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium block">Sales from this batch</span>
+        </div>
+
+        <div className="bg-emerald-50 dark:bg-emerald-950/40 p-4 rounded-3xl border border-emerald-100 dark:border-emerald-900 space-y-1">
+          <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold uppercase tracking-wider block">Profit</span>
+          <span className="font-black text-xl text-emerald-800 dark:text-emerald-300 block">{formatCurrency(batchProfit)}</span>
+          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium block">Revenue minus unit cost</span>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 space-y-1">
+          <span className="text-[10px] text-slate-400 dark:text-slate-400 font-bold uppercase tracking-wider block">Remaining Stock</span>
+          <span className="font-black text-xl text-slate-900 dark:text-slate-100 block">{totalRemaining} units</span>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium block">{totalSold} / {totalPurchased} sold ({sellThrough}%)</span>
         </div>
       </div>
 
       {/* Product Items Table */}
-      <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 bg-white overflow-hidden">
-        <div className="p-5 flex items-center justify-between border-b border-slate-100">
-          <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
-            <Package className="w-4 h-4 text-indigo-600" />
+      <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 bg-white dark:bg-slate-900 overflow-hidden">
+        <div className="p-5 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
+          <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <Package className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
             Products in this Batch
           </h3>
           {isActive && (
             <button
               onClick={openPanel}
-              className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+              className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" /> Add Product
             </button>
@@ -513,11 +518,11 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
 
         {batch.batchItems.length === 0 ? (
           <div className="p-10 text-center space-y-3">
-            <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto">
-              <ShoppingBag className="w-6 h-6 text-slate-400" />
+            <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto">
+              <ShoppingBag className="w-6 h-6 text-slate-400 dark:text-slate-500" />
             </div>
-            <h4 className="font-bold text-sm text-slate-700">No products added yet</h4>
-            <p className="text-xs text-slate-400 max-w-xs mx-auto">
+            <h4 className="font-bold text-sm text-slate-700 dark:text-slate-200">No products added yet</h4>
+            <p className="text-xs text-slate-400 dark:text-slate-500 max-w-xs mx-auto">
               Click <strong>Add Product</strong> to start recording what you bought on this trip. You can scan a
               barcode or search by name.
             </p>
@@ -534,7 +539,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="text-slate-400 border-b border-slate-100 bg-slate-50/60">
+                <tr className="text-slate-400 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/60">
                   <th className="font-semibold py-3 px-5">Product</th>
                   <th className="font-semibold py-3 px-3">Purchased</th>
                   <th className="font-semibold py-3 px-3">Remaining</th>
@@ -544,41 +549,41 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                   <th className="font-semibold py-3 px-5 text-right">Line Total</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {batch.batchItems.map((item) => {
                   const sold = item.quantityPurchased - item.quantityRemaining;
                   const sellPct = Math.round((sold / item.quantityPurchased) * 100);
                   return (
-                    <tr key={item.id} className="text-slate-800 hover:bg-slate-50/50">
+                    <tr key={item.id} className="text-slate-800 dark:text-slate-200 hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
                       <td className="py-3 px-5">
-                        <div className="font-bold text-slate-900">{item.product.name}</div>
+                        <div className="font-bold text-slate-900 dark:text-slate-100">{item.product.name}</div>
                         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                           {item.product.brand && (
-                            <span className="text-[10px] text-slate-400">{item.product.brand}</span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500">{item.product.brand}</span>
                           )}
                           {item.product.size && (
-                            <span className="text-[10px] text-slate-400">{item.product.size}</span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500">{item.product.size}</span>
                           )}
                           {item.product.sku && (
-                            <span className="text-[10px] font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">
+                            <span className="text-[10px] font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-500 dark:text-slate-400">
                               {item.product.sku}
                             </span>
                           )}
                           {item.product.barcode && (
-                            <span className="text-[10px] font-mono text-slate-400 flex items-center gap-0.5">
+                            <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 flex items-center gap-0.5">
                               <Barcode className="w-2.5 h-2.5" />
                               {item.product.barcode}
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="py-3 px-3 font-bold">{item.quantityPurchased}</td>
-                      <td className="py-3 px-3 font-bold text-emerald-600">{item.quantityRemaining}</td>
+                      <td className="py-3 px-3 font-bold text-slate-900 dark:text-slate-100">{item.quantityPurchased}</td>
+                      <td className="py-3 px-3 font-bold text-emerald-600 dark:text-emerald-400">{item.quantityRemaining}</td>
                       <td className="py-3 px-3">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{sold}</span>
                           {item.quantityPurchased > 0 && (
-                            <div className="w-12 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                            <div className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                               <div
                                 className="h-full bg-amber-400 rounded-full"
                                 style={{ width: `${sellPct}%` }}
@@ -587,29 +592,29 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                           )}
                         </div>
                       </td>
-                      <td className="py-3 px-3 font-medium">{formatCurrency(item.unitCost)}</td>
-                      <td className="py-3 px-3 font-medium text-slate-500">
+                      <td className="py-3 px-3 font-medium text-slate-800 dark:text-slate-200">{formatCurrency(item.unitCost)}</td>
+                      <td className="py-3 px-3 font-medium text-slate-500 dark:text-slate-400">
                         {formatCurrency(item.product.sellingPrice)}
                       </td>
-                      <td className="py-3 px-5 font-bold text-right">{formatCurrency(item.totalCost)}</td>
+                      <td className="py-3 px-5 font-bold text-right text-slate-900 dark:text-slate-100">{formatCurrency(item.totalCost)}</td>
                     </tr>
                   );
                 })}
               </tbody>
-              <tfoot className="border-t-2 border-slate-200 bg-slate-50">
+              <tfoot className="border-t-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60">
                 <tr>
-                  <td className="py-3 px-5 font-bold text-xs text-slate-700">
+                  <td className="py-3 px-5 font-bold text-xs text-slate-700 dark:text-slate-300">
                     {batch.batchItems.length} product line{batch.batchItems.length !== 1 ? "s" : ""}
                   </td>
-                  <td className="py-3 px-3 font-bold text-xs">{totalPurchased}</td>
-                  <td className="py-3 px-3 font-bold text-xs text-emerald-600">{totalRemaining}</td>
-                  <td className="py-3 px-3 font-bold text-xs text-amber-700">{totalSold}</td>
-                  <td colSpan={2} className="py-3 px-3 text-xs text-slate-400">
+                  <td className="py-3 px-3 font-bold text-xs text-slate-900 dark:text-slate-100">{totalPurchased}</td>
+                  <td className="py-3 px-3 font-bold text-xs text-emerald-600 dark:text-emerald-400">{totalRemaining}</td>
+                  <td className="py-3 px-3 font-bold text-xs text-amber-700 dark:text-amber-400">{totalSold}</td>
+                  <td colSpan={2} className="py-3 px-3 text-xs text-slate-400 dark:text-slate-500">
                     {batch.additionalCosts > 0 && (
                       <span>+{formatCurrency(batch.additionalCosts)} transport</span>
                     )}
                   </td>
-                  <td className="py-3 px-5 font-extrabold text-xs text-right text-slate-900">
+                  <td className="py-3 px-5 font-extrabold text-xs text-right text-slate-900 dark:text-slate-100">
                     {formatCurrency(batch.totalInvestment)}
                   </td>
                 </tr>
@@ -621,17 +626,17 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
 
       {/* ── ADD PRODUCT SLIDE-OVER PANEL ── */}
       {isPanelOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex justify-end">
-          <div className="bg-white w-full max-w-md h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 dark:bg-slate-950/80 backdrop-blur-sm flex justify-end">
+          <div className="bg-white dark:bg-slate-900 border-l border-slate-100 dark:border-slate-800 w-full max-w-md h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
             {/* Panel Header */}
-            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800">
               <div>
-                <h3 className="font-bold text-sm text-slate-900">Add Product to Batch</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">{batch.reference}</p>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Add Product to Batch</h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{batch.reference}</p>
               </div>
               <button
                 onClick={closePanel}
-                className="p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+                className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -641,7 +646,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
             <div className="flex-1 overflow-y-auto p-5 space-y-5">
               {/* Success message */}
               {panelSuccess && (
-                <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-emerald-700 text-xs flex items-center gap-2">
+                <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
                   <span>{panelSuccess}</span>
                 </div>
@@ -649,7 +654,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
 
               {/* Error */}
               {panelError && (
-                <div className="bg-rose-50 border border-rose-200 p-3 rounded-xl text-rose-700 text-xs flex items-center gap-2">
+                <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 flex-shrink-0" />
                   <span>{panelError}</span>
                   <button onClick={() => setPanelError(null)} className="ml-auto">
@@ -662,13 +667,13 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
               {step === "scan" && (
                 <div className="space-y-4">
                   {/* Mode toggle */}
-                  <div className="flex rounded-full bg-slate-100 p-1">
+                  <div className="flex rounded-full bg-slate-100 dark:bg-slate-800 p-1">
                     <button
                       onClick={() => setInputMode("barcode")}
                       className={`flex-1 py-2 text-xs font-bold rounded-full flex items-center justify-center gap-1.5 transition-all ${
                         inputMode === "barcode"
                           ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
-                          : "text-slate-600 hover:bg-slate-200"
+                          : "text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                       }`}
                     >
                       <Scan className="w-3.5 h-3.5" /> Scan Barcode
@@ -678,7 +683,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                       className={`flex-1 py-2 text-xs font-bold rounded-full flex items-center justify-center gap-1.5 transition-all ${
                         inputMode === "search"
                           ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
-                          : "text-slate-600 hover:bg-slate-200"
+                          : "text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                       }`}
                     >
                       <Search className="w-3.5 h-3.5" /> Search by Name
@@ -710,7 +715,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
 
                       {/* FALLBACK: Manual barcode entry */}
                       <div className="relative">
-                        <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                        <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                         <input
                           ref={barcodeInputRef}
                           type="text"
@@ -722,7 +727,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                               handleBarcodeScan(scanInput);
                             }
                           }}
-                          className="w-full pl-9 pr-24 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                          className="w-full pl-9 pr-24 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                         />
                         <button
                           onClick={() => handleBarcodeScan(scanInput)}
@@ -738,7 +743,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                           setNewProduct(emptyNewProduct);
                           setStep("fill-new");
                         }}
-                        className="w-full py-2 text-xs font-bold text-slate-500 hover:text-slate-900"
+                        className="w-full py-2 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
                       >
                         + Add new product without barcode
                       </button>
@@ -747,34 +752,34 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                   ) : (
                     <div className="space-y-3">
                       <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                         <input
                           ref={searchInputRef}
                           type="text"
                           placeholder="Type product name, brand..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                          className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                           autoFocus
                         />
                         {searching && (
-                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 animate-spin" />
+                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500 animate-spin" />
                         )}
                       </div>
 
                       {searchResults.length > 0 && (
-                        <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
+                        <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
                           {searchResults.map((p) => (
                             <button
                               key={p.id}
                               onClick={() => handleSelectExistingProduct(p)}
-                              className="w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors"
+                              className="w-full px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                             >
-                              <div className="font-bold text-xs text-slate-900">{p.name}</div>
-                              <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
+                              <div className="font-bold text-xs text-slate-900 dark:text-slate-100">{p.name}</div>
+                              <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400 dark:text-slate-500">
                                 {p.brand && <span>{p.brand}</span>}
                                 {p.size && <span>{p.size}</span>}
-                                <span className="ml-auto font-bold text-slate-700">
+                                <span className="ml-auto font-bold text-slate-700 dark:text-slate-300">
                                   {formatCurrency(p.sellingPrice)}
                                 </span>
                               </div>
@@ -785,13 +790,13 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
 
                       {searchQuery.trim().length >= 2 && !searching && searchResults.length === 0 && (
                         <div className="text-center py-4 space-y-2">
-                          <p className="text-xs text-slate-400">No products found for "{searchQuery}"</p>
+                          <p className="text-xs text-slate-400 dark:text-slate-500">No products found for "{searchQuery}"</p>
                           <button
                             onClick={() => {
                               setNewProduct({ ...emptyNewProduct, name: searchQuery });
                               setStep("fill-new");
                             }}
-                            className="text-xs font-bold text-indigo-600 hover:underline"
+                            className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
                           >
                             + Create new product "{searchQuery}"
                           </button>
@@ -806,35 +811,35 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
               {step === "fill-existing" && selectedProduct && (
                 <div className="space-y-4">
                   {/* Product card */}
-                  <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
+                  <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <div className="flex items-center gap-2">
                           <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                          <span className="text-xs font-bold text-emerald-700">Product Found</span>
+                          <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">Product Found</span>
                         </div>
-                        <h4 className="font-extrabold text-sm text-slate-900 mt-1">{selectedProduct.name}</h4>
+                        <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 mt-1">{selectedProduct.name}</h4>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           {selectedProduct.brand && (
-                            <span className="text-[10px] text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded">
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded">
                               {selectedProduct.brand}
                             </span>
                           )}
                           {selectedProduct.size && (
-                            <span className="text-[10px] text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded">
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded">
                               {selectedProduct.size}
                             </span>
                           )}
                           {selectedProduct.barcode && (
-                            <span className="text-[10px] font-mono text-slate-400 flex items-center gap-0.5">
+                            <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 flex items-center gap-0.5">
                               <Barcode className="w-2.5 h-2.5" />
                               {selectedProduct.barcode}
                             </span>
                           )}
                         </div>
-                        <div className="mt-2 text-xs text-slate-500">
+                        <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                           Catalog selling price:{" "}
-                          <span className="font-bold text-slate-800">
+                          <span className="font-bold text-slate-800 dark:text-slate-200">
                             {formatCurrency(selectedProduct.sellingPrice)}
                           </span>
                         </div>
@@ -845,7 +850,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                           setScanInput("");
                           setStep("scan");
                         }}
-                        className="p-1 text-slate-400 hover:text-slate-700"
+                        className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -855,7 +860,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                   {/* Quantity + cost */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                         Quantity Purchased *
                       </label>
                       <input
@@ -864,12 +869,12 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                         value={quantity}
                         onChange={(e) => setQuantity(e.target.value)}
                         placeholder="e.g. 10"
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                         autoFocus
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                         Unit Cost Price (GH₵) *
                       </label>
                       <input
@@ -879,15 +884,15 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                         value={unitCost}
                         onChange={(e) => setUnitCost(e.target.value)}
                         placeholder="0.00"
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                       />
                     </div>
                   </div>
 
                   {/* Live total */}
                   {parseInt(quantity) > 0 && (
-                    <div className="bg-slate-900 text-white rounded-xl p-3 flex items-center justify-between text-xs">
-                      <span className="text-slate-400">
+                    <div className="bg-slate-900 dark:bg-slate-800 text-white border border-slate-800 rounded-xl p-3 flex items-center justify-between text-xs">
+                      <span className="text-slate-400 dark:text-slate-400">
                         {quantity} × {formatCurrency(parseFloat(unitCost) || 0)}
                       </span>
                       <span className="font-bold text-amber-400">
@@ -901,8 +906,8 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
               {/* STEP 2B — New product: fill all details */}
               {step === "fill-new" && (
                 <div className="space-y-4">
-                  <div className="bg-indigo-50 border border-indigo-100 p-3 rounded-xl text-indigo-800 text-xs flex items-center gap-2">
-                    <Tag className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                  <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900 p-3 rounded-xl text-indigo-800 dark:text-indigo-300 text-xs flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
                     <span>
                       This product doesn't exist in your catalog yet. Fill in the details to create it and add
                       it to this batch.
@@ -910,58 +915,58 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Product Name *</label>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Product Name *</label>
                     <input
                       type="text"
                       placeholder="e.g. Creed Aventus"
                       value={newProduct.name}
                       onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                       autoFocus
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Brand</label>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Brand</label>
                       <input
                         type="text"
                         placeholder="e.g. Creed"
                         value={newProduct.brand}
                         onChange={(e) => setNewProduct({ ...newProduct, brand: e.target.value })}
-                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Size / Volume</label>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Size / Volume</label>
                       <input
                         type="text"
                         placeholder="e.g. 100ml"
                         value={newProduct.size}
                         onChange={(e) => setNewProduct({ ...newProduct, size: e.target.value })}
-                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Category</label>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Category</label>
                       <input
                         type="text"
                         placeholder="e.g. Perfume, Body Care"
                         value={newProduct.category}
                         onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
-                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                       />
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <label className="block text-xs font-bold text-slate-700">SKU (Auto-Generated)</label>
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">SKU (Auto-Generated)</label>
                         <button
                           type="button"
                           onClick={() => setNewProduct({ ...newProduct, sku: generateProductSku(newProduct.name, newProduct.brand, newProduct.size) })}
-                          className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-0.5 bg-indigo-50 px-2 py-0.5 rounded-full transition-colors"
+                          className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 flex items-center gap-0.5 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-full transition-colors"
                           title="Auto-generate SKU"
                         >
                           <Sparkles className="w-3 h-3" /> Auto
@@ -972,30 +977,30 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                         placeholder="e.g. AV-PRF-100ML-9A2F"
                         value={newProduct.sku}
                         onChange={(e) => setNewProduct({ ...newProduct, sku: e.target.value })}
-                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                       Barcode (Optional)
                     </label>
                     <div className="relative">
-                      <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                      <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                       <input
                         type="text"
                         placeholder="Scan or type barcode..."
                         value={newProduct.barcode}
                         onChange={(e) => setNewProduct({ ...newProduct, barcode: e.target.value })}
-                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                       />
                     </div>
                   </div>
 
-                  <div className="border-t border-slate-100 pt-3 grid grid-cols-2 gap-3">
+                  <div className="border-t border-slate-100 dark:border-slate-800 pt-3 grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                         Selling Price (GH₵) *
                       </label>
                       <input
@@ -1005,11 +1010,11 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                         placeholder="0.00"
                         value={newProduct.sellingPrice}
                         onChange={(e) => setNewProduct({ ...newProduct, sellingPrice: e.target.value })}
-                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                         Cost Price (GH₵) *
                       </label>
                       <input
@@ -1019,13 +1024,13 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                         placeholder="0.00"
                         value={unitCost}
                         onChange={(e) => setUnitCost(e.target.value)}
-                        className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                       Quantity Purchased *
                     </label>
                     <input
@@ -1034,13 +1039,13 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                       placeholder="e.g. 10"
                       value={quantity}
                       onChange={(e) => setQuantity(e.target.value)}
-                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                     />
                   </div>
 
                   {parseInt(quantity) > 0 && parseFloat(unitCost) > 0 && (
-                    <div className="bg-slate-900 text-white rounded-xl p-3 flex items-center justify-between text-xs">
-                      <span className="text-slate-400">
+                    <div className="bg-slate-900 dark:bg-slate-800 text-white border border-slate-800 rounded-xl p-3 flex items-center justify-between text-xs">
+                      <span className="text-slate-400 dark:text-slate-400">
                         {quantity} × {formatCurrency(parseFloat(unitCost) || 0)} cost
                       </span>
                       <span className="font-bold text-amber-400">
@@ -1053,7 +1058,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
             </div>
 
             {/* Panel Footer Buttons */}
-            <div className="p-5 border-t border-slate-100 space-y-2">
+            <div className="p-5 border-t border-slate-100 dark:border-slate-800 space-y-2">
               {step === "fill-existing" && (
                 <div className="flex gap-2">
                   <button
@@ -1062,7 +1067,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                       setScanInput("");
                       setSelectedProduct(null);
                     }}
-                    className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                    className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                   >
                     ← Back
                   </button>
@@ -1089,7 +1094,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                       setStep("scan");
                       setNewProduct(emptyNewProduct);
                     }}
-                    className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                    className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                   >
                     ← Back
                   </button>
@@ -1112,7 +1117,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
               {step === "scan" && (
                 <button
                   onClick={closePanel}
-                  className="w-full py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                  className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
                   Done Adding Products
                 </button>
@@ -1124,19 +1129,19 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
 
       {/* Close Batch Confirmation */}
       {showCloseConfirm && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-100 max-w-sm w-full p-6 shadow-2xl space-y-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 max-w-sm w-full p-6 shadow-2xl space-y-4 animate-in fade-in duration-200">
             <div className="text-center space-y-2">
-              <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto">
-                <CheckCheck className="w-6 h-6 text-amber-600" />
+              <div className="w-12 h-12 bg-amber-100 dark:bg-amber-950/50 rounded-2xl flex items-center justify-center mx-auto">
+                <CheckCheck className="w-6 h-6 text-amber-600 dark:text-amber-400" />
               </div>
-              <h3 className="font-bold text-sm text-slate-900">Close this Batch?</h3>
-              <p className="text-xs text-slate-500">
-                The batch will be marked as <strong>Completed</strong>. Any remaining stock from this batch
+              <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Close this Batch?</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                The batch will be marked as <strong className="text-slate-800 dark:text-slate-200">Completed</strong>. Any remaining stock from this batch
                 will still be available for sale via FIFO.
               </p>
               {!isHighSellThrough && (
-                <div className="bg-amber-50 border border-amber-100 p-2 rounded-lg text-amber-700 text-xs">
+                <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900 p-2 rounded-lg text-amber-700 dark:text-amber-300 text-xs">
                   ⚠️ Only {sellThrough}% sold. Batches are typically closed at 80%+. Are you sure?
                 </div>
               )}
@@ -1144,7 +1149,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
             <div className="flex gap-2 pt-2">
               <button
                 onClick={() => setShowCloseConfirm(false)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
               >
                 Cancel
               </button>
@@ -1156,6 +1161,62 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                 {closing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Yes, Close Batch"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Landing Cost Modal */}
+      {isCostModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 max-w-sm w-full p-6 shadow-2xl space-y-4 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Add Landing / Transport Cost</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Log additional freight or shipping expenses</p>
+              </div>
+              <button
+                onClick={() => setIsCostModalOpen(false)}
+                className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCost} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Additional Transport / Freight Cost (GH₵)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  placeholder="0.00"
+                  value={additionalCostInput}
+                  onChange={(e) => setAdditionalCostInput(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsCostModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={costSubmitting}
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-500/20 disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {costSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save Landing Cost"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

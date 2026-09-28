@@ -199,26 +199,30 @@ export async function GET(request: Request) {
     }
 
     const cleanBarcode = barcode.trim();
+    console.log("[BARCODE] Product lookup started");
+    console.log(`[BARCODE] Lookup query: ${cleanBarcode}`);
 
     // 1. Check local Avencia database first
     const localProduct = await getProductByBarcode(cleanBarcode, DEFAULT_BUSINESS_ID);
     if (localProduct) {
+      console.log(`[BARCODE] Product found: true (Local: ${localProduct.name})`);
       return NextResponse.json({
         success: true,
         source: "local",
         data: serializePlainObject(localProduct),
-        message: `Auto-filled from local catalog: ${localProduct.name}`,
+        message: `Product found: ${localProduct.name}`,
       });
     }
 
     // 2. Check in-memory cache for repeated scans
     const cachedEntry = barcodeCache.get(cleanBarcode);
     if (cachedEntry && Date.now() - cachedEntry.timestamp < CACHE_TTL_MS) {
+      console.log(`[BARCODE] Product found: true (Cached Online: ${cachedEntry.data.name})`);
       return NextResponse.json({
         success: true,
         source: "external",
         data: cachedEntry.data,
-        message: "Found online! Review product details and set your selling price.",
+        message: `Barcode detected (${cleanBarcode}), found online! Review product details.`,
       });
     }
 
@@ -227,24 +231,26 @@ export async function GET(request: Request) {
     if (externalProduct) {
       // Store in memory cache
       barcodeCache.set(cleanBarcode, { data: externalProduct, timestamp: Date.now() });
+      console.log(`[BARCODE] Product found: true (Online: ${externalProduct.name})`);
 
       return NextResponse.json({
         success: true,
         source: "external",
         data: externalProduct,
-        message: "Found online! Review product details and set your selling price.",
+        message: `Barcode detected (${cleanBarcode}), found online! Review product details.`,
       });
     }
 
     // 4. Fallback: Not found online or network fails
+    console.log("[BARCODE] Product found: false");
     return NextResponse.json({
       success: true,
       source: "none",
       data: null,
-      message: "Product not found online. You can enter the product details manually below.",
+      message: `Barcode detected (${cleanBarcode}), but no matching product was found in Avencia or online registry.`,
     });
   } catch (error: any) {
-    console.error("GET /api/products/barcode error:", error);
+    console.error("[BARCODE] GET /api/products/barcode error:", error);
     return NextResponse.json({ success: false, error: error.message || "Failed to query barcode" }, { status: 500 });
   }
 }

@@ -1,5 +1,8 @@
 import { prisma, ensureDefaultBusiness } from "@/lib/db/prisma";
 import { Prisma, PaymentMethod, PaymentStatus } from "@prisma/client";
+import { createNotification } from "./notifications";
+import { automationEngine } from "@/lib/automation/engine";
+import { BusinessEventType } from "@/lib/automation/events";
 
 export interface RecordDebtPaymentInput {
   businessId: string;
@@ -8,6 +11,30 @@ export interface RecordDebtPaymentInput {
   paymentMethod: PaymentMethod;
   notes?: string | null;
   saleId?: string | null;
+}
+
+export async function emitCustomerDebtCreated(params: {
+  businessId: string;
+  customerId: string;
+  saleId: string;
+  amount: number;
+}) {
+  try {
+    await automationEngine.emit({
+      eventType: BusinessEventType.CUSTOMER_DEBT_CREATED,
+      businessId: params.businessId,
+      entityType: "CUSTOMER",
+      entityId: params.customerId,
+      dedupeKey: `CUSTOMER_DEBT_CREATED:${params.saleId}`,
+      metadata: {
+        saleId: params.saleId,
+        customerId: params.customerId,
+        amount: params.amount,
+      },
+    });
+  } catch (err) {
+    console.error("Failed to emit CUSTOMER_DEBT_CREATED event:", err);
+  }
 }
 
 export async function recordDebtPayment(input: RecordDebtPaymentInput) {
@@ -27,7 +54,7 @@ export async function recordDebtPayment(input: RecordDebtPaymentInput) {
     throw new Error("Customer not found");
   }
 
-  return await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     // Log DebtPayment transaction
     const debtPayment = await tx.debtPayment.create({
       data: {
@@ -89,6 +116,40 @@ export async function recordDebtPayment(input: RecordDebtPaymentInput) {
 
     return debtPayment;
   });
+
+  try {
+    await createNotification({
+      businessId: input.businessId,
+      type: "DEBT_PAYMENT_RECEIVED",
+      category: "CUSTOMERS",
+      severity: "SUCCESS",
+      title: "Debt Payment Received",
+      message: `Received GH₵${amount.toFixed(2)} debt payment from ${customer.name}.`,
+      actionLabel: "View Debtors",
+      actionUrl: "/customers",
+      entityType: "CUSTOMER",
+      entityId: customer.id,
+    });
+
+    automationEngine.emit({
+      eventType: BusinessEventType.CUSTOMER_PAYMENT_RECEIVED,
+      businessId: input.businessId,
+      entityType: "CUSTOMER",
+      entityId: customer.id,
+      dedupeKey: `CUSTOMER_PAYMENT_RECEIVED:${result.id}`,
+      metadata: {
+        paymentId: result.id,
+        customerId: customer.id,
+        customerName: customer.name,
+        amount: input.amount,
+        paymentMethod: input.paymentMethod,
+      },
+    });
+  } catch (err) {
+    console.error("Failed to trigger debt payment notification/event:", err);
+  }
+
+  return result;
 }
 
 export async function getDebtorsList(businessId: string) {

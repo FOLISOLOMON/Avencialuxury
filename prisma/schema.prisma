@@ -101,6 +101,9 @@ model Business {
   suppliers           Supplier[]
   debtPayments        DebtPayment[]
   settings            Setting?
+  notifications       Notification[]
+  notificationSetting NotificationSetting?
+  automationExecutions AutomationExecution[]
 }
 
 
@@ -359,4 +362,75 @@ model Setting {
   defaultPaymentMethod PaymentMethod @default(CASH)
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
+}
+
+model Notification {
+  id          String    @id @default(cuid())
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  userId      String?
+  type        String
+  category    String
+  severity    String    @default("INFO")
+  title       String
+  message     String
+  actionLabel String?
+  actionUrl   String?
+  entityType  String?
+  entityId    String?
+  metadata    Json?
+  dedupeKey   String?
+  isRead      Boolean   @default(false)
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime?
+
+  @@index([businessId])
+  @@index([businessId, isRead, createdAt])
+  @@index([businessId, createdAt])
+  @@index([dedupeKey])
+}
+
+model NotificationSetting {
+  id                     String   @id @default(cuid())
+  businessId             String   @unique
+  business               Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  lowStockEnabled        Boolean  @default(true)
+  outOfStockEnabled      Boolean  @default(true)
+  stockRestoredEnabled   Boolean  @default(true)
+  saleCompletedEnabled   Boolean  @default(true)
+  partialPaymentEnabled Boolean  @default(true)
+  unpaidSaleEnabled      Boolean  @default(true)
+  paymentReceivedEnabled Boolean  @default(true)
+  batchCreatedEnabled    Boolean  @default(true)
+  batchCompletedEnabled  Boolean  @default(true)
+  expenseEnabled         Boolean  @default(true)
+  largeExpenseThreshold  Decimal  @default(1000) @db.Decimal(12, 2)
+  batchNearCompletionThreshold Decimal @default(10) @db.Decimal(5, 2)
+  dormantCustomerDays    Int      @default(30)
+  dailySummaryEnabled    Boolean  @default(true)
+  weeklySummaryEnabled   Boolean  @default(true)
+  profitAllocatedEnabled Boolean  @default(true)
+  securityEnabled        Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model AutomationExecution {
+  id          String    @id @default(cuid())
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  eventType   String
+  eventId     String?
+  actionType  String
+  status      String    @default("COMPLETED")
+  dedupeKey   String?
+  error       String?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  executedAt  DateTime? @default(now())
+
+  @@index([businessId])
+  @@index([businessId, eventType])
+  @@index([dedupeKey])
 }

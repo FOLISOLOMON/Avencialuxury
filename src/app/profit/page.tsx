@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { formatCurrency } from "@/lib/utils";
+import { PageHeader } from "@/components/ui/PageHeader";
 import {
   PiggyBank,
   TrendingUp,
@@ -14,6 +15,9 @@ import {
   History,
   DollarSign,
   Wallet,
+  Percent,
+  Sparkles,
+  ArrowRight,
 } from "lucide-react";
 
 interface ProfitSummary {
@@ -45,6 +49,8 @@ export default function ProfitPage() {
   const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const formRef = useRef<HTMLDivElement>(null);
 
   // Form Fields
   const [allocationType, setAllocationType] = useState<"SAVINGS" | "NEEDS" | "WANTS">("SAVINGS");
@@ -78,6 +84,12 @@ export default function ProfitPage() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const scrollToForm = () => {
+    if (formRef.current) {
+      formRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  };
 
   const handleAllocate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,114 +144,136 @@ export default function ProfitPage() {
     }
   };
 
-  // Quick preset calculation (50/30/20 rule on remaining allocatable profit)
+  // Quick preset calculation
   const applyPresetPercentage = (pct: number) => {
     if (!summary) return;
     const calc = Math.round((summary.allocations.remainingAllocatableProfit * (pct / 100)) * 100) / 100;
     setAmount(calc.toString());
   };
 
+  // Apply full 50/30/20 preset rule directly into state or helper
+  const apply503020Rule = () => {
+    if (!summary) return;
+    scrollToForm();
+    // Default to 50% Savings preset
+    applyPresetPercentage(50);
+  };
+
   const getBadgeClass = (type: string) => {
     switch (type) {
       case "SAVINGS":
-        return "bg-emerald-50 text-emerald-700 border-emerald-200 rounded-full font-bold";
+        return "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 rounded-full font-bold";
       case "NEEDS":
-        return "bg-blue-100 text-blue-800 border-blue-200 rounded-full font-bold";
+        return "bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800 rounded-full font-bold";
       case "WANTS":
-        return "bg-purple-100 text-purple-800 border-purple-200 rounded-full font-bold";
+        return "bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-800 rounded-full font-bold";
       default:
-        return "bg-slate-100 text-slate-700 border-slate-200 rounded-full font-bold";
+        return "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 rounded-full font-bold";
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-xl font-bold text-slate-900">Profit Allocation Calculator</h2>
-        <p className="text-xs text-slate-500">
-          Distribute net profit safely into Savings, Needs & Wants without over-allocating.
-        </p>
-      </div>
 
       {loading && !summary ? (
-        <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 p-12 bg-white flex flex-col items-center justify-center text-center space-y-3">
-          <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
-          <p className="text-xs font-medium text-slate-500">Calculating financial allocations...</p>
+        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-12 bg-white dark:bg-slate-900 flex flex-col items-center justify-center text-center space-y-3">
+          <Loader2 className="w-8 h-8 text-slate-400 dark:text-slate-500 animate-spin" />
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Calculating financial allocations...</p>
         </div>
       ) : error ? (
-        <div className="bg-rose-50 border border-rose-200 p-4 rounded-3xl text-rose-700 text-xs flex items-center gap-3">
+        <div className="bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900 p-4 rounded-3xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-3">
           <AlertTriangle className="w-5 h-5 flex-shrink-0" />
           <span>{error}</span>
         </div>
       ) : (
         <>
-          {/* KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 p-5 bg-white space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500 uppercase">Total Net Profit</span>
-                <div className="p-2 rounded-xl bg-violet-50 text-violet-600">
-                  <Wallet className="w-4 h-4" />
+          {/* Realized Available Profit Hero Banner */}
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 dark:from-slate-950 dark:via-indigo-950 dark:to-slate-950 p-6 sm:p-8 text-white shadow-2xl border border-indigo-900/50">
+            <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+            
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30">
+                  <ShieldCheck className="w-3.5 h-3.5" /> Realized Available Profit
                 </div>
+                <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+                  {formatCurrency(summary?.allocations.remainingAllocatableProfit || 0)}
+                </h2>
+                <p className="text-xs text-slate-300 max-w-xl">
+                  {summary && summary.allocations.remainingAllocatableProfit > 0
+                    ? "Safe, unallocated net earnings ready to be set aside into business savings, essential needs, or owner distributions."
+                    : "All realized net profit has been allocated into designated business accounts."}
+                </p>
               </div>
-              <div className="text-2xl font-black text-slate-900">
-                {formatCurrency(summary?.totalNetProfit || 0)}
+
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={apply503020Rule}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 transition-all backdrop-blur-sm active:scale-95"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-300" /> Apply 50/30/20 Preset
+                </button>
+                <button
+                  onClick={scrollToForm}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold text-xs shadow-lg shadow-emerald-500/25 transition-all active:scale-95"
+                >
+                  <span>Allocate Now</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
               </div>
-              <p className="text-[11px] text-slate-500">Gross profit minus expenses</p>
             </div>
 
-            <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 p-5 bg-white space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500 uppercase">Total Allocated</span>
-                <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600">
-                  <PieChart className="w-4 h-4" />
-                </div>
+            {/* Financial Overview Mini Stats Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-800/80 text-xs">
+              <div>
+                <span className="text-[10px] text-slate-400 font-semibold uppercase block">Total Net Profit</span>
+                <span className="font-extrabold text-white text-sm">{formatCurrency(summary?.totalNetProfit || 0)}</span>
               </div>
-              <div className="text-2xl font-black text-slate-900">
-                {formatCurrency(summary?.allocations.totalAllocated || 0)}
+              <div>
+                <span className="text-[10px] text-slate-400 font-semibold uppercase block">Total Allocated</span>
+                <span className="font-extrabold text-indigo-300 text-sm">{formatCurrency(summary?.allocations.totalAllocated || 0)}</span>
               </div>
-              <p className="text-[11px] text-slate-500">Savings + Needs + Wants sum</p>
-            </div>
-
-            {/* Remaining Allocatable Profit Card */}
-            <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 p-5 bg-white space-y-2 col-span-1 sm:col-span-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500 uppercase">
-                  Remaining Allocatable Available
-                </span>
-                <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-                  <ShieldCheck className="w-4 h-4" />
-                </div>
+              <div>
+                <span className="text-[10px] text-slate-400 font-semibold uppercase block">Gross Revenue</span>
+                <span className="font-semibold text-slate-300">{formatCurrency(summary?.totalRevenue || 0)}</span>
               </div>
-              <div className="text-2xl font-black text-emerald-600">
-                {formatCurrency(summary?.allocations.remainingAllocatableProfit || 0)}
+              <div>
+                <span className="text-[10px] text-slate-400 font-semibold uppercase block">Op. Expenses</span>
+                <span className="font-semibold text-rose-300">{formatCurrency(summary?.totalExpenses || 0)}</span>
               </div>
-              <p className="text-[11px] text-slate-500">
-                {summary && summary.allocations.remainingAllocatableProfit > 0
-                  ? "Safe for allocation into business reserves or personal accounts."
-                  : "No unallocated net profit remaining. Record new sales to generate profit."}
-              </p>
             </div>
           </div>
 
-          {/* Allocation Breakdown Progress Visualizers */}
-          <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 p-6 bg-white space-y-4">
-            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <PiggyBank className="w-4 h-4 text-indigo-600" />
-              Allocation Breakdown (Savings / Needs / Wants)
-            </h3>
+          {/* Visual Allocation Cards (Savings 50%, Needs 30%, Wants 20%) */}
+          <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-6 bg-white dark:bg-slate-900 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <PiggyBank className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                50/30/20 Profit Allocation Breakdown
+              </h3>
+              <button
+                type="button"
+                onClick={apply503020Rule}
+                className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center gap-1"
+              >
+                <Percent className="w-3.5 h-3.5" /> 50/30/20 Rule Info
+              </button>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Savings */}
-              <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 space-y-2">
-                <div className="flex items-center justify-between text-xs font-bold text-emerald-900">
-                  <span>Savings Allocation</span>
-                  <span>{formatCurrency(summary?.allocations.savings || 0)}</span>
+              {/* Savings 50% */}
+              <div className="p-5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-900/50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-600 text-white uppercase">
+                    Savings 50%
+                  </span>
+                  <span className="text-sm font-black text-emerald-900 dark:text-emerald-200">
+                    {formatCurrency(summary?.allocations.savings || 0)}
+                  </span>
                 </div>
-                <div className="w-full h-2 bg-emerald-200/80 rounded-full overflow-hidden">
+                <div className="w-full h-2.5 bg-emerald-200/80 dark:bg-emerald-900/60 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-emerald-600 rounded-full"
+                    className="h-full bg-emerald-600 rounded-full transition-all duration-500"
                     style={{
                       width: `${Math.min(
                         100,
@@ -248,18 +282,35 @@ export default function ProfitPage() {
                     }}
                   />
                 </div>
-                <p className="text-[11px] text-emerald-700">Business reinvestment & rainy-day reserve.</p>
+                <p className="text-[11px] text-emerald-800 dark:text-emerald-300 leading-snug">
+                  Business reinvestment, restocking capital & emergency reserve fund.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAllocationType("SAVINGS");
+                    applyPresetPercentage(50);
+                    scrollToForm();
+                  }}
+                  className="w-full py-1.5 rounded-xl bg-emerald-600 dark:bg-emerald-500 hover:bg-emerald-700 dark:hover:bg-emerald-600 text-white text-xs font-bold transition-all"
+                >
+                  Allocate 50% to Savings
+                </button>
               </div>
 
-              {/* Needs */}
-              <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-200/80 space-y-2">
-                <div className="flex items-center justify-between text-xs font-bold text-blue-900">
-                  <span>Needs Allocation</span>
-                  <span>{formatCurrency(summary?.allocations.needs || 0)}</span>
+              {/* Needs 30% */}
+              <div className="p-5 rounded-2xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-blue-600 text-white uppercase">
+                    Needs 30%
+                  </span>
+                  <span className="text-sm font-black text-blue-900 dark:text-blue-200">
+                    {formatCurrency(summary?.allocations.needs || 0)}
+                  </span>
                 </div>
-                <div className="w-full h-2 bg-blue-200/80 rounded-full overflow-hidden">
+                <div className="w-full h-2.5 bg-blue-200/80 dark:bg-blue-900/60 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-blue-600 rounded-full"
+                    className="h-full bg-blue-600 rounded-full transition-all duration-500"
                     style={{
                       width: `${Math.min(
                         100,
@@ -268,18 +319,35 @@ export default function ProfitPage() {
                     }}
                   />
                 </div>
-                <p className="text-[11px] text-blue-700">Essential salary & business operational needs.</p>
+                <p className="text-[11px] text-blue-800 dark:text-blue-300 leading-snug">
+                  Essential staff salary, rent, utilities & core operational needs.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAllocationType("NEEDS");
+                    applyPresetPercentage(30);
+                    scrollToForm();
+                  }}
+                  className="w-full py-1.5 rounded-xl bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white text-xs font-bold transition-all"
+                >
+                  Allocate 30% to Needs
+                </button>
               </div>
 
-              {/* Wants */}
-              <div className="p-4 rounded-2xl bg-purple-50/60 border border-purple-200/80 space-y-2">
-                <div className="flex items-center justify-between text-xs font-bold text-purple-900">
-                  <span>Wants Allocation</span>
-                  <span>{formatCurrency(summary?.allocations.wants || 0)}</span>
+              {/* Wants 20% */}
+              <div className="p-5 rounded-2xl bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200/80 dark:border-purple-900/50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-purple-600 text-white uppercase">
+                    Wants 20%
+                  </span>
+                  <span className="text-sm font-black text-purple-900 dark:text-purple-200">
+                    {formatCurrency(summary?.allocations.wants || 0)}
+                  </span>
                 </div>
-                <div className="w-full h-2 bg-purple-200/80 rounded-full overflow-hidden">
+                <div className="w-full h-2.5 bg-purple-200/80 dark:bg-purple-900/60 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-purple-600 rounded-full"
+                    className="h-full bg-purple-600 rounded-full transition-all duration-500"
                     style={{
                       width: `${Math.min(
                         100,
@@ -288,27 +356,40 @@ export default function ProfitPage() {
                     }}
                   />
                 </div>
-                <p className="text-[11px] text-purple-700">Owner payout, bonuses & personal discretionary.</p>
+                <p className="text-[11px] text-purple-800 dark:text-purple-300 leading-snug">
+                  Owner payouts, personal bonuses & discretionary profit draw.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAllocationType("WANTS");
+                    applyPresetPercentage(20);
+                    scrollToForm();
+                  }}
+                  className="w-full py-1.5 rounded-xl bg-purple-600 dark:bg-purple-500 hover:bg-purple-700 dark:hover:bg-purple-600 text-white text-xs font-bold transition-all"
+                >
+                  Allocate 20% to Wants
+                </button>
               </div>
             </div>
           </div>
 
           {/* New Allocation Form */}
-          <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 p-6 bg-white space-y-4">
-            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Plus className="w-4 h-4 text-indigo-600" />
+          <div ref={formRef} className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-6 bg-white dark:bg-slate-900 space-y-4 scroll-mt-6">
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <Plus className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
               New Profit Allocation Entry
             </h3>
 
             {formError && (
-              <div className="bg-rose-50 border border-rose-200 p-3 rounded-xl text-rose-700 text-xs flex items-center gap-2">
+              <div className="bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900 p-3 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 flex-shrink-0" />
                 <span>{formError}</span>
               </div>
             )}
 
             {formSuccess && (
-              <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-emerald-700 text-xs flex items-center gap-2">
+              <div className="bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-900 p-3 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
                 <span>Profit allocated successfully!</span>
               </div>
@@ -317,20 +398,20 @@ export default function ProfitPage() {
             <form onSubmit={handleAllocate} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Allocation Type *</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Allocation Type *</label>
                   <select
                     value={allocationType}
                     onChange={(e) => setAllocationType(e.target.value as any)}
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   >
-                    <option value="SAVINGS">SAVINGS (Reserve / Business Expansion)</option>
-                    <option value="NEEDS">NEEDS (Essential Operational Needs)</option>
-                    <option value="WANTS">WANTS (Owner Payout / Bonuses)</option>
+                    <option value="SAVINGS">SAVINGS (Reserve / Business Expansion - 50%)</option>
+                    <option value="NEEDS">NEEDS (Essential Operational Needs - 30%)</option>
+                    <option value="WANTS">WANTS (Owner Payout / Bonuses - 20%)</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Amount (GH₵) *</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Amount (GH₵) *</label>
                   <input
                     type="number"
                     step="0.01"
@@ -338,56 +419,56 @@ export default function ProfitPage() {
                     placeholder="0.00"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Source / Tag</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Source / Tag</label>
                   <input
                     type="text"
                     placeholder="e.g. Q3 Profit Share"
                     value={source}
                     onChange={(e) => setSource(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   />
                 </div>
               </div>
 
               {/* Quick Presets */}
               <div className="flex items-center gap-2 pt-1 flex-wrap">
-                <span className="text-[11px] font-bold text-slate-500">Quick Presets of Remaining:</span>
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Quick Presets of Remaining:</span>
                 <button
                   type="button"
                   onClick={() => applyPresetPercentage(50)}
-                  className="px-3 py-1 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  className="px-3.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold transition-all focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
                 >
-                  50%
+                  50% Savings
                 </button>
                 <button
                   type="button"
                   onClick={() => applyPresetPercentage(30)}
-                  className="px-3 py-1 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  className="px-3.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold transition-all focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
                 >
-                  30%
+                  30% Needs
                 </button>
                 <button
                   type="button"
                   onClick={() => applyPresetPercentage(20)}
-                  className="px-3 py-1 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  className="px-3.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold transition-all focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
                 >
-                  20%
+                  20% Wants
                 </button>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Notes</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Notes</label>
                 <textarea
                   rows={2}
                   placeholder="Optional allocation note..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                 />
               </div>
 
@@ -395,7 +476,7 @@ export default function ProfitPage() {
                 <button
                   type="submit"
                   disabled={submitting || (summary?.allocations.remainingAllocatableProfit || 0) <= 0}
-                  className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-lg shadow-indigo-500/25 transition-all disabled:opacity-50 flex items-center gap-2 touch-manipulation"
+                  className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-lg shadow-indigo-500/25 transition-all disabled:opacity-50 flex items-center gap-2 touch-manipulation active:scale-95"
                 >
                   {submitting ? (
                     <>
@@ -409,23 +490,23 @@ export default function ProfitPage() {
             </form>
           </div>
 
-          {/* Allocation History Ledger */}
-          <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 p-6 bg-white space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <History className="w-4 h-4 text-indigo-600" />
-                Allocation Ledger History
+          {/* Allocation History & Savings Ledger */}
+          <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-6 bg-white dark:bg-slate-900 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <History className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                Allocation History & Savings Ledger
               </h3>
-              <span className="text-xs font-bold text-slate-500">{allocations.length} Entries</span>
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{allocations.length} Entries</span>
             </div>
 
             {allocations.length === 0 ? (
-              <p className="text-xs text-slate-500 text-center py-8">No profit allocations recorded yet.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-8">No profit allocations recorded yet.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="text-slate-400 border-b border-slate-200 pb-2">
+                    <tr className="text-slate-400 dark:text-slate-500 border-b border-slate-200 dark:border-slate-800 pb-2">
                       <th className="font-semibold pb-2">Date</th>
                       <th className="font-semibold pb-2">Allocation Type</th>
                       <th className="font-semibold pb-2">Source / Tag</th>
@@ -433,10 +514,10 @@ export default function ProfitPage() {
                       <th className="font-semibold pb-2 text-right">Amount Allocated</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {allocations.map((a) => (
-                      <tr key={a.id} className="text-slate-800">
-                        <td className="py-3 text-slate-500">
+                      <tr key={a.id} className="text-slate-800 dark:text-slate-200">
+                        <td className="py-3 text-slate-500 dark:text-slate-400">
                           {new Date(a.allocationDate).toLocaleDateString()}
                         </td>
                         <td className="py-3">
@@ -448,9 +529,9 @@ export default function ProfitPage() {
                             {a.type}
                           </span>
                         </td>
-                        <td className="py-3 font-medium text-slate-700">{a.source || "—"}</td>
-                        <td className="py-3 text-slate-500">{a.notes || "—"}</td>
-                        <td className="py-3 font-black text-slate-900 text-right">
+                        <td className="py-3 font-medium text-slate-700 dark:text-slate-300">{a.source || "—"}</td>
+                        <td className="py-3 text-slate-500 dark:text-slate-400">{a.notes || "—"}</td>
+                        <td className="py-3 font-black text-slate-900 dark:text-slate-100 text-right">
                           {formatCurrency(a.amount)}
                         </td>
                       </tr>

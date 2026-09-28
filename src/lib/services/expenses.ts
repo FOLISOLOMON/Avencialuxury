@@ -1,5 +1,8 @@
 import { prisma, ensureDefaultBusiness } from "@/lib/db/prisma";
 import { ExpenseCategory, Prisma } from "@prisma/client";
+import { createNotification } from "./notifications";
+import { automationEngine } from "@/lib/automation/engine";
+import { BusinessEventType } from "@/lib/automation/events";
 
 export interface CreateExpenseInput {
   businessId: string;
@@ -21,7 +24,7 @@ export async function createExpense(input: CreateExpenseInput) {
     throw new Error("Expense amount must be greater than zero");
   }
 
-  return await prisma.expense.create({
+  const expense = await prisma.expense.create({
     data: {
       businessId: input.businessId,
       batchId: input.batchId || null,
@@ -32,6 +35,56 @@ export async function createExpense(input: CreateExpenseInput) {
       notes: input.notes?.trim() || null,
     },
   });
+
+  try {
+    const isLarge = input.amount >= 1000;
+    await createNotification({
+      businessId: input.businessId,
+      type: isLarge ? "LARGE_EXPENSE" : "EXPENSE_CREATED",
+      category: "FINANCE",
+      severity: isLarge ? "WARNING" : "INFO",
+      title: isLarge ? "Large Expense Logged" : "Expense Logged",
+      message: `${isLarge ? "Large expense" : "Expense"} of GH₵${input.amount.toFixed(2)} logged for "${expense.description}" (${expense.category}).`,
+      actionLabel: "View Expenses",
+      actionUrl: "/expenses",
+      entityType: "EXPENSE",
+      entityId: expense.id,
+    });
+
+    automationEngine.emit({
+      eventType: BusinessEventType.EXPENSE_CREATED,
+      businessId: input.businessId,
+      entityType: "EXPENSE",
+      entityId: expense.id,
+      dedupeKey: `EXPENSE_CREATED:${expense.id}`,
+      metadata: {
+        amount: input.amount,
+        category: expense.category,
+        description: expense.description,
+        batchId: expense.batchId,
+      },
+    });
+
+    if (isLarge) {
+      automationEngine.emit({
+        eventType: BusinessEventType.LARGE_EXPENSE_DETECTED,
+        businessId: input.businessId,
+        entityType: "EXPENSE",
+        entityId: expense.id,
+        dedupeKey: `LARGE_EXPENSE_DETECTED:${expense.id}`,
+        metadata: {
+          amount: input.amount,
+          category: expense.category,
+          description: expense.description,
+          batchId: expense.batchId,
+        },
+      });
+    }
+  } catch (err) {
+    console.error("Failed to trigger expense notification/event:", err);
+  }
+
+  return expense;
 }
 
 export async function getExpenses(businessId: string, category?: ExpenseCategory) {

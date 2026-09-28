@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { formatCurrency, formatGhanaPhoneNumber } from "@/lib/utils";
+import { PageHeader } from "@/components/ui/PageHeader";
 import {
   Users,
   Plus,
@@ -16,7 +17,10 @@ import {
   X,
   Loader2,
   Calendar,
-  Share2,
+  MessageSquare,
+  CreditCard,
+  UserCheck,
+  Building2,
 } from "lucide-react";
 
 interface Customer {
@@ -93,7 +97,6 @@ export default function CustomersPage() {
     window.addEventListener("avencia:open-add-customer", handler);
     return () => window.removeEventListener("avencia:open-add-customer", handler);
   }, []);
-
 
   const handleAddCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -196,14 +199,12 @@ export default function CustomersPage() {
 
   // Metrics
   const totalCustomersCount = customers.length;
-  const totalLifetimeSpend = customers.reduce((acc, c) => acc + c.totalSpend, 0);
-  const totalProfitFromClients = customers.reduce((acc, c) => acc + c.totalProfit, 0);
   const totalOutstandingDebt = customers.reduce((acc, c) => acc + (c.totalOutstandingDebt || 0), 0);
   const debtorsCount = customers.filter((c) => (c.totalOutstandingDebt || 0) > 0).length;
 
   const getWhatsAppDebtReminderUrl = (c: Customer) => {
     const debt = c.totalOutstandingDebt ? c.totalOutstandingDebt : 0;
-    const msg = `Hello ${c.name}! 👋\n\nThis is a gentle payment reminder from *Avencia Perfumes* regarding your account balance.\n\n📌 *Account Summary*:\n• Customer: ${c.name}\n• Total Lifetime Orders: ${c.totalOrders}\n• Outstanding Balance: GH₵ ${debt.toFixed(2)}\n\nPlease contact us or reply to this message to arrange payment or make a partial settlement. Thank you for your continued business! 🙏✨`;
+    const msg = `Hello ${c.name}! 👋\n\nThis is a gentle payment reminder from *Avencia Perfumes* regarding your account balance.\n\n📌 *Account Summary*:\n• Customer: ${c.name}\n• Total Orders: ${c.totalOrders}\n• Outstanding Balance: GH₵ ${debt.toFixed(2)}\n\nPlease contact us or reply to this message to arrange payment or make a partial settlement. Thank you for your continued business! 🙏✨`;
 
     const formattedPhone = formatGhanaPhoneNumber(c.phone);
     const cleanPhone = formattedPhone ? formattedPhone.replace(/[^0-9]/g, "") : "";
@@ -220,389 +221,300 @@ export default function CustomersPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header & Quick Action */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">Customer Directory</h2>
-          <p className="text-xs text-slate-500">
-            Track client relationships, lifetime order spend & profit contribution metrics.
-          </p>
-        </div>
+      {/* Page Header */}
+      <PageHeader
+        title="Customer Directory"
+        subtitle="Manage client accounts, lifetime analytics, and credit balances"
+      />
 
-        <button
-          onClick={() => {
-            setFormError(null);
-            setIsModalOpen(true);
-          }}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-lg shadow-indigo-500/25 transition-all touch-manipulation"
-        >
-          <Plus className="w-4 h-4" /> Add Customer
-        </button>
-      </div>
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 p-5 bg-white space-y-2">
+      {/* Summary KPI Cards: Total Clients, Active Debtors, Total Debt */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase">Total Clients</span>
-            <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Total Clients</span>
+            <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
               <Users className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900">{totalCustomersCount}</div>
-          <p className="text-[11px] text-slate-500">Registered active customers</p>
+          <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{totalCustomersCount}</div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">Registered client accounts</p>
         </div>
 
-        <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 p-5 bg-white space-y-2">
+        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase">Lifetime Spend</span>
-            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-              <DollarSign className="w-4 h-4" />
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Active Debtors</span>
+            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
+              <UserCheck className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900">{formatCurrency(totalLifetimeSpend)}</div>
-          <p className="text-[11px] text-slate-500">Total customer order value</p>
+          <div className="text-2xl font-black text-amber-600 dark:text-amber-400">{debtorsCount}</div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">Clients with pending credit</p>
         </div>
 
-        <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 p-5 bg-white space-y-2">
+        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase">Gross Profit</span>
-            <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600">
-              <TrendingUp className="w-4 h-4" />
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Total Debt Balance</span>
+            <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
+              <CreditCard className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900">{formatCurrency(totalProfitFromClients)}</div>
-          <p className="text-[11px] text-slate-500">Margin earned from client orders</p>
-        </div>
-
-        <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 p-5 bg-white space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase">Outstanding Debt</span>
-            <div className="p-2 rounded-xl bg-rose-50 text-rose-600">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-rose-600">{formatCurrency(totalOutstandingDebt)}</div>
-          <p className="text-[11px] text-slate-500">{debtorsCount} debtor{debtorsCount !== 1 ? "s" : ""} with balance due</p>
+          <div className="text-2xl font-black text-rose-600 dark:text-rose-400">{formatCurrency(totalOutstandingDebt)}</div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">Total outstanding receivables</p>
         </div>
       </div>
 
-      {/* Search & Filter Bar */}
-      <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 p-4 bg-white flex flex-col sm:flex-row gap-3 items-center justify-between">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search customers by name, phone, or email..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-          />
-          {search && (
+      {/* Filter Tabs & Search Bar */}
+      <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-4 bg-white dark:bg-slate-900 space-y-4">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          {/* Tabs */}
+          <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-full text-xs font-bold w-full sm:w-auto">
             <button
-              onClick={() => setSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              onClick={() => setActiveTab("ALL")}
+              className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-full transition-all ${
+                activeTab === "ALL"
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+              }`}
             >
-              <X className="w-3.5 h-3.5" />
+              All Clients ({totalCustomersCount})
             </button>
-          )}
-        </div>
+            <button
+              onClick={() => setActiveTab("DEBTORS")}
+              className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-full transition-all ${
+                activeTab === "DEBTORS"
+                  ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 font-extrabold"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+              }`}
+            >
+              Debtors Only ({debtorsCount})
+            </button>
+          </div>
 
-        {/* Tab Filters */}
-        <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-full w-full sm:w-auto">
-          <button
-            onClick={() => setActiveTab("ALL")}
-            className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-full text-xs font-bold transition-all focus:outline-none focus:ring-2 focus:ring-indigo-600 ${
-              activeTab === "ALL" ? "rounded-full bg-indigo-600 text-white shadow-md shadow-indigo-500/20" : "rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            All Clients ({customers.length})
-          </button>
-          <button
-            onClick={() => setActiveTab("DEBTORS")}
-            className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-full text-xs font-bold transition-all focus:outline-none focus:ring-2 focus:ring-rose-600 ${
-              activeTab === "DEBTORS" ? "rounded-full bg-rose-600 text-white shadow-md shadow-rose-500/20" : "rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            Debtors ({debtorsCount})
-          </button>
+          {/* Search Box & Add Customer Button */}
+          <div className="flex items-center gap-2 w-full sm:w-auto flex-1 max-w-md">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+              <input
+                type="text"
+                placeholder="Search by name, phone (+233)..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500"
+              />
+            </div>
+            <button
+              onClick={() => {
+                setFormError(null);
+                setIsModalOpen(true);
+              }}
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-lg shadow-indigo-500/25 transition-all whitespace-nowrap active:scale-95"
+            >
+              <Plus className="w-4 h-4" /> Add Customer
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Customers List */}
-      <div className="rounded-3xl border border-slate-100 shadow-xl shadow-indigo-500/5 p-6 bg-white space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <Users className="w-4 h-4 text-indigo-600" />
-            {activeTab === "DEBTORS" ? "Debtors & Outstanding Accounts" : "Client Directory"}
-          </h3>
-          <span className="text-xs font-bold text-slate-500">{filteredCustomers.length} Clients</span>
+      {/* Customer Grid / Cards */}
+      {loading ? (
+        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-12 bg-white dark:bg-slate-900 flex flex-col items-center justify-center text-center space-y-3">
+          <Loader2 className="w-8 h-8 text-slate-400 dark:text-slate-500 animate-spin" />
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Loading customer directory...</p>
         </div>
-
-        {loading ? (
-          <div className="p-12 text-center space-y-3">
-            <Loader2 className="w-8 h-8 text-slate-400 animate-spin mx-auto" />
-            <p className="text-xs text-slate-500">Loading directory...</p>
+      ) : error ? (
+        <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-4 rounded-2xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-3">
+          <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      ) : filteredCustomers.length === 0 ? (
+        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-12 bg-white dark:bg-slate-900 text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 mx-auto flex items-center justify-center">
+            <Users className="w-6 h-6" />
           </div>
-        ) : error ? (
-          <div className="bg-rose-50 border border-rose-200 p-4 rounded-2xl text-rose-700 text-xs flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-            <span>{error}</span>
-          </div>
-        ) : customers.length === 0 ? (
-          <div className="text-center py-12 space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 mx-auto flex items-center justify-center">
-              <Users className="w-6 h-6" />
-            </div>
-            <h3 className="font-bold text-slate-800 text-sm">No Customers Found</h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              {search ? "No customers match your search query." : "No customers added yet. Click 'Add Customer' to start building your client base."}
-            </p>
-          </div>
-        ) : (
-          <>
-            {/* DESKTOP table */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="text-slate-400 border-b border-slate-200 pb-2">
-                    <th className="font-semibold pb-2">Customer Name</th>
-                    <th className="font-semibold pb-2">Phone / Email</th>
-                    <th className="font-semibold pb-2">Orders</th>
-                    <th className="font-semibold pb-2">Lifetime Spend</th>
-                    <th className="font-semibold pb-2">Gross Profit</th>
-                    <th className="font-semibold pb-2">Debt Balance</th>
-                    <th className="font-semibold pb-2 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredCustomers.map((c) => {
-                    const hasDebt = (c.totalOutstandingDebt || 0) > 0;
-                    return (
-                      <tr key={c.id} className="text-slate-800">
-                        <td className="py-3 font-bold text-slate-900">
-                          {c.name}
-                          {hasDebt && (
-                            <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800 border border-rose-200">
-                              DEBTOR
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 text-slate-500">
-                          <div className="space-y-0.5">
-                            {c.phone && (
-                              <div className="flex items-center gap-1">
-                                <Phone className="w-3 h-3 text-slate-400" /> {c.phone}
-                              </div>
-                            )}
-                            {c.email && (
-                              <div className="flex items-center gap-1 text-[11px]">
-                                <Mail className="w-3 h-3 text-slate-400" /> {c.email}
-                              </div>
-                            )}
-                            {!c.phone && !c.email && "—"}
-                          </div>
-                        </td>
-                        <td className="py-3 font-medium">{c.totalOrders} orders</td>
-                        <td className="py-3 font-black text-slate-900">{formatCurrency(c.totalSpend)}</td>
-                        <td className="py-3 font-extrabold text-emerald-600">{formatCurrency(c.totalProfit)}</td>
-                        <td className="py-3 font-black">
-                          {hasDebt ? (
-                            <span className="text-rose-600">{formatCurrency(c.totalOutstandingDebt!)}</span>
-                          ) : (
-                            <span className="text-slate-400 font-normal">GH₵ 0.00</span>
-                          )}
-                        </td>
-                        <td className="py-3 text-right">
-                          {hasDebt ? (
-                            <div className="flex items-center justify-end gap-2">
-                              <a
-                                href={getWhatsAppDebtReminderUrl(c)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 transition-all shadow-sm inline-flex items-center gap-1.5"
-                                title="Send WhatsApp Debt Reminder"
-                              >
-                                <Share2 className="w-3.5 h-3.5" /> Reminder
-                              </a>
-                              <button
-                                onClick={() => openDebtModal(c)}
-                                className="px-3 py-1.5 rounded-xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition-all shadow-sm"
-                              >
-                                Settle Debt 💳
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-[11px] text-slate-400">Clear</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+          <h3 className="font-bold text-slate-800 dark:text-slate-200 text-sm">No Customers Found</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+            {activeTab === "DEBTORS"
+              ? "Great news! There are currently no active debtors with outstanding balances."
+              : "No customer profiles match your search criteria."}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredCustomers.map((c) => {
+            const debt = c.totalOutstandingDebt || 0;
+            const hasDebt = debt > 0;
+            const formattedPhone = c.phone ? formatGhanaPhoneNumber(c.phone) : null;
 
-            {/* MOBILE cards */}
-            <div className="md:hidden space-y-4 mb-4">
-              {filteredCustomers.map((c) => {
-                const hasDebt = (c.totalOutstandingDebt || 0) > 0;
-                return (
-                  <div key={c.id} className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-bold text-sm text-slate-900">{c.name}</p>
-                          {hasDebt && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800 border border-rose-200">
-                              DEBTOR
-                            </span>
-                          )}
-                        </div>
-                        {c.phone && <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5"><Phone className="w-3 h-3 text-slate-400" /> {c.phone}</p>}
-                        {c.email && <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5"><Mail className="w-3 h-3 text-slate-400" /> {c.email}</p>}
+            return (
+              <div
+                key={c.id}
+                className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 flex flex-col justify-between space-y-4 hover:border-indigo-100 dark:hover:border-indigo-900 transition-all"
+              >
+                {/* Top Row: Name & Badges */}
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 font-black text-sm flex items-center justify-center shrink-0 border border-indigo-100 dark:border-indigo-900">
+                        {c.name.substring(0, 2).toUpperCase()}
                       </div>
-                      <span className="text-[11px] text-slate-400 whitespace-nowrap">
-                        {c.lastPurchaseDate ? new Date(c.lastPurchaseDate).toLocaleDateString() : "No orders"}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200 text-xs">
-                      <div>
-                        <span className="text-[10px] text-slate-400 block">Orders</span>
-                        <span className="font-bold text-slate-800">{c.totalOrders}</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-400 block">Spent</span>
-                        <span className="font-bold text-slate-900">{formatCurrency(c.totalSpend)}</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-400 block">Debt Balance</span>
-                        <span className={`font-black ${hasDebt ? "text-rose-600" : "text-slate-400"}`}>
-                          {hasDebt ? formatCurrency(c.totalOutstandingDebt!) : "GH₵ 0.00"}
-                        </span>
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">{c.name}</h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 font-medium truncate">
+                          <Phone className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                          {formattedPhone || "No phone linked"}
+                        </p>
                       </div>
                     </div>
 
                     {hasDebt && (
-                      <div className="pt-2 border-t border-slate-200 space-y-2">
-                        <a
-                          href={getWhatsAppDebtReminderUrl(c)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="w-full py-2.5 rounded-2xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20"
-                        >
-                          <Share2 className="w-4 h-4" /> Send WhatsApp Debt Reminder
-                        </a>
-                        <button
-                          onClick={() => openDebtModal(c)}
-                          className="w-full py-2.5 rounded-2xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition-colors"
-                        >
-                          Settle Debt Payment ({formatCurrency(c.totalOutstandingDebt!)})
-                        </button>
-                      </div>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 shrink-0">
+                        Debtor
+                      </span>
                     )}
                   </div>
-                );
-              })}
-            </div>
-          </>
-        )}
 
-      </div>
+                  {c.email && (
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center gap-1.5 pl-1 truncate">
+                      <Mail className="w-3 h-3" /> {c.email}
+                    </p>
+                  )}
+                </div>
+
+                {/* Middle Grid: Key Metrics */}
+                <div className="grid grid-cols-2 gap-2 p-3 bg-slate-50/80 dark:bg-slate-800/80 rounded-2xl border border-slate-100 dark:border-slate-800 text-xs">
+                  <div>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase block">Lifetime Spend</span>
+                    <span className="font-black text-slate-900 dark:text-slate-100">{formatCurrency(c.totalSpend)}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase block">Debt Balance</span>
+                    <span className={`font-black ${hasDebt ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                      {formatCurrency(debt)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Bottom Actions Row */}
+                <div className="flex items-center gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+                  {hasDebt ? (
+                    <>
+                      <a
+                        href={getWhatsAppDebtReminderUrl(c)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all touch-manipulation"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span>WhatsApp Reminder</span>
+                      </a>
+                      <button
+                        onClick={() => openDebtModal(c)}
+                        className="py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs transition-all touch-manipulation"
+                        title="Record Payment"
+                      >
+                        Pay Debt
+                      </button>
+                    </>
+                  ) : (
+                    <a
+                      href={getWhatsAppDebtReminderUrl(c)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs transition-all"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span>WhatsApp Message</span>
+                    </a>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Add Customer Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-100 max-w-lg w-full p-6 shadow-2xl space-y-5 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
-                <h3 className="font-bold text-base text-slate-900">Add New Customer</h3>
-                <p className="text-xs text-slate-500">Create a client record in your directory</p>
+                <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Add New Customer</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Create client profile for quick checkout & debt tracking</p>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+                className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {formError && (
-              <div className="bg-rose-50 border border-rose-200 p-3 rounded-xl text-rose-700 text-xs flex items-center gap-2">
+              <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 flex-shrink-0" />
                 <span>{formError}</span>
               </div>
             )}
 
             {formSuccess && (
-              <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-emerald-700 text-xs flex items-center gap-2">
+              <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                <span>Customer created successfully!</span>
+                <span>Customer added successfully!</span>
               </div>
             )}
 
             <form onSubmit={handleAddCustomer} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Customer Full Name *</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Customer Name *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Ama Serwaa"
+                  placeholder="e.g. Abena Serwaa"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500"
                 />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Phone Number</label>
-                  <input
-                    type="tel"
-                    placeholder="e.g. 0554663443 or +233554663443"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    onBlur={(e) => {
-                      if (e.target.value.trim()) {
-                        setPhone(formatGhanaPhoneNumber(e.target.value));
-                      }
-                    }}
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  />
-                  <p className="text-[10px] text-indigo-600 font-semibold mt-1">
-                    Auto-formats to +233 (e.g. 0554663443 → +233554663443)
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Email Address</label>
-                  <input
-                    type="email"
-                    placeholder="e.g. ama@gmail.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  />
-                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Notes</label>
-                <textarea
-                  rows={2}
-                  placeholder="Preferred fragrances, delivery notes..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Phone Number (+233)</label>
+                <input
+                  type="text"
+                  placeholder="024XXXXXXX or +233..."
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500"
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Email Address</label>
+                <input
+                  type="email"
+                  placeholder="client@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Notes</label>
+                <textarea
+                  rows={2}
+                  placeholder="Optional customer preferences or address details..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
                   Cancel
                 </button>
@@ -628,102 +540,101 @@ export default function CustomersPage() {
       {/* Record Debt Payment Modal */}
       {debtModalCustomer && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-100 max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
-                <h3 className="font-bold text-base text-slate-900">Settle Customer Debt</h3>
-                <p className="text-xs text-slate-500">Record debt repayment for {debtModalCustomer.name}</p>
+                <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Record Debt Settlement</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Client: <span className="font-bold text-slate-900 dark:text-slate-100">{debtModalCustomer.name}</span>
+                </p>
               </div>
               <button
                 onClick={() => setDebtModalCustomer(null)}
-                className="p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+                className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="bg-rose-50 border border-rose-200 p-3.5 rounded-2xl flex items-center justify-between text-xs">
-              <span className="font-bold text-rose-900">Current Outstanding Debt:</span>
-              <span className="font-black text-sm text-rose-700">
+            <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3 rounded-xl text-xs space-y-1">
+              <span className="text-[10px] font-bold text-rose-500 dark:text-rose-400 uppercase block">Current Outstanding Debt</span>
+              <span className="font-black text-rose-700 dark:text-rose-300 text-base">
                 {formatCurrency(debtModalCustomer.totalOutstandingDebt || 0)}
               </span>
             </div>
 
             {debtError && (
-              <div className="bg-rose-50 border border-rose-200 p-3 rounded-xl text-rose-700 text-xs flex items-center gap-2">
+              <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 flex-shrink-0" />
                 <span>{debtError}</span>
               </div>
             )}
 
             {debtSuccess && (
-              <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-emerald-700 text-xs flex items-center gap-2">
+              <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                <span>Payment recorded! Debt updated.</span>
+                <span>Debt payment recorded successfully!</span>
               </div>
             )}
 
             <form onSubmit={handleRecordDebtPayment} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Repayment Amount (GH₵) *</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Amount Paid (GH₵) *</label>
                 <input
                   type="number"
                   step="0.01"
                   required
-                  min="0.01"
-                  max={debtModalCustomer.totalOutstandingDebt || undefined}
                   placeholder="0.00"
                   value={debtAmount}
                   onChange={(e) => setDebtAmount(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Payment Method</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Payment Method *</label>
                 <select
                   value={debtPaymentMethod}
                   onChange={(e) => setDebtPaymentMethod(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500"
                 >
                   <option value="CASH">Cash</option>
                   <option value="MOBILE_MONEY">Mobile Money (MoMo)</option>
                   <option value="BANK_TRANSFER">Bank Transfer</option>
-                  <option value="CARD">Card Payment</option>
-                  <option value="OTHER">Other</option>
+                  <option value="CARD">Card</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Notes (Optional)</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Payment Notes</label>
                 <textarea
                   rows={2}
-                  placeholder="e.g. Paid via MoMo reference #12345..."
+                  placeholder="Optional reference or transaction note..."
                   value={debtNotes}
                   onChange={(e) => setDebtNotes(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500"
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setDebtModalCustomer(null)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={debtSubmitting}
-                  className="px-5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2"
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-lg shadow-emerald-600/25 transition-all disabled:opacity-50 flex items-center gap-2"
                 >
                   {debtSubmitting ? (
                     <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Recording...
                     </>
                   ) : (
-                    "Record Debt Payment ✓"
+                    "Record Payment"
                   )}
                 </button>
               </div>

@@ -15,7 +15,7 @@ export function MobileNav() {
   ];
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-2 py-2 font-sans">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/80 dark:border-slate-800 px-2 py-1.5 font-sans">
       <div className="grid grid-cols-4 gap-1 max-w-md mx-auto">
         {primaryItems.map((item) => {
           const isActive = pathname === item.href;
@@ -28,13 +28,13 @@ export function MobileNav() {
               onClick={(e) => {
                 if (isActive) e.preventDefault();
               }}
-              className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl text-[11px] font-bold transition-all ${
+              className={`flex flex-col items-center justify-center py-1 px-1 rounded-xl text-[11px] font-bold transition-all focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 ${
                 isActive
-                  ? "text-indigo-600 bg-indigo-50 font-black shadow-sm"
-                  : "text-slate-500 hover:text-slate-900"
+                  ? "text-indigo-600 dark:text-indigo-400 bg-indigo-50/90 dark:bg-indigo-950/50 font-extrabold shadow-2xs"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
               }`}
             >
-              <Icon className={`w-5 h-5 mb-0.5 ${isActive ? "text-indigo-600" : "text-slate-400"}`} />
+              <Icon className={`w-5 h-5 mb-0.5 ${isActive ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400 dark:text-slate-400"}`} />
               <span className="truncate">{item.name}</span>
             </Link>
           );

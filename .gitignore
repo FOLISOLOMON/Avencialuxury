@@ -20,7 +20,11 @@ yarn-error.log*
 
 # local env files
 .env
+.env*
 .env*.local
+
+# scratch directory
+scratch/
 
 # vercel
 .vercel

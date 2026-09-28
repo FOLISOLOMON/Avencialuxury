@@ -2,6 +2,9 @@ import { prisma, ensureDefaultBusiness } from "@/lib/db/prisma";
 import { validateProfitAllocation } from "@/lib/calculations/financial";
 import { recordSavingsTransaction, getSavingsSummary } from "./savings";
 import { AllocationType, Prisma } from "@prisma/client";
+import { createNotification } from "./notifications";
+import { automationEngine } from "@/lib/automation/engine";
+import { BusinessEventType } from "@/lib/automation/events";
 
 export interface CreateAllocationInput {
   businessId: string;
@@ -60,6 +63,25 @@ export async function getFinancialSummary(businessId: string) {
 
   const remainingAllocatableProfit = Math.max(0, Math.round((totalNetProfit - totalAllocated) * 100) / 100);
 
+  if (remainingAllocatableProfit > 0) {
+    try {
+      automationEngine.emit({
+        eventType: BusinessEventType.PROFIT_AVAILABLE,
+        businessId,
+        entityType: "PROFIT_SUMMARY",
+        entityId: businessId,
+        dedupeKey: `PROFIT_AVAILABLE:${businessId}:${Math.floor(remainingAllocatableProfit)}`,
+        metadata: {
+          totalNetProfit,
+          totalAllocated,
+          remainingAllocatableProfit,
+        },
+      });
+    } catch (err) {
+      console.error("Failed to emit PROFIT_AVAILABLE event:", err);
+    }
+  }
+
   const savingsSummary = await getSavingsSummary(businessId);
 
   return {
@@ -103,7 +125,7 @@ export async function allocateProfit(input: CreateAllocationInput) {
     );
   }
 
-  return await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const allocation = await tx.profitAllocation.create({
       data: {
         businessId: input.businessId,
@@ -128,6 +150,38 @@ export async function allocateProfit(input: CreateAllocationInput) {
 
     return allocation;
   });
+
+  try {
+    await createNotification({
+      businessId: input.businessId,
+      type: "PROFIT_ALLOCATED",
+      category: "FINANCE",
+      severity: "SUCCESS",
+      title: "Profit Allocated",
+      message: `Allocated GH₵${cleanAmount.toFixed(2)} to ${input.type}.`,
+      actionLabel: "View Profit",
+      actionUrl: "/profit",
+      entityType: "PROFIT_ALLOCATION",
+      entityId: result.id,
+    });
+
+    automationEngine.emit({
+      eventType: BusinessEventType.PROFIT_ALLOCATED,
+      businessId: input.businessId,
+      entityType: "PROFIT_ALLOCATION",
+      entityId: result.id,
+      dedupeKey: `PROFIT_ALLOCATED:${result.id}`,
+      metadata: {
+        allocationId: result.id,
+        amount: cleanAmount,
+        type: input.type,
+      },
+    });
+  } catch (err) {
+    console.error("Failed to trigger profit allocation notification/event:", err);
+  }
+
+  return result;
 }
 
 export async function getAllocations(businessId: string) {
