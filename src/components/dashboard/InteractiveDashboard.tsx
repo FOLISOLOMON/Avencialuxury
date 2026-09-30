@@ -328,7 +328,7 @@ export function InteractiveDashboard({
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-extrabold tracking-wider text-slate-400 dark:text-slate-500 uppercase">Revenue</span>
-            <div className="w-9 h-9 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
+            <div className="w-9 h-9 rounded-2xl bg-gold-50 dark:bg-gold-500/10 text-gold-600 dark:text-gold-400 flex items-center justify-center font-bold">
               <DollarSign className="w-4 h-4" />
             </div>
           </div>
@@ -383,16 +383,16 @@ export function InteractiveDashboard({
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-extrabold tracking-wider text-slate-400 dark:text-slate-500 uppercase">Net Profit</span>
-            <div className="w-9 h-9 rounded-2xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 flex items-center justify-center font-bold">
+            <div className="w-9 h-9 rounded-2xl bg-gold-100 dark:bg-gold-500/10 text-gold-600 dark:text-gold-400 flex items-center justify-center font-bold">
               <Wallet className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-xl sm:text-2xl font-black text-indigo-600 dark:text-indigo-400 tracking-tight">
+          <div className="text-xl sm:text-2xl font-black text-gold-600 dark:text-gold-400 tracking-tight">
             {formatCurrency(totalNetProfit)}
           </div>
           <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-medium">
             <span>Available profit</span>
-            <span className="text-indigo-600 dark:text-indigo-400 font-bold">{netMarginPct}% net</span>
+            <span className="text-gold-600 dark:text-gold-400 font-bold">{netMarginPct}% net</span>
           </div>
         </div>
       </div>
@@ -404,7 +404,7 @@ export function InteractiveDashboard({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4 min-w-0">
             <div>
               <h2 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                <BarChart3 className="w-5 h-5 text-gold-500 flex-shrink-0" />
                 <span>Sales Performance</span>
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
@@ -418,11 +418,10 @@ export function InteractiveDashboard({
                 <button
                   key={tf}
                   onClick={() => setTimeframe(tf)}
-                  className={`px-2.5 sm:px-3 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
-                    timeframe === tf
-                      ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                  className={`px-2.5 sm:px-3 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${timeframe === tf
+                      ? "bg-white dark:bg-slate-900 text-gold-500 shadow-sm"
                       : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
-                  }`}
+                    }`}
                 >
                   {tf}
                 </button>
@@ -450,11 +449,10 @@ export function InteractiveDashboard({
                       <div className="w-full bg-slate-100 dark:bg-slate-800/80 rounded-xl sm:rounded-2xl h-full flex items-end overflow-hidden p-0.5">
                         <div
                           style={{ height: `${heightPct}%` }}
-                          className={`w-full rounded-lg sm:rounded-xl transition-all duration-500 group-hover:opacity-90 ${
-                            item.amount > 0
-                              ? "bg-gradient-to-t from-indigo-600 to-indigo-500 dark:from-indigo-500 dark:to-indigo-400 shadow-sm"
+                          className={`w-full rounded-lg sm:rounded-xl transition-all duration-500 group-hover:opacity-90 ${item.amount > 0
+                              ? "bg-gradient-to-t from-gold-600 to-gold-500 shadow-sm"
                               : "bg-slate-200/70 dark:bg-slate-700/70"
-                          }`}
+                            }`}
                         />
                       </div>
                       <span className="text-[9px] sm:text-[11px] font-bold text-slate-500 dark:text-slate-400 truncate max-w-full text-center tracking-tighter sm:tracking-normal">
@@ -468,7 +466,7 @@ export function InteractiveDashboard({
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-3 border-t border-slate-100 dark:border-slate-800 font-medium gap-1">
               <span>Timeframe: <strong className="text-slate-900 dark:text-slate-100 font-bold">{timeframe}</strong></span>
-              <span>Total Volume: <strong className="text-indigo-600 dark:text-indigo-400 font-bold">{formatCurrency(chartData.reduce((acc, c) => acc + c.amount, 0))}</strong></span>
+              <span>Total Volume: <strong className="text-gold-500 font-bold">{formatCurrency(chartData.reduce((acc, c) => acc + c.amount, 0))}</strong></span>
             </div>
           </div>
         </div>
@@ -478,12 +476,12 @@ export function InteractiveDashboard({
           <div>
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h2 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <Layers className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <Layers className="w-5 h-5 text-gold-500" />
                 Inventory Snapshot
               </h2>
               <a
                 href="/inventory"
-                className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:underline flex items-center gap-1"
+                className="text-xs font-bold text-gold-500 hover:text-gold-600 hover:underline flex items-center gap-1"
               >
                 View Inventory →
               </a>
@@ -494,9 +492,9 @@ export function InteractiveDashboard({
                 <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total Products</span>
                 <div className="text-xl font-black text-slate-900 dark:text-slate-100">{inventoryMetrics.totalProducts}</div>
               </div>
-              <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 space-y-1">
-                <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Units in Stock</span>
-                <div className="text-xl font-black text-indigo-950 dark:text-indigo-200">{inventoryMetrics.totalUnits}</div>
+              <div className="p-3.5 rounded-2xl bg-gold-50/70 dark:bg-gold-500/10 border border-gold-500/20 space-y-1">
+                <span className="text-[10px] font-bold text-gold-600 dark:text-gold-400 uppercase tracking-wider">Units in Stock</span>
+                <div className="text-xl font-black text-gold-950 dark:text-gold-200">{inventoryMetrics.totalUnits}</div>
               </div>
               <div className="p-3.5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-900/50 space-y-1">
                 <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Low Stock</span>
@@ -515,54 +513,51 @@ export function InteractiveDashboard({
               <span className="text-emerald-600 dark:text-emerald-400">
                 {inventoryMetrics.totalProducts > 0
                   ? `${Math.round(
-                      ((inventoryMetrics.totalProducts -
-                        inventoryMetrics.lowStockCount -
-                        inventoryMetrics.outOfStockCount) /
-                        inventoryMetrics.totalProducts) *
-                        100
-                    )}% Healthy`
+                    ((inventoryMetrics.totalProducts -
+                      inventoryMetrics.lowStockCount -
+                      inventoryMetrics.outOfStockCount) /
+                      inventoryMetrics.totalProducts) *
+                    100
+                  )}% Healthy`
                   : "0%"}
               </span>
             </div>
             <div className="w-full h-3 rounded-full bg-slate-100 dark:bg-slate-800 flex overflow-hidden p-0.5 border border-slate-200/50 dark:border-slate-700/50">
               <div
                 style={{
-                  width: `${
-                    inventoryMetrics.totalProducts > 0
+                  width: `${inventoryMetrics.totalProducts > 0
                       ? ((inventoryMetrics.totalProducts -
-                          inventoryMetrics.lowStockCount -
-                          inventoryMetrics.outOfStockCount) /
-                          inventoryMetrics.totalProducts) *
-                        100
+                        inventoryMetrics.lowStockCount -
+                        inventoryMetrics.outOfStockCount) /
+                        inventoryMetrics.totalProducts) *
+                      100
                       : 100
-                  }%`,
+                    }%`,
                 }}
                 className="bg-emerald-500 rounded-full h-full"
               />
               <div
                 style={{
-                  width: `${
-                    inventoryMetrics.totalProducts > 0
+                  width: `${inventoryMetrics.totalProducts > 0
                       ? (inventoryMetrics.lowStockCount / inventoryMetrics.totalProducts) * 100
                       : 0
-                  }%`,
+                    }%`,
                 }}
                 className="bg-amber-400 rounded-full h-full ml-0.5"
               />
               <div
                 style={{
-                  width: `${
-                    inventoryMetrics.totalProducts > 0
+                  width: `${inventoryMetrics.totalProducts > 0
                       ? (inventoryMetrics.outOfStockCount / inventoryMetrics.totalProducts) * 100
                       : 0
-                  }%`,
+                    }%`,
                 }}
                 className="bg-rose-500 rounded-full h-full ml-0.5"
               />
             </div>
             <a
               href="/inventory"
-              className="block text-center w-full py-2.5 rounded-2xl bg-slate-900 dark:bg-indigo-600 text-white font-bold text-xs hover:bg-slate-800 dark:hover:bg-indigo-500 transition-colors shadow-sm"
+              className="block text-center w-full py-2.5 rounded-2xl bg-gold-500 hover:bg-gold-600 text-slate-950 font-bold text-xs transition-colors shadow-sm"
             >
               Manage Inventory
             </a>
@@ -583,7 +578,7 @@ export function InteractiveDashboard({
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
           <div>
             <h2 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              <CreditCard className="w-5 h-5 text-gold-500" />
               Recent Sales Activity
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
@@ -610,7 +605,7 @@ export function InteractiveDashboard({
                 }
                 setIsSaleModalOpen(true);
               }}
-              className="px-4 py-2 text-xs font-bold rounded-xl bg-indigo-600 dark:bg-indigo-500 text-white hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-all inline-flex items-center gap-2 shadow-sm"
+              className="px-4 py-2 text-xs font-bold rounded-xl bg-gold-500 hover:bg-gold-600 text-slate-950 transition-all inline-flex items-center gap-2 shadow-sm"
             >
               <Plus className="w-4 h-4" /> Record First Sale
             </button>
@@ -659,11 +654,10 @@ export function InteractiveDashboard({
                       </td>
                       <td className="py-3.5 px-4 text-right">
                         <span
-                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                            sale.status === "VOIDED"
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${sale.status === "VOIDED"
                               ? "bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-900"
                               : "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900"
-                          }`}
+                            }`}
                         >
                           {sale.status || "COMPLETED"}
                         </span>
@@ -703,11 +697,10 @@ export function InteractiveDashboard({
                         {sale.paymentMethod || "CASH"}
                       </span>
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          sale.status === "VOIDED"
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${sale.status === "VOIDED"
                             ? "bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300"
                             : "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300"
-                        }`}
+                          }`}
                       >
                         {sale.status || "COMPLETED"}
                       </span>
@@ -727,7 +720,7 @@ export function InteractiveDashboard({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-4">
             <div>
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <PiggyBank className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <PiggyBank className="w-5 h-5 text-gold-500" />
                 Profit Allocations (Savings / Needs / Wants)
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
@@ -758,9 +751,9 @@ export function InteractiveDashboard({
                 {formatCurrency(summary?.allocations?.wants)}
               </div>
             </div>
-            <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 space-y-1">
-              <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300">Total Allocated</span>
-              <div className="text-lg font-black text-indigo-950 dark:text-indigo-200">
+            <div className="p-4 rounded-2xl bg-gold-50 dark:bg-gold-500/10 border border-gold-500/20 space-y-1">
+              <span className="text-xs font-bold text-gold-600 dark:text-gold-400">Total Allocated</span>
+              <div className="text-lg font-black text-gold-950 dark:text-gold-200">
                 {formatCurrency(summary?.allocations?.totalAllocated)}
               </div>
             </div>
@@ -768,19 +761,19 @@ export function InteractiveDashboard({
         </div>
 
         {/* Promo Feature Card */}
-        <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 dark:from-indigo-900 dark:to-indigo-950 rounded-3xl p-6 text-white shadow-md flex flex-col justify-between space-y-4">
+        <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-gold-950 rounded-3xl p-6 text-white border border-gold-500/30 shadow-md flex flex-col justify-between space-y-4">
           <div className="space-y-2">
-            <div className="w-10 h-10 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-amber-300">
+            <div className="w-10 h-10 rounded-2xl bg-gold-500/20 backdrop-blur-md flex items-center justify-center text-gold-400">
               <Sparkles className="w-5 h-5" />
             </div>
-            <h3 className="text-lg font-black tracking-tight">Need Detailed Reports?</h3>
-            <p className="text-xs text-indigo-100 font-medium leading-relaxed">
+            <h3 className="text-lg font-black tracking-tight text-white">Need Detailed Reports?</h3>
+            <p className="text-xs text-slate-300 font-medium leading-relaxed">
               Export custom sales analytics, batch profit margins & tax reports with 1-click.
             </p>
           </div>
           <a
             href="/reports"
-            className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-emerald-500 text-slate-950 font-black text-xs hover:bg-emerald-400 transition-all shadow-md active:scale-95 w-full"
+            className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gold-500 text-slate-950 font-black text-xs hover:bg-gold-400 transition-all shadow-md active:scale-95 w-full"
           >
             <span>View Full Reports</span>
             <ArrowRight className="w-4 h-4" />
@@ -795,7 +788,7 @@ export function InteractiveDashboard({
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
             <div>
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <Layers className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                <Layers className="w-4 h-4 text-gold-500" />
                 Active Stock Batches
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Purchased stock batches available for FIFO sale</p>
@@ -810,7 +803,7 @@ export function InteractiveDashboard({
                   }
                   setIsBatchModalOpen(true);
                 }}
-                className="text-xs font-bold px-3 py-1 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900 rounded-full transition-colors"
+                className="text-xs font-bold px-3 py-1 bg-gold-50 dark:bg-gold-500/10 text-gold-600 dark:text-gold-400 hover:bg-gold-100 rounded-full transition-colors"
               >
                 + Add Batch
               </button>
@@ -857,12 +850,12 @@ export function InteractiveDashboard({
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
             <div>
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <Package className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                <Package className="w-4 h-4 text-gold-500" />
                 Product Catalog
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Active products in catalog</p>
             </div>
-            <span className="text-xs font-bold px-3 py-1 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800 rounded-full">
+            <span className="text-xs font-bold px-3 py-1 bg-gold-50 dark:bg-gold-500/10 text-gold-600 dark:text-gold-400 border border-gold-500/20 rounded-full">
               {products.length} Products
             </span>
           </div>
@@ -923,7 +916,7 @@ export function InteractiveDashboard({
                       setSalePrice(price ? price.toString() : "0");
                     }
                   }}
-                  className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-gold-500"
                   required
                 >
                   {products.map((p) => {
@@ -945,7 +938,7 @@ export function InteractiveDashboard({
                     min="1"
                     value={saleQty}
                     onChange={(e) => setSaleQty(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-gold-500"
                     required
                   />
                 </div>
@@ -956,7 +949,7 @@ export function InteractiveDashboard({
                     step="0.01"
                     value={salePrice}
                     onChange={(e) => setSalePrice(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-gold-500"
                     required
                   />
                 </div>
@@ -973,7 +966,7 @@ export function InteractiveDashboard({
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 disabled:opacity-50 shadow-md shadow-indigo-500/20"
+                  className="flex-1 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-600 text-slate-950 font-bold disabled:opacity-50 shadow-md shadow-gold-500/20"
                 >
                   {isSubmitting ? "Processing..." : "Complete Sale"}
                 </button>
@@ -1002,7 +995,7 @@ export function InteractiveDashboard({
                   placeholder="e.g. Creed Aventus 100ml"
                   value={prodName}
                   onChange={(e) => setProdName(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-gold-500"
                   required
                 />
               </div>
@@ -1014,7 +1007,7 @@ export function InteractiveDashboard({
                   placeholder="e.g. AV-CREED100"
                   value={prodSku}
                   onChange={(e) => setProdSku(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-gold-500"
                 />
               </div>
 
@@ -1027,7 +1020,7 @@ export function InteractiveDashboard({
                     placeholder="150.00"
                     value={prodPrice}
                     onChange={(e) => setProdPrice(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-gold-500"
                     required
                   />
                 </div>
@@ -1039,7 +1032,7 @@ export function InteractiveDashboard({
                     placeholder="80.00"
                     value={prodCost}
                     onChange={(e) => setProdCost(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-gold-500"
                     required
                   />
                 </div>
@@ -1056,7 +1049,7 @@ export function InteractiveDashboard({
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 disabled:opacity-50 shadow-md shadow-indigo-500/20"
+                  className="flex-1 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-600 text-slate-950 font-bold disabled:opacity-50 shadow-md shadow-gold-500/20"
                 >
                   {isSubmitting ? "Saving..." : "Save Product"}
                 </button>
@@ -1084,7 +1077,7 @@ export function InteractiveDashboard({
                   type="text"
                   value={batchRef}
                   onChange={(e) => setBatchRef(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-gold-500"
                   required
                 />
               </div>
@@ -1101,7 +1094,7 @@ export function InteractiveDashboard({
                       setBatchCost(cost ? cost.toString() : "0");
                     }
                   }}
-                  className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-gold-500"
                   required
                 >
                   {products.map((p) => (
@@ -1120,7 +1113,7 @@ export function InteractiveDashboard({
                     min="1"
                     value={batchQty}
                     onChange={(e) => setBatchQty(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-gold-500"
                     required
                   />
                 </div>
@@ -1131,7 +1124,7 @@ export function InteractiveDashboard({
                     step="0.01"
                     value={batchCost}
                     onChange={(e) => setBatchCost(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-gold-500"
                     required
                   />
                 </div>
@@ -1144,7 +1137,7 @@ export function InteractiveDashboard({
                   step="0.01"
                   value={batchTransport}
                   onChange={(e) => setBatchTransport(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-gold-500"
                 />
               </div>
 
@@ -1159,7 +1152,7 @@ export function InteractiveDashboard({
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 disabled:opacity-50 shadow-md shadow-indigo-500/20"
+                  className="flex-1 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-600 text-slate-950 font-bold disabled:opacity-50 shadow-md shadow-gold-500/20"
                 >
                   {isSubmitting ? "Creating..." : "Create Batch"}
                 </button>

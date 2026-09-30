@@ -54,6 +54,15 @@ export async function recordDebtPayment(input: RecordDebtPaymentInput) {
     throw new Error("Customer not found");
   }
 
+  // Calculate customer previous balance
+  const activeSalesBefore = await prisma.sale.findMany({
+    where: { businessId, customerId, status: { notIn: ["VOIDED", "REFUNDED"] } },
+    select: { balanceDue: true },
+  });
+  const previousBalance = Math.round(
+    activeSalesBefore.reduce((sum, s) => sum + s.balanceDue.toNumber(), 0) * 100
+  ) / 100;
+
   const result = await prisma.$transaction(async (tx) => {
     // Log DebtPayment transaction
     const debtPayment = await tx.debtPayment.create({
@@ -117,6 +126,15 @@ export async function recordDebtPayment(input: RecordDebtPaymentInput) {
     return debtPayment;
   });
 
+  // Calculate customer new balance
+  const activeSalesAfter = await prisma.sale.findMany({
+    where: { businessId, customerId, status: { notIn: ["VOIDED", "REFUNDED"] } },
+    select: { balanceDue: true },
+  });
+  const newBalance = Math.round(
+    activeSalesAfter.reduce((sum, s) => sum + s.balanceDue.toNumber(), 0) * 100
+  ) / 100;
+
   try {
     await createNotification({
       businessId: input.businessId,
@@ -131,7 +149,7 @@ export async function recordDebtPayment(input: RecordDebtPaymentInput) {
       entityId: customer.id,
     });
 
-    automationEngine.emit({
+    await automationEngine.emit({
       eventType: BusinessEventType.CUSTOMER_PAYMENT_RECEIVED,
       businessId: input.businessId,
       entityType: "CUSTOMER",
@@ -143,8 +161,39 @@ export async function recordDebtPayment(input: RecordDebtPaymentInput) {
         customerName: customer.name,
         amount: input.amount,
         paymentMethod: input.paymentMethod,
+        remainingBalance: newBalance,
       },
     });
+
+    if (previousBalance > 0 && newBalance === 0) {
+      await createNotification({
+        businessId: input.businessId,
+        type: "DEBT_SETTLED",
+        category: "CUSTOMERS",
+        severity: "SUCCESS",
+        title: "Debt Fully Settled",
+        message: `${customer.name} has fully settled their outstanding balance.`,
+        actionLabel: "View Customer",
+        actionUrl: `/customers?id=${customer.id}`,
+        entityType: "CUSTOMER",
+        entityId: customer.id,
+        dedupeKey: `DEBT_SETTLED:${customer.id}:${result.id}`,
+      });
+
+      await automationEngine.emit({
+        eventType: BusinessEventType.DEBT_SETTLED,
+        businessId: input.businessId,
+        entityType: "CUSTOMER",
+        entityId: customer.id,
+        dedupeKey: `DEBT_SETTLED:${customer.id}:${result.id}`,
+        metadata: {
+          customerId: customer.id,
+          customerName: customer.name,
+          previousBalance,
+          newBalance: 0,
+        },
+      });
+    }
   } catch (err) {
     console.error("Failed to trigger debt payment notification/event:", err);
   }

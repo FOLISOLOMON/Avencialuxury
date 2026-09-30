@@ -104,6 +104,7 @@ model Business {
   notifications       Notification[]
   notificationSetting NotificationSetting?
   automationExecutions AutomationExecution[]
+  whatsAppLogs        WhatsAppLog[]
 }
 
 
@@ -227,6 +228,7 @@ model Customer {
   updatedAt    DateTime      @updatedAt
   sales        Sale[]
   debtPayments DebtPayment[]
+  whatsAppLogs WhatsAppLog[]
 
   @@index([businessId])
   @@index([businessId, name])
@@ -434,3 +436,42 @@ model AutomationExecution {
   @@index([businessId, eventType])
   @@index([dedupeKey])
 }
+
+enum WhatsAppDeliveryStatus {
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  FAILED
+  CANCELLED
+}
+
+enum WhatsAppMessageType {
+  PAYMENT_REMINDER
+  DEBT_SETTLED
+  SALE_RECEIPT
+  PAYMENT_RECEIPT
+}
+
+model WhatsAppLog {
+  id           String                 @id @default(cuid())
+  businessId   String
+  business     Business               @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId   String?
+  customer     Customer?              @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  messageType  WhatsAppMessageType
+  phone        String
+  message      String
+  status       WhatsAppDeliveryStatus @default(QUEUED)
+  error        String?
+  dedupeKey    String?
+  sentAt       DateTime?
+  deliveredAt  DateTime?
+  createdAt    DateTime               @default(now())
+
+  @@index([businessId])
+  @@index([businessId, customerId])
+  @@index([businessId, status])
+  @@index([dedupeKey])
+}
+

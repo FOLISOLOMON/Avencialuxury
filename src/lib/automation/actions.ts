@@ -1,8 +1,10 @@
 import { createNotification, CreateNotificationParams } from "@/lib/services/notifications";
+import { sendOrQueueWhatsAppMessage } from "@/lib/services/whatsapp";
 
 export type ActionType =
   | "CREATE_NOTIFICATION"
   | "SEND_REMINDER"
+  | "SEND_WHATSAPP_REMINDER"
   | "UPDATE_DASHBOARD_STATE"
   | "CREATE_DAILY_SUMMARY"
   | "CREATE_WEEKLY_SUMMARY";
@@ -76,6 +78,34 @@ export async function executeAction(action: AutomationAction): Promise<ActionExe
           result: notification,
         };
       }
+
+      case "SEND_WHATSAPP_REMINDER": {
+        const waResult = await sendOrQueueWhatsAppMessage({
+          businessId: action.businessId,
+          customerId: action.payload.customerId,
+          messageType: action.payload.messageType || "PAYMENT_REMINDER",
+          phone: action.payload.phone,
+          customMessage: action.payload.customMessage,
+          dedupeKey: action.payload.dedupeKey,
+          forceSend: action.payload.forceSend || false,
+        });
+
+        if (!waResult.success) {
+          return {
+            success: false,
+            actionType: action.type,
+            error: waResult.message || `WhatsApp execution skipped (${waResult.reason})`,
+            result: waResult,
+          };
+        }
+
+        return {
+          success: true,
+          actionType: action.type,
+          result: waResult,
+        };
+      }
+
 
       case "UPDATE_DASHBOARD_STATE": {
         const params: CreateNotificationParams = {

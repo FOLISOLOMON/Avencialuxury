@@ -74,12 +74,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
           const bgBorder =
             t.type === "success"
-              ? "bg-white dark:bg-slate-900 border-emerald-200 dark:border-emerald-900/60 text-slate-900 dark:text-slate-100 shadow-emerald-500/10"
+              ? "bg-white dark:bg-[#151515] border-emerald-200 dark:border-emerald-900/60 text-[#171717] dark:text-[#F5F5F5] shadow-emerald-500/10"
               : t.type === "warning"
-              ? "bg-white dark:bg-slate-900 border-amber-200 dark:border-amber-900/60 text-slate-900 dark:text-slate-100 shadow-amber-500/10"
+              ? "bg-white dark:bg-[#151515] border-amber-200 dark:border-amber-900/60 text-[#171717] dark:text-[#F5F5F5] shadow-amber-500/10"
               : t.type === "error"
-              ? "bg-white dark:bg-slate-900 border-rose-200 dark:border-rose-900/60 text-slate-900 dark:text-slate-100 shadow-rose-500/10"
-              : "bg-white dark:bg-slate-900 border-indigo-200 dark:border-indigo-900/60 text-slate-900 dark:text-slate-100 shadow-indigo-500/10";
+              ? "bg-white dark:bg-[#151515] border-rose-200 dark:border-rose-900/60 text-[#171717] dark:text-[#F5F5F5] shadow-rose-500/10"
+              : "bg-white dark:bg-[#151515] border-gold-500/30 text-[#171717] dark:text-[#F5F5F5] shadow-gold-500/10";
 
           const iconColor =
             t.type === "success"
@@ -88,7 +88,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               ? "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60"
               : t.type === "error"
               ? "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60"
-              : "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60";
+              : "text-gold-600 dark:text-gold-400 bg-gold-500/15";
 
           return (
             <div
@@ -99,12 +99,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 <Icon className="w-4 h-4" />
               </div>
               <div className="flex-1 min-w-0 pt-0.5">
-                {t.title && <h4 className="font-extrabold text-xs text-slate-900 dark:text-slate-100 mb-0.5">{t.title}</h4>}
-                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 leading-snug">{t.message}</p>
+                {t.title && <h4 className="font-extrabold text-xs text-[#171717] dark:text-[#F5F5F5] mb-0.5">{t.title}</h4>}
+                <p className="text-xs font-semibold text-[#525252] dark:text-[#D4D4D4] leading-snug">{t.message}</p>
               </div>
               <button
                 onClick={() => removeToast(t.id)}
-                className="p-1 rounded-lg text-slate-400 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex-shrink-0"
+                className="p-1 rounded-lg text-[#737373] dark:text-[#A3A3A3] hover:text-[#171717] dark:hover:text-[#F5F5F5] hover:bg-[#F8F7F3] dark:hover:bg-[#181818] transition-colors flex-shrink-0"
               >
                 <X className="w-3.5 h-3.5" />
               </button>

@@ -4,65 +4,65 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 45 20% 97%; /* #F8F7F3 */
+    --foreground: 0 0% 9%; /* #171717 */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%; /* #FFFFFF */
+    --card-foreground: 0 0% 9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 0 0% 9%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 45 68% 47%; /* #C9A227 - Avencia Gold */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 45 15% 94%;
+    --secondary-foreground: 0 0% 9%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 45 10% 94%;
+    --muted-foreground: 0 0% 45%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 45 50% 95%;
+    --accent-foreground: 45 68% 30%;
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 45 15% 87%; /* #E5E2D8 */
+    --input: 45 15% 87%;
+    --ring: 45 68% 47%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 0 0% 5%; /* #0D0D0D */
+    --foreground: 0 0% 96%; /* #F5F5F5 */
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 8%; /* #151515 */
+    --card-foreground: 0 0% 96%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 96%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 45 68% 47%; /* #C9A227 - Avencia Gold */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 96%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 64%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 45 40% 16%;
+    --accent-foreground: 45 68% 70%;
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: 0 0% 16%; /* #2A2A2A */
+    --input: 0 0% 16%;
+    --ring: 45 68% 47%;
   }
 }
 
@@ -70,13 +70,20 @@
   * {
     @apply border-border;
   }
+
   body {
-    @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+    background-color: #F8F7F3;
+    color: #171717;
+  }
+
+  .dark body {
+    background-color: #0D0D0D;
+    color: #F5F5F5;
   }
 
   /* Global Button & Interactive Focus Styling:
      Eliminate browser default blue outlines on mouse clicks & mobile touch taps
-     while enforcing clear, accessible focus-visible rings for keyboard users. */
+     while enforcing clear, accessible focus-visible rings for keyboard users using Avencia Gold. */
   button:focus:not(:focus-visible),
   a:focus:not(:focus-visible),
   [role="button"]:focus:not(:focus-visible),
@@ -90,7 +97,7 @@
   button:focus-visible,
   a:focus-visible,
   [role="button"]:focus-visible {
-    outline: 2px solid #4f46e5;
+    outline: 2px solid #C9A227;
     outline-offset: 2px;
   }
 
@@ -98,5 +105,6 @@
   textarea:focus-visible,
   select:focus-visible {
     outline: none;
+    border-color: #C9A227 !important;
   }
 }

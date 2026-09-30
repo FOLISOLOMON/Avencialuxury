@@ -27,7 +27,7 @@ export function FilterTabs({
   return (
     <div
       className={cn(
-        "rounded-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/50 p-1 flex items-center gap-1 overflow-x-auto scrollbar-none font-sans max-w-full",
+        "rounded-full bg-[#F8F7F3] dark:bg-[#181818] border border-[#E5E2D8] dark:border-[#2A2A2A] p-1 flex items-center gap-1 overflow-x-auto scrollbar-none font-sans max-w-full",
         className
       )}
     >
@@ -40,17 +40,17 @@ export function FilterTabs({
             key={tab.id}
             onClick={() => onChange(tab.id)}
             className={cn(
-              "flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs transition-all duration-150 focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 dark:focus-visible:ring-indigo-500 focus-visible:ring-offset-1",
+              "flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500",
               isActive
-                ? "bg-indigo-600 dark:bg-indigo-600 text-white font-bold shadow-xs"
-                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-semibold hover:bg-slate-200/60 dark:hover:bg-slate-700/60"
+                ? "bg-gold-500 text-white font-black shadow-md shadow-gold-500/20"
+                : "text-[#525252] dark:text-[#D4D4D4] hover:text-[#171717] dark:hover:text-[#F5F5F5] font-semibold hover:bg-gold-500/10 dark:hover:bg-gold-500/15"
             )}
           >
             {Icon && (
               <Icon
                 className={cn(
                   "w-3.5 h-3.5 flex-shrink-0",
-                  isActive ? "text-white" : "text-slate-500 dark:text-slate-400"
+                  isActive ? "text-white" : "text-[#737373] dark:text-[#A3A3A3]"
                 )}
               />
             )}
@@ -60,8 +60,8 @@ export function FilterTabs({
                 className={cn(
                   "px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ml-0.5",
                   isActive
-                    ? "bg-indigo-500/80 text-white"
-                    : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                    ? "bg-gold-600/80 text-white"
+                    : "bg-[#E5E2D8] dark:bg-[#2A2A2A] text-[#171717] dark:text-[#F5F5F5]"
                 )}
               >
                 {tab.count}

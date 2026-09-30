@@ -1,9 +1,17 @@
 import { prisma } from "@/lib/db/prisma";
 import { PaymentMethod, ExpenseCategory, AllocationType, Prisma } from "@prisma/client";
+import { getBusinessDayBounds } from "@/lib/utils";
 
 export interface ReportFilter {
-  startDate?: Date;
-  endDate?: Date;
+  quickRange?: string;
+  startDate?: Date | string;
+  endDate?: Date | string;
+  customerId?: string;
+  paymentStatus?: string;
+  paymentMethod?: string;
+  batchId?: string;
+  productId?: string;
+  search?: string;
 }
 
 /**
@@ -22,82 +30,144 @@ function calculatePercentage(part: number, total: number): number {
 }
 
 // ----------------------------------------------------------------------
-// 1. SALES REPORT SERVICE
+// 1. SALES REPORT SERVICE (Authoritative Single Source of Truth)
 // ----------------------------------------------------------------------
 export async function getSalesReport(businessId: string, filter?: ReportFilter) {
+  const { startDate, endDate } = getBusinessDayBounds(
+    filter?.quickRange,
+    filter?.startDate,
+    filter?.endDate
+  );
+
   const dateCondition: Prisma.DateTimeFilter = {};
-  if (filter?.startDate) dateCondition.gte = filter.startDate;
-  if (filter?.endDate) dateCondition.lte = filter.endDate;
+  if (startDate) dateCondition.gte = startDate;
+  if (endDate) dateCondition.lte = endDate;
 
   const saleWhere: Prisma.SaleWhereInput = {
     businessId,
-    status: { notIn: ["VOIDED", "REFUNDED"] },
-    ...(filter?.startDate || filter?.endDate ? { saleDate: dateCondition } : {}),
+    ...(startDate || endDate ? { saleDate: dateCondition } : {}),
   };
 
-  const aggregate = await prisma.sale.aggregate({
-    where: saleWhere,
-    _sum: {
-      subtotal: true,
-      discount: true,
-      totalAmount: true,
-      totalCost: true,
-      grossProfit: true,
-    },
-    _count: {
-      id: true,
-    },
-  });
+  if (filter?.customerId) {
+    saleWhere.customerId = filter.customerId;
+  }
 
-  const totalSalesCount = aggregate._count.id || 0;
-  const totalSubtotal = roundCurrency(aggregate._sum.subtotal?.toNumber() || 0);
-  const totalDiscounts = roundCurrency(aggregate._sum.discount?.toNumber() || 0);
-  const totalRevenue = roundCurrency(aggregate._sum.totalAmount?.toNumber() || 0);
-  const totalCostOfGoods = roundCurrency(aggregate._sum.totalCost?.toNumber() || 0);
-  const totalGrossProfit = roundCurrency(aggregate._sum.grossProfit?.toNumber() || 0);
-  const averageOrderValue = totalSalesCount > 0 ? roundCurrency(totalRevenue / totalSalesCount) : 0;
-  const profitMargin = calculatePercentage(totalGrossProfit, totalRevenue);
+  if (filter?.paymentMethod && filter.paymentMethod !== "ALL") {
+    saleWhere.paymentMethod = filter.paymentMethod as PaymentMethod;
+  }
 
-  // Payment Method Breakdown
-  const paymentGrouped = await prisma.sale.groupBy({
-    by: ["paymentMethod"],
-    where: saleWhere,
-    _sum: {
-      totalAmount: true,
-    },
-    _count: {
-      id: true,
-    },
-  });
-
-  const paymentMethodBreakdown = paymentGrouped.map((item) => {
-    const revenue = roundCurrency(item._sum.totalAmount?.toNumber() || 0);
-    return {
-      paymentMethod: item.paymentMethod,
-      count: item._count.id,
-      revenue,
-      percentage: calculatePercentage(revenue, totalRevenue),
+  if (filter?.productId || filter?.batchId) {
+    saleWhere.saleItems = {
+      some: {
+        ...(filter.productId ? { productId: filter.productId } : {}),
+        ...(filter.batchId ? { batchId: filter.batchId } : {}),
+      },
     };
-  });
+  }
 
-  // Fetch sales list
+  if (filter?.search && filter.search.trim() !== "") {
+    const q = filter.search.trim();
+    saleWhere.OR = [
+      { id: { contains: q, mode: "insensitive" } },
+      { notes: { contains: q, mode: "insensitive" } },
+      { customer: { name: { contains: q, mode: "insensitive" } } },
+    ];
+  }
+
+  const pStatus = filter?.paymentStatus?.toUpperCase();
+  if (pStatus && pStatus !== "ALL") {
+    if (pStatus === "VOIDED") {
+      saleWhere.status = "VOIDED";
+    } else if (pStatus === "REFUNDED") {
+      saleWhere.status = "REFUNDED";
+    } else if (pStatus === "PAID" || pStatus === "PARTIAL" || pStatus === "UNPAID") {
+      saleWhere.status = { notIn: ["VOIDED", "REFUNDED"] };
+      saleWhere.paymentStatus = pStatus as any;
+    }
+  }
+
   const salesList = await prisma.sale.findMany({
     where: saleWhere,
     orderBy: { saleDate: "desc" },
     include: {
-      customer: {
-        select: { id: true, name: true },
-      },
-      _count: {
-        select: { saleItems: true },
+      customer: { select: { id: true, name: true, phone: true } },
+      saleItems: {
+        include: {
+          product: { select: { id: true, name: true, sku: true, barcode: true } },
+          batch: { select: { id: true, reference: true } },
+        },
       },
     },
   });
 
-  // Daily Sales Trend
-  const salesByDateMap = new Map<string, { revenue: number; cost: number; profit: number; count: number }>();
+  // Calculate metrics from exact filtered dataset
+  const activeSales = salesList.filter((s) => s.status !== "VOIDED" && s.status !== "REFUNDED");
+  const voidedSalesCount = salesList.filter((s) => s.status === "VOIDED").length;
+  const refundedSalesCount = salesList.filter((s) => s.status === "REFUNDED").length;
 
-  salesList.forEach((s) => {
+  const totalTransactions = activeSales.length;
+  const totalItemsSold = activeSales.reduce(
+    (sum, s) => sum + s.saleItems.reduce((iSum, item) => iSum + item.quantity, 0),
+    0
+  );
+
+  const totalSalesRevenue = roundCurrency(
+    activeSales.reduce((sum, s) => sum + s.totalAmount.toNumber(), 0)
+  );
+
+  const totalAmountCollected = roundCurrency(
+    activeSales.reduce((sum, s) => sum + s.amountPaid.toNumber(), 0)
+  );
+
+  const totalOutstanding = roundCurrency(
+    activeSales.reduce((sum, s) => sum + s.balanceDue.toNumber(), 0)
+  );
+
+  const totalCostOfGoods = roundCurrency(
+    activeSales.reduce((sum, s) => sum + s.totalCost.toNumber(), 0)
+  );
+
+  const totalGrossProfit = roundCurrency(
+    activeSales.reduce((sum, s) => sum + s.grossProfit.toNumber(), 0)
+  );
+
+  const averageOrderValue = totalTransactions > 0 ? roundCurrency(totalSalesRevenue / totalTransactions) : 0;
+  const profitMargin = calculatePercentage(totalGrossProfit, totalSalesRevenue);
+
+  // Operational Expenses for same period
+  const expenseWhere: Prisma.ExpenseWhereInput = {
+    businessId,
+    ...(startDate || endDate ? { expenseDate: dateCondition } : {}),
+  };
+
+  const expenseAgg = await prisma.expense.aggregate({
+    where: expenseWhere,
+    _sum: { amount: true },
+  });
+  const totalExpenses = roundCurrency(expenseAgg._sum.amount?.toNumber() || 0);
+  const netProfit = roundCurrency(totalGrossProfit - totalExpenses);
+
+  // Payment Method Breakdown for active sales
+  const paymentMethodMap = new Map<string, { count: number; revenue: number }>();
+  activeSales.forEach((s) => {
+    const pm = s.paymentMethod;
+    const existing = paymentMethodMap.get(pm) || { count: 0, revenue: 0 };
+    paymentMethodMap.set(pm, {
+      count: existing.count + 1,
+      revenue: roundCurrency(existing.revenue + s.totalAmount.toNumber()),
+    });
+  });
+
+  const paymentMethodBreakdown = Array.from(paymentMethodMap.entries()).map(([pm, data]) => ({
+    paymentMethod: pm,
+    count: data.count,
+    revenue: data.revenue,
+    percentage: calculatePercentage(data.revenue, totalSalesRevenue),
+  }));
+
+  // Daily Trend for active sales
+  const salesByDateMap = new Map<string, { revenue: number; cost: number; profit: number; count: number }>();
+  activeSales.forEach((s) => {
     const dateKey = s.saleDate.toISOString().split("T")[0];
     const existing = salesByDateMap.get(dateKey) || { revenue: 0, cost: 0, profit: 0, count: 0 };
     salesByDateMap.set(dateKey, {
@@ -113,25 +183,24 @@ export async function getSalesReport(businessId: string, filter?: ReportFilter) 
     .sort((a, b) => a.date.localeCompare(b.date));
 
   return {
-    totalSalesCount,
-    totalSubtotal,
-    totalDiscounts,
-    totalRevenue,
-    totalCostOfGoods,
-    totalGrossProfit,
-    averageOrderValue,
-    profitMargin,
+    sales: salesList,
+    summary: {
+      totalTransactions,
+      totalItemsSold,
+      totalSalesRevenue,
+      totalAmountCollected,
+      totalOutstanding,
+      totalCostOfGoods,
+      totalGrossProfit,
+      totalExpenses,
+      netProfit,
+      averageOrderValue,
+      profitMargin,
+      voidedSalesCount,
+      refundedSalesCount,
+    },
     paymentMethodBreakdown,
     dailySalesTrend,
-    salesList: salesList.map((s) => ({
-      id: s.id,
-      saleDate: s.saleDate,
-      customerName: s.customer?.name || "Guest Customer",
-      itemCount: s._count.saleItems,
-      totalAmount: s.totalAmount.toNumber(),
-      grossProfit: s.grossProfit.toNumber(),
-      paymentMethod: s.paymentMethod,
-    })),
   };
 }
 
@@ -479,9 +548,9 @@ export async function getProfitReport(businessId: string, filter?: ReportFilter)
   const salesReport = await getSalesReport(businessId, filter);
   const expenseReport = await getExpenseReport(businessId, filter);
 
-  const totalRevenue = salesReport.totalRevenue;
-  const totalCostOfGoods = salesReport.totalCostOfGoods;
-  const totalGrossProfit = salesReport.totalGrossProfit;
+  const totalRevenue = salesReport.summary.totalSalesRevenue;
+  const totalCostOfGoods = salesReport.summary.totalCostOfGoods;
+  const totalGrossProfit = salesReport.summary.totalGrossProfit;
   const grossMarginPercentage = calculatePercentage(totalGrossProfit, totalRevenue);
 
   const totalExpenses = expenseReport.totalExpenses;
@@ -527,8 +596,9 @@ export async function getProfitReport(businessId: string, filter?: ReportFilter)
     { revenue: number; cogs: number; grossProfit: number; expenses: number; netProfit: number }
   >();
 
-  salesReport.salesList.forEach((sale) => {
-    const monthKey = sale.saleDate.toISOString().slice(0, 7); // YYYY-MM
+  salesReport.sales.forEach((sale: any) => {
+    const sDate = sale.createdAt ? new Date(sale.createdAt) : new Date(sale.saleDate);
+    const monthKey = sDate.toISOString().slice(0, 7); // YYYY-MM
     const existing = monthlyTrendMap.get(monthKey) || {
       revenue: 0,
       cogs: 0,
@@ -537,9 +607,9 @@ export async function getProfitReport(businessId: string, filter?: ReportFilter)
       netProfit: 0,
     };
 
-    const rev = sale.totalAmount;
-    const gp = sale.grossProfit;
-    const cogs = rev - gp;
+    const rev = Number(sale.totalAmount || 0);
+    const gp = Number(sale.grossProfit || 0);
+    const cogs = Math.max(0, rev - gp);
 
     existing.revenue = roundCurrency(existing.revenue + rev);
     existing.cogs = roundCurrency(existing.cogs + cogs);

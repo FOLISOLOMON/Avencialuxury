@@ -183,51 +183,70 @@ export default function SuppliersPage() {
   const grandTotalSpend = suppliers.reduce((sum, s) => sum + s.totalInvestment, 0);
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <PageHeader
-        title="Supplier Directory"
-        subtitle="Manage wholesale partners, contact information, and procurement batches"
-      />
+    <div className="space-y-6 font-sans">
+      {/* Action Toolbar Header */}
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-black text-[#171717] dark:text-[#F5F5F5] tracking-tight">Wholesale Supplier Directory</h2>
+          <p className="text-xs text-[#737373] dark:text-[#A3A3A3]">Manage vendor accounts, contact details, and procurement batches</p>
+        </div>
+        <button
+          onClick={() => {
+            setEditingSupplier(null);
+            setName("");
+            setContactPerson("");
+            setPhone("");
+            setEmail("");
+            setAddress("");
+            setNotes("");
+            setFormError(null);
+            setIsModalOpen(true);
+          }}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gold-500 hover:bg-gold-600 text-white font-bold text-xs shadow-lg shadow-gold-500/25 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Add Supplier</span>
+        </button>
+      </div>
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-6 bg-white dark:bg-slate-900 space-y-2">
+        <div className="rounded-3xl border border-[#E5E2D8] dark:border-[#2A2A2A] shadow-xl shadow-gold-500/5 p-6 bg-white dark:bg-[#151515] space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Active Suppliers</span>
-            <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+            <span className="text-xs font-semibold text-[#737373] dark:text-[#A3A3A3] uppercase">Active Suppliers</span>
+            <div className="p-2 rounded-xl bg-gold-500/15 text-gold-600 dark:text-gold-400 border border-gold-500/30">
               <Truck className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{totalSuppliers}</div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">Wholesale partners</p>
+          <div className="text-2xl font-black text-[#171717] dark:text-[#F5F5F5]">{totalSuppliers}</div>
+          <p className="text-[11px] text-[#737373] dark:text-[#A3A3A3]">Wholesale partners</p>
         </div>
 
-        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-6 bg-white dark:bg-slate-900 space-y-2">
+        <div className="rounded-3xl border border-[#E5E2D8] dark:border-[#2A2A2A] shadow-xl shadow-gold-500/5 p-6 bg-white dark:bg-[#151515] space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Batches Supplied</span>
-            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
+            <span className="text-xs font-semibold text-[#737373] dark:text-[#A3A3A3] uppercase">Batches Supplied</span>
+            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60">
               <Layers className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{grandTotalBatches}</div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">Restocking trips</p>
+          <div className="text-2xl font-black text-[#171717] dark:text-[#F5F5F5]">{grandTotalBatches}</div>
+          <p className="text-[11px] text-[#737373] dark:text-[#A3A3A3]">Restocking trips</p>
         </div>
 
-        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-6 bg-white dark:bg-slate-900 space-y-2">
+        <div className="rounded-3xl border border-[#E5E2D8] dark:border-[#2A2A2A] shadow-xl shadow-gold-500/5 p-6 bg-white dark:bg-[#151515] space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Total Procurement Spend</span>
-            <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+            <span className="text-xs font-semibold text-[#737373] dark:text-[#A3A3A3] uppercase">Total Procurement Spend</span>
+            <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/60">
               <PackageCheck className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{formatCurrency(grandTotalSpend)}</div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">Cumulative inventory investment</p>
+          <div className="text-2xl font-black text-[#171717] dark:text-[#F5F5F5]">{formatCurrency(grandTotalSpend)}</div>
+          <p className="text-[11px] text-[#737373] dark:text-[#A3A3A3]">Cumulative inventory investment</p>
         </div>
       </div>
 
       {/* Filter & Search */}
-      <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-4 bg-white dark:bg-slate-900 flex flex-col sm:flex-row gap-3 items-center justify-between">
+      <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-gold-500/5 p-4 bg-white dark:bg-slate-900 flex flex-col sm:flex-row gap-3 items-center justify-between">
         <div className="relative flex-1 w-full">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
           <input
@@ -235,19 +254,19 @@ export default function SuppliersPage() {
             placeholder="Search suppliers by name, contact person, or phone..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500"
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-gold-500 dark:focus:ring-gold-500"
           />
         </div>
         <button
           onClick={openCreateModal}
-          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25 transition-all font-bold text-xs whitespace-nowrap active:scale-95"
+          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-gold-500 hover:bg-gold-600 text-slate-950 shadow-lg shadow-gold-500/20 transition-all font-bold text-xs whitespace-nowrap active:scale-95"
         >
           <Plus className="w-4 h-4" /> Add Supplier
         </button>
       </div>
 
       {/* Supplier Directory Cards Grid */}
-      <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-6 bg-white dark:bg-slate-900">
+      <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-gold-500/5 p-6 bg-white dark:bg-slate-900">
         {loading ? (
           <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
             <Loader2 className="w-8 h-8 text-slate-400 dark:text-slate-500 animate-spin" />
@@ -378,7 +397,7 @@ export default function SuppliersPage() {
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Company / Supplier Name *</label>
                 <input type="text" required placeholder="e.g. Fragrance World Wholesale" value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500" />
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-gold-500 dark:focus:ring-gold-500" />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -386,13 +405,13 @@ export default function SuppliersPage() {
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Contact Person</label>
                   <input type="text" placeholder="e.g. Mr. Ibrahim" value={contactPerson}
                     onChange={(e) => setContactPerson(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500" />
+                    className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-gold-500 dark:focus:ring-gold-500" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Phone Number</label>
                   <input type="text" placeholder="e.g. 0244123456" value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500" />
+                    className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-gold-500 dark:focus:ring-gold-500" />
                 </div>
               </div>
 
@@ -400,19 +419,19 @@ export default function SuppliersPage() {
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Email Address</label>
                 <input type="email" placeholder="e.g. sales@fragranceworld.com" value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500" />
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-gold-500 dark:focus:ring-gold-500" />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Physical Address / Market Location</label>
                 <input type="text" placeholder="e.g. Makola Market, Block C #14" value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500" />
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-gold-500 dark:focus:ring-gold-500" />
               </div>
 
               <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">Cancel</button>
-                <button type="submit" disabled={submitting} className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25 transition-all text-xs font-bold disabled:opacity-50 flex items-center gap-2">
+                <button type="submit" disabled={submitting} className="px-5 py-2 rounded-xl bg-gold-500 hover:bg-gold-600 text-slate-950 shadow-lg shadow-gold-500/20 transition-all text-xs font-bold disabled:opacity-50 flex items-center gap-2">
                   {submitting ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...</> : "Save Supplier"}
                 </button>
               </div>

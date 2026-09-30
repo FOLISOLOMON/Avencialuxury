@@ -26,6 +26,9 @@ import {
   Barcode,
   ScanLine,
   Camera,
+  Download,
+  Printer,
+  Filter,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 
@@ -65,6 +68,9 @@ interface Sale {
   totalAmount: number;
   totalCost: number;
   grossProfit: number;
+  amountPaid: number;
+  balanceDue: number;
+  paymentStatus: string;
   paymentMethod: string;
   status: string;
   notes: string | null;
@@ -73,12 +79,53 @@ interface Sale {
   saleItems: SaleItem[];
 }
 
+interface SalesSummary {
+  totalTransactions: number;
+  totalItemsSold: number;
+  totalSalesRevenue: number;
+  totalAmountCollected: number;
+  totalOutstanding: number;
+  totalCostOfGoods: number;
+  totalGrossProfit: number;
+  totalExpenses: number;
+  netProfit: number;
+  averageOrderValue: number;
+  profitMargin: number;
+  voidedSalesCount: number;
+  refundedSalesCount: number;
+}
+
 export default function SalesPage() {
   const [sales, setSales] = useState<Sale[]>([]);
+  const [summary, setSummary] = useState<SalesSummary>({
+    totalTransactions: 0,
+    totalItemsSold: 0,
+    totalSalesRevenue: 0,
+    totalAmountCollected: 0,
+    totalOutstanding: 0,
+    totalCostOfGoods: 0,
+    totalGrossProfit: 0,
+    totalExpenses: 0,
+    netProfit: 0,
+    averageOrderValue: 0,
+    profitMargin: 0,
+    voidedSalesCount: 0,
+    refundedSalesCount: 0,
+  });
+
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Filters State
+  const [quickRange, setQuickRange] = useState<string>("ALL");
+  const [customStart, setCustomStart] = useState<string>("");
+  const [customEnd, setCustomEnd] = useState<string>("");
+  const [filterCustomer, setFilterCustomer] = useState<string>("ALL");
+  const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("ALL");
+  const [filterPaymentMethod, setFilterPaymentMethod] = useState<string>("ALL");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   // Detail Modal & Receipt Modal
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
@@ -122,8 +169,21 @@ export default function SalesPage() {
     setLoading(true);
     setError(null);
     try {
+      const queryParams = new URLSearchParams();
+      if (quickRange && quickRange !== "ALL") queryParams.set("quickRange", quickRange);
+      if (quickRange === "CUSTOM") {
+        if (customStart) queryParams.set("startDate", customStart);
+        if (customEnd) queryParams.set("endDate", customEnd);
+      }
+      if (filterCustomer && filterCustomer !== "ALL") queryParams.set("customerId", filterCustomer);
+      if (filterPaymentStatus && filterPaymentStatus !== "ALL") queryParams.set("paymentStatus", filterPaymentStatus);
+      if (filterPaymentMethod && filterPaymentMethod !== "ALL") queryParams.set("paymentMethod", filterPaymentMethod);
+      if (searchQuery.trim()) queryParams.set("search", searchQuery.trim());
+
+      const salesUrl = `/api/sales?${queryParams.toString()}`;
+
       const [salesRes, prodRes, custRes] = await Promise.all([
-        fetch("/api/sales"),
+        fetch(salesUrl),
         fetch("/api/products"),
         fetch("/api/customers"),
       ]);
@@ -132,8 +192,12 @@ export default function SalesPage() {
       const prodJson = await prodRes.json();
       const custJson = await custRes.json();
 
-      if (salesJson.success) setSales(salesJson.data);
-      else setError(salesJson.error || "Failed to load sales");
+      if (salesJson.success) {
+        setSales(salesJson.data);
+        if (salesJson.summary) setSummary(salesJson.summary);
+      } else {
+        setError(salesJson.error || "Failed to load sales");
+      }
 
       if (prodJson.success) setProducts(prodJson.data);
       if (custJson.success) setCustomers(custJson.data);
@@ -146,7 +210,7 @@ export default function SalesPage() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [quickRange, customStart, customEnd, filterCustomer, filterPaymentStatus, filterPaymentMethod, searchQuery]);
 
   useEffect(() => {
     const handler = () => setIsModalOpen(true);
@@ -459,52 +523,240 @@ export default function SalesPage() {
     );
   };
 
+  const handleExportCSV = () => {
+    if (!sales || sales.length === 0) {
+      alert("No sales data available to export.");
+      return;
+    }
+
+    const headers = [
+      "Sale Reference",
+      "Date",
+      "Customer",
+      "Items Count",
+      "Total Amount (GHS)",
+      "Amount Paid (GHS)",
+      "Balance Due (GHS)",
+      "Payment Status",
+      "Payment Method",
+      "Gross Profit (GHS)"
+    ];
+
+    const rows = sales.map((s: any) => [
+      `"${s.referenceNumber || s.id}"`,
+      `"${new Date(s.createdAt || s.saleDate).toLocaleString("en-GB")}"`,
+      `"${s.customer?.name || s.customerName || "Guest Customer"}"`,
+      s.saleItems ? s.saleItems.length : (s.itemCount || 1),
+      Number(s.totalAmount || 0).toFixed(2),
+      Number(s.amountPaid || 0).toFixed(2),
+      Number(s.balanceDue || 0).toFixed(2),
+      `"${s.paymentStatus || s.status}"`,
+      `"${s.paymentMethod || "CASH"}"`,
+      Number(s.grossProfit || 0).toFixed(2)
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `avencia_sales_report_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-6 font-sans">
-      {/* Summary Row */}
+      {/* Authoritative Financial Summary KPI Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Today's Revenue</span>
+            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Total Sales Revenue</span>
             <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400">
               <DollarSign className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{formatCurrency(todayRevenue)}</div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">Gross sales collected today</p>
+          <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{formatCurrency(summary.totalSalesRevenue)}</div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">Total invoice revenue (Active sales)</p>
         </div>
 
         <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Transactions Count</span>
-            <div className="p-2 rounded-xl bg-violet-50 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400">
-              <ShoppingBag className="w-4 h-4" />
+            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Cash Collected</span>
+            <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{transactionsCount}</div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">Completed sales invoices</p>
+          <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{formatCurrency(summary.totalAmountCollected)}</div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">Realized cash received so far</p>
         </div>
 
         <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Outstanding Credit</span>
+            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Outstanding Balance</span>
             <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400">
               <AlertTriangle className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-rose-600 dark:text-rose-400">{formatCurrency(outstandingCredit)}</div>
+          <div className="text-2xl font-black text-rose-600 dark:text-rose-400">{formatCurrency(summary.totalOutstanding)}</div>
           <p className="text-[11px] text-slate-500 dark:text-slate-400">Customer debt balance due</p>
         </div>
 
         <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Average Sale Value</span>
-            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400">
-              <CreditCard className="w-4 h-4" />
+            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Gross Profit</span>
+            <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
+              <TrendingUp className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{formatCurrency(avgOrderValue)}</div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">Average value per transaction</p>
+          <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{formatCurrency(summary.totalGrossProfit)}</div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">Revenue minus FIFO COGS</p>
+        </div>
+      </div>
+
+      {/* Filter Toolbar & Actions */}
+      <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">Sales History Filters</h4>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportCSV}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all"
+            >
+              <Download className="w-3.5 h-3.5" /> Export CSV
+            </button>
+
+            <button
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all"
+            >
+              <Printer className="w-3.5 h-3.5" /> Print / PDF
+            </button>
+          </div>
+        </div>
+
+        {/* Quick Date Range Tabs */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+          {[
+            { id: "ALL", label: "All Time" },
+            { id: "TODAY", label: "Today" },
+            { id: "YESTERDAY", label: "Yesterday" },
+            { id: "THIS_WEEK", label: "This Week" },
+            { id: "LAST_7_DAYS", label: "Last 7 Days" },
+            { id: "THIS_MONTH", label: "This Month" },
+            { id: "LAST_MONTH", label: "Last Month" },
+            { id: "THIS_YEAR", label: "This Year" },
+            { id: "CUSTOM", label: "Custom Range" },
+          ].map((range) => (
+            <button
+              key={range.id}
+              onClick={() => setQuickRange(range.id)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                quickRange === range.id
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+              }`}
+            >
+              {range.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Custom Date Pickers */}
+        {quickRange === "CUSTOM" && (
+          <div className="flex items-center gap-3 pt-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500 font-medium">From:</span>
+              <input
+                type="date"
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-slate-900 dark:text-slate-100"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500 font-medium">To:</span>
+              <input
+                type="date"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-slate-900 dark:text-slate-100"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Additional Filters Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-1">
+          {/* Customer Filter */}
+          <div>
+            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Customer</label>
+            <select
+              value={filterCustomer}
+              onChange={(e) => setFilterCustomer(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 font-medium"
+            >
+              <option value="ALL">All Customers</option>
+              {customers.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Payment Status Filter */}
+          <div>
+            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Payment Status</label>
+            <select
+              value={filterPaymentStatus}
+              onChange={(e) => setFilterPaymentStatus(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 font-medium"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="PAID">PAID</option>
+              <option value="PARTIAL">PARTIAL</option>
+              <option value="UNPAID">UNPAID</option>
+              <option value="VOIDED">VOIDED</option>
+              <option value="REFUNDED">REFUNDED</option>
+            </select>
+          </div>
+
+          {/* Payment Method Filter */}
+          <div>
+            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Payment Method</label>
+            <select
+              value={filterPaymentMethod}
+              onChange={(e) => setFilterPaymentMethod(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 font-medium"
+            >
+              <option value="ALL">All Methods</option>
+              <option value="CASH">Cash</option>
+              <option value="MOBILE_MONEY">Mobile Money</option>
+              <option value="BANK_TRANSFER">Bank Transfer</option>
+              <option value="CARD">Card</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+
+          {/* Search Input */}
+          <div>
+            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Search Reference / Notes</label>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search sale ID, client..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 font-medium"
+              />
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-3" />
+            </div>
+          </div>
         </div>
       </div>
 

@@ -23,7 +23,6 @@ export function NotificationBell() {
   useEffect(() => {
     fetchUnreadCount();
 
-    // Poll unread count every 30 seconds
     const interval = setInterval(fetchUnreadCount, 30000);
 
     const handleCreated = () => fetchUnreadCount();
@@ -39,13 +38,13 @@ export function NotificationBell() {
     <>
       <button
         onClick={() => setIsCenterOpen(!isCenterOpen)}
-        className="relative p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-slate-100 transition-colors focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+        className="relative p-2 rounded-xl bg-[#F8F7F3] dark:bg-[#181818] hover:bg-gold-500/15 text-[#525252] dark:text-[#D4D4D4] hover:text-[#171717] dark:hover:text-[#F5F5F5] border border-[#E5E2D8] dark:border-[#2A2A2A] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
         title="Notifications"
         aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ""}`}
       >
-        <Bell className="w-4 h-4" />
+        <Bell className="w-4 h-4 text-gold-600 dark:text-gold-400" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-4 h-4 px-1 text-[9px] font-extrabold text-white bg-rose-600 rounded-full border-2 border-white dark:border-slate-900 animate-in zoom-in-50 duration-150">
+          <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-4 h-4 px-1 text-[9px] font-extrabold text-white bg-gold-600 rounded-full border-2 border-white dark:border-[#151515] animate-in zoom-in-50 duration-150">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}

@@ -12,14 +12,11 @@ import {
   Receipt,
   Users,
   ShieldCheck,
-  AlertTriangle,
   CheckCircle2,
-  Info,
   ChevronRight,
   Trash2,
   Loader2,
 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
 
 interface NotificationItem {
   id: string;
@@ -91,7 +88,6 @@ export function NotificationCenter({
 
   const handleMarkAsRead = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    // Optimistic UI update
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
     );
@@ -105,7 +101,6 @@ export function NotificationCenter({
   };
 
   const handleMarkAllAsRead = async () => {
-    // Optimistic UI update
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     onUnreadCountChange(0);
 
@@ -141,30 +136,17 @@ export function NotificationCenter({
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case "INVENTORY":
-        return <Package className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />;
+        return <Package className="w-4 h-4 text-gold-600 dark:text-gold-400" />;
       case "SALES":
         return <ShoppingBag className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />;
       case "FINANCE":
         return <Receipt className="w-4 h-4 text-amber-600 dark:text-amber-400" />;
       case "CUSTOMERS":
-        return <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />;
+        return <Users className="w-4 h-4 text-[#C9A227]" />;
       case "SECURITY":
         return <ShieldCheck className="w-4 h-4 text-rose-600 dark:text-rose-400" />;
       default:
-        return <Bell className="w-4 h-4 text-slate-600 dark:text-slate-400" />;
-    }
-  };
-
-  const getSeverityBadge = (severity: string) => {
-    switch (severity) {
-      case "CRITICAL":
-        return "bg-rose-500 text-white";
-      case "WARNING":
-        return "bg-amber-500 text-white";
-      case "SUCCESS":
-        return "bg-emerald-600 text-white";
-      default:
-        return "bg-indigo-600 text-white";
+        return <Bell className="w-4 h-4 text-[#737373] dark:text-[#A3A3A3]" />;
     }
   };
 
@@ -185,14 +167,14 @@ export function NotificationCenter({
   return (
     <div
       ref={panelRef}
-      className="fixed top-16 right-4 sm:right-8 z-50 w-full sm:w-[390px] max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden font-sans animate-in fade-in slide-in-from-top-3 duration-200 flex flex-col max-h-[80vh] text-slate-900 dark:text-slate-100"
+      className="fixed top-16 right-4 sm:right-8 z-50 w-full sm:w-[390px] max-w-[calc(100vw-2rem)] bg-white dark:bg-[#151515] rounded-3xl border border-[#E5E2D8] dark:border-[#2A2A2A] shadow-2xl overflow-hidden font-sans animate-in fade-in slide-in-from-top-3 duration-200 flex flex-col max-h-[80vh] text-[#171717] dark:text-[#F5F5F5]"
     >
       {/* Header */}
-      <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50 flex-shrink-0">
+      <div className="p-4 border-b border-[#E5E2D8] dark:border-[#2A2A2A] flex items-center justify-between bg-[#F8F7F3] dark:bg-[#181818] flex-shrink-0">
         <div className="flex items-center gap-2">
-          <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">Notifications</h3>
+          <h3 className="font-extrabold text-sm text-[#171717] dark:text-[#F5F5F5]">Notifications</h3>
           {notifications.filter((n) => !n.isRead).length > 0 && (
-            <span className="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 text-[10px] font-extrabold">
+            <span className="px-2 py-0.5 rounded-full bg-gold-500/15 text-gold-600 dark:text-gold-400 text-[10px] font-extrabold border border-gold-500/30">
               {notifications.filter((n) => !n.isRead).length} new
             </span>
           )}
@@ -200,7 +182,7 @@ export function NotificationCenter({
         <div className="flex items-center gap-2">
           <button
             onClick={handleMarkAllAsRead}
-            className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors flex items-center gap-1 px-1.5 py-1 rounded-lg focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+            className="text-[11px] font-bold text-gold-600 dark:text-gold-400 hover:text-gold-700 transition-colors flex items-center gap-1 px-1.5 py-1 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
             title="Mark all as read"
           >
             <CheckCheck className="w-3.5 h-3.5" />
@@ -208,7 +190,7 @@ export function NotificationCenter({
           </button>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+            className="p-1.5 rounded-full bg-white dark:bg-[#2A2A2A] text-[#737373] dark:text-[#A3A3A3] hover:text-[#171717] dark:hover:text-[#F5F5F5] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
           >
             <X className="w-4 h-4" />
           </button>
@@ -216,15 +198,15 @@ export function NotificationCenter({
       </div>
 
       {/* Category Filter Pills */}
-      <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex items-center gap-1.5 overflow-x-auto scrollbar-none flex-shrink-0 bg-white dark:bg-slate-900">
+      <div className="p-3 border-b border-[#E5E2D8] dark:border-[#2A2A2A] flex items-center gap-1.5 overflow-x-auto scrollbar-none flex-shrink-0 bg-white dark:bg-[#151515]">
         {(["ALL", "UNREAD", "INVENTORY", "SALES", "FINANCE", "SECURITY"] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-3 py-1 rounded-full text-[11px] font-bold whitespace-nowrap transition-all focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 ${
+            className={`px-3 py-1 rounded-full text-[11px] font-bold whitespace-nowrap transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 ${
               filter === f
-                ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs"
-                : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                ? "bg-gold-500 text-white font-black shadow-md shadow-gold-500/20"
+                : "bg-[#F8F7F3] dark:bg-[#181818] text-[#525252] dark:text-[#D4D4D4] hover:bg-gold-500/10"
             }`}
           >
             {f === "ALL" ? "All" : f === "UNREAD" ? "Unread" : f.charAt(0) + f.slice(1).toLowerCase()}
@@ -233,19 +215,19 @@ export function NotificationCenter({
       </div>
 
       {/* Notifications Scroll Area */}
-      <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 p-2 space-y-1">
+      <div className="flex-1 overflow-y-auto divide-y divide-[#E5E2D8] dark:divide-[#2A2A2A] p-2 space-y-1">
         {loading ? (
           <div className="p-8 text-center space-y-2">
-            <Loader2 className="w-6 h-6 text-slate-400 dark:text-slate-500 animate-spin mx-auto" />
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Loading notifications...</p>
+            <Loader2 className="w-6 h-6 text-gold-500 animate-spin mx-auto" />
+            <p className="text-xs font-semibold text-[#737373] dark:text-[#A3A3A3]">Loading notifications...</p>
           </div>
         ) : notifications.length === 0 ? (
           <div className="p-8 text-center space-y-2">
-            <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
+            <div className="w-10 h-10 rounded-2xl bg-gold-500/15 text-gold-600 dark:text-gold-400 flex items-center justify-center mx-auto">
               <CheckCircle2 className="w-5 h-5 text-emerald-500" />
             </div>
-            <h4 className="font-extrabold text-xs text-slate-800 dark:text-slate-200">You're all caught up!</h4>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">No new notifications in this category.</p>
+            <h4 className="font-extrabold text-xs text-[#171717] dark:text-[#F5F5F5]">You're all caught up!</h4>
+            <p className="text-[11px] text-[#737373] dark:text-[#A3A3A3]">No new notifications in this category.</p>
           </div>
         ) : (
           notifications.map((n) => (
@@ -254,42 +236,39 @@ export function NotificationCenter({
               onClick={() => handleNotificationClick(n)}
               className={`p-3 rounded-2xl cursor-pointer transition-all flex items-start gap-3 relative group ${
                 !n.isRead
-                  ? "bg-indigo-50/40 dark:bg-indigo-950/30 border border-indigo-100/60 dark:border-indigo-900/50"
-                  : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                  ? "bg-gold-500/10 dark:bg-gold-500/15 border border-gold-500/30"
+                  : "hover:bg-[#F8F7F3] dark:hover:bg-[#181818]"
               }`}
             >
-              {/* Category Icon */}
-              <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 flex-shrink-0 mt-0.5">
+              <div className="p-2 rounded-xl bg-[#F8F7F3] dark:bg-[#181818] flex-shrink-0 mt-0.5 border border-[#E5E2D8] dark:border-[#2A2A2A]">
                 {getCategoryIcon(n.category)}
               </div>
 
-              {/* Message Content */}
               <div className="flex-1 min-w-0 space-y-1">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
-                    <h4 className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">{n.title}</h4>
+                    <h4 className="font-bold text-xs text-[#171717] dark:text-[#F5F5F5] truncate">{n.title}</h4>
                     {!n.isRead && (
-                      <span className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400 flex-shrink-0" />
+                      <span className="w-2 h-2 rounded-full bg-gold-500 flex-shrink-0" />
                     )}
                   </div>
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold whitespace-nowrap">
+                  <span className="text-[10px] text-[#737373] dark:text-[#A3A3A3] font-semibold whitespace-nowrap">
                     {formatRelativeTime(n.createdAt)}
                   </span>
                 </div>
-                <p className="text-xs text-slate-600 dark:text-slate-300 leading-snug line-clamp-2">{n.message}</p>
+                <p className="text-xs text-[#525252] dark:text-[#D4D4D4] leading-snug line-clamp-2">{n.message}</p>
 
                 {n.actionLabel && (
-                  <div className="pt-1 flex items-center gap-1 text-[11px] font-extrabold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300">
+                  <div className="pt-1 flex items-center gap-1 text-[11px] font-extrabold text-gold-600 dark:text-gold-400 hover:text-gold-700">
                     <span>{n.actionLabel}</span>
                     <ChevronRight className="w-3 h-3" />
                   </div>
                 )}
               </div>
 
-              {/* Quick Delete */}
               <button
                 onClick={(e) => handleDelete(n.id, e)}
-                className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 transition-opacity"
+                className="opacity-0 group-hover:opacity-100 p-1 text-[#737373] dark:text-[#A3A3A3] hover:text-rose-600 transition-opacity"
                 title="Dismiss"
               >
                 <Trash2 className="w-3.5 h-3.5" />

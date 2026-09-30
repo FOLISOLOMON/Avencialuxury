@@ -211,7 +211,7 @@ export default function CameraScanner({ onScan, onClose, hint }: CameraScannerPr
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-black/90 dark:bg-slate-950/90 border-b border-slate-800 z-10">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/30">
+          <div className="w-8 h-8 rounded-xl bg-gold-500 text-slate-950 flex items-center justify-center shadow-lg shadow-gold-500/20 font-bold">
             <Camera className="w-4 h-4" />
           </div>
           <div>
@@ -223,7 +223,7 @@ export default function CameraScanner({ onScan, onClose, hint }: CameraScannerPr
         </div>
         <button
           onClick={() => { stopCamera(); onClose(); }}
-          className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+          className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
           aria-label="Close scanner"
         >
           <X className="w-5 h-5" />
@@ -244,7 +244,7 @@ export default function CameraScanner({ onScan, onClose, hint }: CameraScannerPr
         {/* Loading spinner */}
         {(loading || imageDecoding) && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/90 dark:bg-slate-950/90 z-20">
-            <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
+            <Loader2 className="w-10 h-10 text-gold-500 animate-spin" />
             <p className="text-white text-sm font-medium">
               {imageDecoding ? "Analyzing barcode photo..." : "Starting camera..."}
             </p>
@@ -272,7 +272,7 @@ export default function CameraScanner({ onScan, onClose, hint }: CameraScannerPr
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full py-3 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-xl shadow-indigo-500/30 transition-all flex items-center justify-center gap-2 active:scale-95"
+                className="w-full py-3 px-4 rounded-2xl bg-gold-500 hover:bg-gold-600 text-slate-950 font-extrabold text-xs shadow-xl shadow-gold-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
               >
                 <Upload className="w-4 h-4" />
                 <span>Take or Upload Barcode Photo</span>
@@ -295,7 +295,7 @@ export default function CameraScanner({ onScan, onClose, hint }: CameraScannerPr
                 <p className="font-bold text-slate-200 flex items-center gap-1">
                   <ShieldAlert className="w-3.5 h-3.5 text-amber-400" /> Mobile Development Tip:
                 </p>
-                <p>To enable live camera on local HTTP, open <code className="text-indigo-400 font-mono">chrome://flags</code> on your phone, search <em>"Insecure origins"</em>, add your URL, and enable it.</p>
+                <p>To enable live camera on local HTTP, open <code className="text-gold-400 font-mono">chrome://flags</code> on your phone, search <em>"Insecure origins"</em>, add your URL, and enable it.</p>
               </div>
             )}
           </div>
@@ -310,13 +310,13 @@ export default function CameraScanner({ onScan, onClose, hint }: CameraScannerPr
               <div className="absolute top-[20%] bottom-[20%] left-0 w-[10%] bg-black/60 dark:bg-black/80" />
               <div className="absolute top-[20%] bottom-[20%] right-0 w-[10%] bg-black/60 dark:bg-black/80" />
 
-              <div className="absolute top-[20%] left-[10%] w-8 h-8 border-t-4 border-l-4 border-indigo-500 rounded-tl-xl shadow-lg" />
-              <div className="absolute top-[20%] right-[10%] w-8 h-8 border-t-4 border-r-4 border-indigo-500 rounded-tr-xl shadow-lg" />
-              <div className="absolute bottom-[20%] left-[10%] w-8 h-8 border-b-4 border-l-4 border-indigo-500 rounded-bl-xl shadow-lg" />
-              <div className="absolute bottom-[20%] right-[10%] w-8 h-8 border-b-4 border-r-4 border-indigo-500 rounded-br-xl shadow-lg" />
+              <div className="absolute top-[20%] left-[10%] w-8 h-8 border-t-4 border-l-4 border-gold-500 rounded-tl-xl shadow-lg" />
+              <div className="absolute top-[20%] right-[10%] w-8 h-8 border-t-4 border-r-4 border-gold-500 rounded-tr-xl shadow-lg" />
+              <div className="absolute bottom-[20%] left-[10%] w-8 h-8 border-b-4 border-l-4 border-gold-500 rounded-bl-xl shadow-lg" />
+              <div className="absolute bottom-[20%] right-[10%] w-8 h-8 border-b-4 border-r-4 border-gold-500 rounded-br-xl shadow-lg" />
 
               <div
-                className="absolute left-[10%] right-[10%] h-0.5 bg-indigo-400/90 shadow-[0_0_8px_rgba(99,102,241,0.8)]"
+                className="absolute left-[10%] right-[10%] h-0.5 bg-gold-400/90 shadow-[0_0_8px_rgba(201,162,39,0.8)]"
                 style={{
                   top: "20%",
                   animation: "scanline 2s ease-in-out infinite",
@@ -341,7 +341,7 @@ export default function CameraScanner({ onScan, onClose, hint }: CameraScannerPr
           onClick={() => fileInputRef.current?.click()}
           className="flex-1 py-2 px-3 rounded-xl bg-slate-800 dark:bg-slate-900 hover:bg-slate-700 dark:hover:bg-slate-800 text-slate-100 text-xs font-bold flex items-center justify-center gap-2 transition-colors border border-slate-700 dark:border-slate-800"
         >
-          <Upload className="w-3.5 h-3.5 text-indigo-400" />
+          <Upload className="w-3.5 h-3.5 text-gold-400" />
           <span>Snap / Upload Photo</span>
         </button>
 
@@ -353,7 +353,7 @@ export default function CameraScanner({ onScan, onClose, hint }: CameraScannerPr
                 onClick={() => switchCamera(cam.deviceId)}
                 className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all ${
                   selectedCamera === cam.deviceId
-                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/30"
+                    ? "bg-gold-500 text-slate-950 shadow-md shadow-gold-500/20"
                     : "bg-white/10 dark:bg-white/10 text-white hover:bg-white/20"
                 }`}
               >

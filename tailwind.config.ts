@@ -22,6 +22,33 @@ const config: Config = {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        gold: {
+          50: "#FAF6E8",
+          100: "#F5ECD1",
+          200: "#EBD9A4",
+          300: "#E0C677",
+          400: "#D4B44A",
+          500: "#C9A227", // Primary Avencia Gold
+          600: "#A8861F", // Dark Gold
+          700: "#846817",
+          800: "#5E4A10",
+          900: "#392C0A",
+          950: "#211A05",
+        },
+        avencia: {
+          lightBg: "#F8F7F3",
+          lightSurface: "#FFFFFF",
+          lightElevated: "#FFFFFF",
+          lightBorder: "#E5E2D8",
+          lightText: "#171717",
+          lightMuted: "#737373",
+          darkBg: "#0D0D0D",
+          darkSurface: "#151515",
+          darkElevated: "#1C1C1C",
+          darkBorder: "#2A2A2A",
+          darkText: "#F5F5F5",
+          darkMuted: "#A3A3A3",
+        },
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",

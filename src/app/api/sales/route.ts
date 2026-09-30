@@ -1,12 +1,33 @@
 import { NextResponse } from "next/server";
-import { createSale, getSales } from "@/lib/services/sales";
+import { createSale } from "@/lib/services/sales";
+import { getSalesReport } from "@/lib/services/reports";
 import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 import { serializePlainObject } from "@/lib/utils";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const sales = await getSales(DEFAULT_BUSINESS_ID);
-    return NextResponse.json({ success: true, data: serializePlainObject(sales) });
+    const { searchParams } = new URL(request.url);
+
+    const filter = {
+      quickRange: searchParams.get("quickRange") || undefined,
+      startDate: searchParams.get("startDate") || undefined,
+      endDate: searchParams.get("endDate") || undefined,
+      customerId: searchParams.get("customerId") || undefined,
+      paymentStatus: searchParams.get("paymentStatus") || undefined,
+      paymentMethod: searchParams.get("paymentMethod") || undefined,
+      batchId: searchParams.get("batchId") || undefined,
+      productId: searchParams.get("productId") || undefined,
+      search: searchParams.get("search") || undefined,
+    };
+
+    const result = await getSalesReport(DEFAULT_BUSINESS_ID, filter);
+    return NextResponse.json({
+      success: true,
+      data: serializePlainObject(result.sales),
+      summary: serializePlainObject(result.summary),
+      paymentMethodBreakdown: serializePlainObject(result.paymentMethodBreakdown),
+      dailySalesTrend: serializePlainObject(result.dailySalesTrend),
+    });
   } catch (error: any) {
     console.error("GET /api/sales error:", error);
     return NextResponse.json({ success: false, error: error.message || "Failed to fetch sales history" }, { status: 500 });

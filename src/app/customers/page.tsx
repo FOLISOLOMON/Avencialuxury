@@ -204,6 +204,8 @@ export default function CustomersPage() {
 
   const getWhatsAppDebtReminderUrl = (c: Customer) => {
     const debt = c.totalOutstandingDebt ? c.totalOutstandingDebt : 0;
+    if (debt <= 0) return null;
+
     const msg = `Hello ${c.name}! 👋\n\nThis is a gentle payment reminder from *Avencia Perfumes* regarding your account balance.\n\n📌 *Account Summary*:\n• Customer: ${c.name}\n• Total Orders: ${c.totalOrders}\n• Outstanding Balance: GH₵ ${debt.toFixed(2)}\n\nPlease contact us or reply to this message to arrange payment or make a partial settlement. Thank you for your continued business! 🙏✨`;
 
     const formattedPhone = formatGhanaPhoneNumber(c.phone);
@@ -221,45 +223,60 @@ export default function CustomersPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <PageHeader
-        title="Customer Directory"
-        subtitle="Manage client accounts, lifetime analytics, and credit balances"
-      />
+      {/* Action Toolbar Header */}
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-black text-[#171717] dark:text-[#F5F5F5] tracking-tight">Client Directory & Accounts</h2>
+          <p className="text-xs text-[#737373] dark:text-[#A3A3A3]">Lifetime analytics, purchasing history & credit management</p>
+        </div>
+        <button
+          onClick={() => {
+            setName("");
+            setPhone("");
+            setEmail("");
+            setNotes("");
+            setIsModalOpen(true);
+          }}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gold-500 hover:bg-gold-600 text-white font-bold text-xs shadow-lg shadow-gold-500/25 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Add Customer</span>
+        </button>
+      </div>
 
       {/* Summary KPI Cards: Total Clients, Active Debtors, Total Debt */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-2">
+        <div className="rounded-3xl border border-[#E5E2D8] dark:border-[#2A2A2A] shadow-xl shadow-gold-500/5 p-5 bg-white dark:bg-[#151515] space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Total Clients</span>
-            <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
+            <span className="text-xs font-semibold text-[#737373] dark:text-[#A3A3A3] uppercase">Total Clients</span>
+            <div className="p-2 rounded-xl bg-gold-500/15 text-gold-600 dark:text-gold-400 border border-gold-500/30">
               <Users className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{totalCustomersCount}</div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">Registered client accounts</p>
+          <div className="text-2xl font-black text-[#171717] dark:text-[#F5F5F5]">{totalCustomersCount}</div>
+          <p className="text-[11px] text-[#737373] dark:text-[#A3A3A3]">Registered client accounts</p>
         </div>
 
-        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-2">
+        <div className="rounded-3xl border border-[#E5E2D8] dark:border-[#2A2A2A] shadow-xl shadow-gold-500/5 p-5 bg-white dark:bg-[#151515] space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Active Debtors</span>
-            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
+            <span className="text-xs font-semibold text-[#737373] dark:text-[#A3A3A3] uppercase">Active Debtors</span>
+            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60">
               <UserCheck className="w-4 h-4" />
             </div>
           </div>
           <div className="text-2xl font-black text-amber-600 dark:text-amber-400">{debtorsCount}</div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">Clients with pending credit</p>
+          <p className="text-[11px] text-[#737373] dark:text-[#A3A3A3]">Clients with pending credit</p>
         </div>
 
-        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-2">
+        <div className="rounded-3xl border border-[#E5E2D8] dark:border-[#2A2A2A] shadow-xl shadow-gold-500/5 p-5 bg-white dark:bg-[#151515] space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Total Debt Balance</span>
-            <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
+            <span className="text-xs font-semibold text-[#737373] dark:text-[#A3A3A3] uppercase">Total Debt Balance</span>
+            <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60">
               <CreditCard className="w-4 h-4" />
             </div>
           </div>
           <div className="text-2xl font-black text-rose-600 dark:text-rose-400">{formatCurrency(totalOutstandingDebt)}</div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">Total outstanding receivables</p>
+          <p className="text-[11px] text-[#737373] dark:text-[#A3A3A3]">Total outstanding receivables</p>
         </div>
       </div>
 
@@ -398,15 +415,25 @@ export default function CustomersPage() {
                 <div className="flex items-center gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
                   {hasDebt ? (
                     <>
-                      <a
-                        href={getWhatsAppDebtReminderUrl(c)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all touch-manipulation"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        <span>WhatsApp Reminder</span>
-                      </a>
+                      {getWhatsAppDebtReminderUrl(c) ? (
+                        <a
+                          href={getWhatsAppDebtReminderUrl(c)!}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all touch-manipulation"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span>WhatsApp Reminder</span>
+                        </a>
+                      ) : (
+                        <button
+                          disabled
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-400 font-bold text-xs cursor-not-allowed"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span>No Debt Due</span>
+                        </button>
+                      )}
                       <button
                         onClick={() => openDebtModal(c)}
                         className="py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs transition-all touch-manipulation"
@@ -416,15 +443,14 @@ export default function CustomersPage() {
                       </button>
                     </>
                   ) : (
-                    <a
-                      href={getWhatsAppDebtReminderUrl(c)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs transition-all"
+                    <button
+                      disabled
+                      className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 font-bold text-xs cursor-not-allowed"
+                      title="Account fully settled (GH₵0.00 balance)"
                     >
-                      <MessageSquare className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                      <span>WhatsApp Message</span>
-                    </a>
+                      <MessageSquare className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Account Settled (GH₵0.00)</span>
+                    </button>
                   )}
                 </div>
               </div>

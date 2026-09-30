@@ -11,7 +11,6 @@ export function QuickPinLock({ children }: { children: React.ReactNode }) {
   const [storedPin, setStoredPin] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check if user set a quick PIN in local storage
     const pin = localStorage.getItem("avencia_quick_pin");
     const sessionAuth = sessionStorage.getItem("avencia_pin_unlocked");
 
@@ -56,11 +55,11 @@ export function QuickPinLock({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/70 dark:bg-slate-950/80 backdrop-blur-xl flex items-center justify-center p-4 font-sans animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-2xl shadow-indigo-500/25 dark:shadow-indigo-500/10 p-8 max-w-sm w-full text-center space-y-6">
+    <div className="fixed inset-0 z-50 bg-[#0D0D0D]/80 backdrop-blur-xl flex items-center justify-center p-4 font-sans animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-[#151515] rounded-3xl border border-[#E5E2D8] dark:border-[#2A2A2A] shadow-2xl shadow-gold-500/10 p-8 max-w-sm w-full text-center space-y-6">
         {/* Header with Logo */}
         <div className="space-y-3">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-50 via-slate-50 to-emerald-50 dark:from-slate-800 dark:via-slate-850 dark:to-slate-800 p-2 border border-indigo-100 dark:border-slate-700 flex items-center justify-center mx-auto shadow-md shadow-indigo-500/10 overflow-hidden">
+          <div className="w-20 h-20 rounded-2xl bg-[#0D0D0D] p-2 border border-gold-500/40 flex items-center justify-center mx-auto shadow-lg shadow-gold-500/20 overflow-hidden">
             <Image
               src="/logo/Avencia gold logo.png"
               alt="Avencia Logo"
@@ -70,10 +69,10 @@ export function QuickPinLock({ children }: { children: React.ReactNode }) {
             />
           </div>
           <div>
-            <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center justify-center gap-1.5">
-              <Lock className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /> Avencia Quick PIN
+            <h2 className="text-xl font-black text-[#171717] dark:text-[#F5F5F5] tracking-tight flex items-center justify-center gap-1.5">
+              <Lock className="w-4 h-4 text-gold-600 dark:text-gold-400" /> Avencia Quick PIN
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">
+            <p className="text-xs text-[#737373] dark:text-[#A3A3A3] font-medium mt-1">
               Enter your 4-digit security PIN to access
             </p>
           </div>
@@ -86,8 +85,8 @@ export function QuickPinLock({ children }: { children: React.ReactNode }) {
               key={idx}
               className={`w-4 h-4 rounded-full border-2 transition-all duration-150 ${
                 idx < pinInput.length
-                  ? "bg-indigo-600 dark:bg-indigo-500 border-indigo-600 dark:border-indigo-500 scale-110 shadow-md shadow-indigo-500/40"
-                  : "border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800"
+                  ? "bg-gold-500 border-gold-500 scale-110 shadow-md shadow-gold-500/40"
+                  : "border-[#E5E2D8] dark:border-[#2A2A2A] bg-[#F8F7F3] dark:bg-[#181818]"
               }`}
             />
           ))}
@@ -109,33 +108,33 @@ export function QuickPinLock({ children }: { children: React.ReactNode }) {
             <button
               key={num}
               onClick={() => handleKeyPress(num)}
-              className="w-16 h-16 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-slate-100 font-extrabold text-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-600 dark:hover:text-indigo-400 active:scale-95 transition-all shadow-sm flex items-center justify-center"
+              className="w-16 h-16 rounded-2xl bg-[#F8F7F3] dark:bg-[#181818] border border-[#E5E2D8] dark:border-[#2A2A2A] text-[#171717] dark:text-[#F5F5F5] font-extrabold text-xl hover:bg-gold-500/15 hover:border-gold-500/40 hover:text-gold-600 dark:hover:text-gold-400 active:scale-95 transition-all shadow-xs flex items-center justify-center"
             >
               {num}
             </button>
           ))}
           <button
             onClick={() => setPinInput("")}
-            className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-slate-200 active:scale-95 transition-all flex items-center justify-center"
+            className="w-16 h-16 rounded-2xl bg-[#F8F7F3] dark:bg-[#181818] border border-[#E5E2D8] dark:border-[#2A2A2A] text-[#737373] dark:text-[#A3A3A3] font-bold text-xs hover:bg-gold-500/10 hover:text-[#171717] dark:hover:text-[#F5F5F5] active:scale-95 transition-all flex items-center justify-center"
           >
             Clear
           </button>
           <button
             onClick={() => handleKeyPress("0")}
-            className="w-16 h-16 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-slate-100 font-extrabold text-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-600 dark:hover:text-indigo-400 active:scale-95 transition-all shadow-sm flex items-center justify-center"
+            className="w-16 h-16 rounded-2xl bg-[#F8F7F3] dark:bg-[#181818] border border-[#E5E2D8] dark:border-[#2A2A2A] text-[#171717] dark:text-[#F5F5F5] font-extrabold text-xl hover:bg-gold-500/15 hover:border-gold-500/40 hover:text-gold-600 dark:hover:text-gold-400 active:scale-95 transition-all shadow-xs flex items-center justify-center"
           >
             0
           </button>
           <button
             onClick={handleBackspace}
-            className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-base hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-slate-200 active:scale-95 transition-all flex items-center justify-center"
+            className="w-16 h-16 rounded-2xl bg-[#F8F7F3] dark:bg-[#181818] border border-[#E5E2D8] dark:border-[#2A2A2A] text-[#737373] dark:text-[#A3A3A3] font-bold text-base hover:bg-gold-500/10 hover:text-[#171717] dark:hover:text-[#F5F5F5] active:scale-95 transition-all flex items-center justify-center"
           >
             ⌫
           </button>
         </div>
 
         {/* Security badge footer */}
-        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500 font-medium">
+        <div className="pt-3 border-t border-[#E5E2D8] dark:border-[#2A2A2A] flex items-center justify-center gap-1.5 text-[11px] text-[#737373] dark:text-[#A3A3A3] font-medium">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Protected by Avencia OS Session Lock
         </div>
       </div>

@@ -32,27 +32,27 @@ export function PageHeader({
         {backLink && (
           <Link
             href={backLink.href}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors bg-white dark:bg-slate-900 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs mb-2"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-[#525252] dark:text-[#D4D4D4] hover:text-gold-600 dark:hover:text-gold-400 transition-colors bg-white dark:bg-[#151515] px-3.5 py-2 rounded-xl border border-[#E5E2D8] dark:border-[#2A2A2A] shadow-xs mb-2"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
+            <ArrowLeft className="w-3.5 h-3.5 text-gold-600 dark:text-gold-400" />
             <span>{backLink.label}</span>
           </Link>
         )}
         <div className="flex items-center gap-2.5">
           {Icon && (
-            <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100/50 dark:border-indigo-900/50">
+            <div className="p-2 rounded-xl bg-gold-500/10 text-gold-600 dark:text-gold-400 border border-gold-500/20">
               <Icon className="w-5 h-5" />
             </div>
           )}
           {title && (
-            <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
+            <h2 className="text-lg md:text-xl font-black text-[#171717] dark:text-[#F5F5F5] tracking-tight flex items-center gap-2">
               {title}
               {badge}
-            </h1>
+            </h2>
           )}
         </div>
         {subtitle && (
-          <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+          <p className="text-xs text-[#737373] dark:text-[#A3A3A3] font-medium mt-0.5">
             {subtitle}
           </p>
         )}

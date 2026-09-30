@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { X, User } from "lucide-react";
+import { X } from "lucide-react";
 import { navigationSections } from "./Sidebar";
 
 interface SideDrawerProps {
@@ -48,16 +48,16 @@ export function SideDrawer({ isOpen: controlledIsOpen, onClose: controlledOnClos
     >
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-[#0D0D0D]/70 backdrop-blur-sm transition-opacity"
         onClick={handleClose}
       />
 
       {/* Slide-over Drawer */}
-      <div className="relative w-80 max-w-[85vw] bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-left duration-200">
+      <div className="relative w-80 max-w-[85vw] bg-white dark:bg-[#151515] h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-left duration-200 border-r border-[#E5E2D8] dark:border-[#2A2A2A]">
         {/* Drawer Header */}
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900">
+        <div className="p-4 border-b border-[#E5E2D8] dark:border-[#2A2A2A] flex items-center justify-between bg-white dark:bg-[#151515]">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-2xl bg-slate-900 dark:bg-slate-950 p-1 flex items-center justify-center shadow-md shadow-indigo-500/10 flex-shrink-0 overflow-hidden">
+            <div className="w-9 h-9 rounded-2xl bg-[#0D0D0D] border border-gold-500/30 p-1 flex items-center justify-center shadow-md shadow-gold-500/10 flex-shrink-0 overflow-hidden">
               <Image
                 src="/logo/Avencia gold icon logo.png"
                 alt="Avencia Logo"
@@ -68,24 +68,24 @@ export function SideDrawer({ isOpen: controlledIsOpen, onClose: controlledOnClos
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <h2 className="text-base font-black leading-none text-slate-900 dark:text-slate-100 truncate">
+                <h2 className="text-base font-black leading-none text-[#171717] dark:text-[#F5F5F5] truncate">
                   Avencia
                 </h2>
-                <span className="px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-[10px] font-extrabold border border-amber-200/80 dark:border-amber-800/60">
-                  v2.0.0
+                <span className="px-1.5 py-0.5 rounded-full bg-gold-500/15 text-gold-600 dark:text-gold-400 text-[10px] font-extrabold border border-gold-500/30">
+                  v2.0
                 </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5 truncate">
+              <p className="text-xs text-[#737373] dark:text-[#A3A3A3] font-medium mt-0.5 truncate">
                 Perfume Business OS
               </p>
             </div>
           </div>
           <button
             onClick={handleClose}
-            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-slate-100 transition-colors focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 flex-shrink-0"
+            className="p-2 rounded-xl bg-[#F8F7F3] dark:bg-[#181818] text-[#737373] dark:text-[#A3A3A3] hover:bg-gold-500/15 hover:text-[#171717] dark:hover:text-[#F5F5F5] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 flex-shrink-0"
             aria-label="Close navigation menu"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5 text-gold-600 dark:text-gold-400" />
           </button>
         </div>
 
@@ -93,7 +93,7 @@ export function SideDrawer({ isOpen: controlledIsOpen, onClose: controlledOnClos
         <nav className="flex-1 p-3.5 space-y-5 overflow-y-auto">
           {navigationSections.map((section) => (
             <div key={section.title} className="space-y-1">
-              <div className="px-3.5 py-1 text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              <div className="px-3.5 py-1 text-[10px] font-extrabold text-[#737373] dark:text-[#A3A3A3] uppercase tracking-wider">
                 {section.title}
               </div>
               <div className="space-y-0.5">
@@ -111,13 +111,13 @@ export function SideDrawer({ isOpen: controlledIsOpen, onClose: controlledOnClos
                       }}
                       className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
                         isActive
-                          ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
-                          : "text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+                          ? "bg-gold-500 text-white shadow-lg shadow-gold-500/25 font-black"
+                          : "text-[#525252] dark:text-[#D4D4D4] hover:bg-gold-500/10 dark:hover:bg-gold-500/15 hover:text-[#171717] dark:hover:text-[#F5F5F5]"
                       }`}
                     >
                       <Icon
                         className={`w-4 h-4 flex-shrink-0 ${
-                          isActive ? "text-white" : "text-slate-400 dark:text-slate-400"
+                          isActive ? "text-white" : "text-[#737373] dark:text-[#A3A3A3]"
                         }`}
                       />
                       <span className="truncate">{item.name}</span>
@@ -130,17 +130,17 @@ export function SideDrawer({ isOpen: controlledIsOpen, onClose: controlledOnClos
         </nav>
 
         {/* Bottom Profile Link */}
-        <div className="p-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+        <div className="p-3.5 border-t border-[#E5E2D8] dark:border-[#2A2A2A] bg-[#F8F7F3] dark:bg-[#181818]">
           <Link
             href="/profile"
             onClick={handleClose}
             className={`flex items-center gap-3 p-3 rounded-xl border text-xs font-bold transition-all ${
               pathname === "/profile"
-                ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700"
+                ? "bg-gold-500 text-white border-gold-500 shadow-md shadow-gold-500/20"
+                : "bg-white dark:bg-[#151515] border-[#E5E2D8] dark:border-[#2A2A2A] text-[#171717] dark:text-[#F5F5F5] hover:bg-gold-500/10"
             }`}
           >
-            <div className="w-7 h-7 rounded-lg bg-slate-900 dark:bg-slate-950 flex items-center justify-center p-0.5 flex-shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-[#0D0D0D] border border-gold-500/30 flex items-center justify-center p-0.5 flex-shrink-0">
               <Image
                 src="/logo/Avencia gold icon logo.png"
                 alt="Profile"
