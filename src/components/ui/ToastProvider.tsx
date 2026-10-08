@@ -123,3 +123,5 @@ export function useToast() {
   }
   return context.toast;
 }
+
+export default ToastProvider;
