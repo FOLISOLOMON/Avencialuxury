@@ -2,16 +2,23 @@
 
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, X, Package, Plus, AlertTriangle, CheckCircle2, ShoppingBag } from "lucide-react";
+import { Search, X, Package, Plus, AlertTriangle, CheckCircle2, ShoppingBag, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { useMobileProducts } from "@/lib/mobile/hooks";
 
 type StockFilter = "all" | "in_stock" | "low" | "out";
 
 export default function MobileProductsPage() {
-  const { products, loading } = useMobileProducts();
+  const { products, loading, refetch } = useMobileProducts();
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<StockFilter>("all");
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refetch();
+    setTimeout(() => setRefreshing(false), 600);
+  };
 
   const filteredProducts = useMemo(() => {
     let result = products;
@@ -43,9 +50,21 @@ export default function MobileProductsPage() {
   return (
     <div className="space-y-4">
       {/* 1. Header */}
-      <div>
-        <h1 className="text-lg font-bold text-foreground tracking-tight">Product Lookup</h1>
-        <p className="text-xs text-muted-foreground">Quickly check perfume availability & prices</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-bold text-foreground tracking-tight">Product Lookup</h1>
+          <p className="text-xs text-muted-foreground">Quickly check perfume availability & prices</p>
+        </div>
+        <button
+          type="button"
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="p-2 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground active:scale-95 transition-all flex items-center gap-1 text-xs"
+          aria-label="Refresh product stock"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-primary" : ""}`} />
+          <span className="text-[11px] font-semibold">Sync</span>
+        </button>
       </div>
 
       {/* 2. Instant Search Bar */}

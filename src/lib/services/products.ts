@@ -63,11 +63,36 @@ export async function createProduct(input: CreateProductInput) {
     },
   });
 
-  // If user selected an existing active batch and entered initial stock, attach item to that batch
-  if (input.batchId && input.initialStock && input.initialStock > 0) {
-    const batch = await prisma.batch.findFirst({
-      where: { id: input.batchId, businessId: input.businessId, status: "ACTIVE" },
-    });
+  // If user entered initial stock, attach item to that batch (or fallback to latest active batch)
+  if (input.initialStock && input.initialStock > 0) {
+    let batch = null;
+    if (input.batchId) {
+      batch = await prisma.batch.findFirst({
+        where: { id: input.batchId, businessId: input.businessId, status: "ACTIVE" },
+      });
+    }
+
+    if (!batch) {
+      batch = await prisma.batch.findFirst({
+        where: { businessId: input.businessId, status: "ACTIVE" },
+        orderBy: { createdAt: "desc" },
+      });
+    }
+
+    if (!batch) {
+      batch = await prisma.batch.create({
+        data: {
+          businessId: input.businessId,
+          reference: `BATCH-${new Date().getFullYear()}-01`,
+          purchaseDate: new Date(),
+          status: "ACTIVE",
+          purchaseCost: new Prisma.Decimal(0),
+          additionalCosts: new Prisma.Decimal(0),
+          totalInvestment: new Prisma.Decimal(0),
+          notes: "Initial inventory batch",
+        },
+      });
+    }
 
     if (batch) {
       const qty = input.initialStock;
@@ -188,6 +213,7 @@ export async function getProducts(businessId: string, search?: string) {
       sellingPriceNum,
       defaultCostPriceNum,
       remainingStock,
+      stockLevel: remainingStock,
       isLowStock,
     };
   });
@@ -220,6 +246,7 @@ export async function getProductById(id: string, businessId: string) {
     sellingPriceNum: p.sellingPrice.toNumber(),
     defaultCostPriceNum: p.defaultCostPrice.toNumber(),
     remainingStock,
+    stockLevel: remainingStock,
     isLowStock: remainingStock <= p.lowStockThreshold,
   };
 }
