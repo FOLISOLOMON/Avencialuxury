@@ -17,6 +17,7 @@ import {
   Truck,
   BarChart3,
   Settings,
+  Smartphone,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -66,6 +67,7 @@ const SIDEBAR_GROUPS: SidebarGroup[] = [
     label: "System",
     items: [
       { name: "Reports & Analytics", href: "/reports", icon: BarChart3 },
+      { name: "Mobile PWA", href: "/mobile", icon: Smartphone, badge: "PWA" },
       { name: "Settings", href: "/settings", icon: Settings },
     ],
   },
