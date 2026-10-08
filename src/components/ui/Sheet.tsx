@@ -64,7 +64,7 @@ export function Sheet({
       {/* Backdrop */}
       <div
         onClick={onClose}
-        className="fixed inset-0 bg-black/60 dark:bg-black/75 backdrop-blur-xs transition-opacity animate-fade-in"
+        className="fixed inset-0 bg-black/60 dark:bg-black/75 backdrop-blur-xs transition-opacity animate-fade-in cursor-pointer"
         aria-hidden="true"
       />
 
@@ -72,6 +72,7 @@ export function Sheet({
       <div
         role="dialog"
         aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
         className={cn(
           // Mobile: slide up bottom sheet
           "relative w-full max-h-[92vh] max-h-[92dvh] bg-card text-foreground",
@@ -82,10 +83,15 @@ export function Sheet({
           className
         )}
       >
-        {/* Mobile drag pill handle */}
-        <div className="flex md:hidden justify-center pt-3 pb-1 w-full cursor-grab">
-          <div className="w-10 h-1.5 rounded-full bg-muted-foreground/30" />
-        </div>
+        {/* Mobile drag pill handle - tapping it also closes the sheet */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex md:hidden justify-center items-center pt-3 pb-2 w-full cursor-pointer touch-none bg-transparent border-0 focus:outline-hidden"
+          aria-label="Close sheet"
+        >
+          <div className="w-12 h-1.5 rounded-full bg-muted-foreground/40 hover:bg-muted-foreground/60 transition-colors" />
+        </button>
 
         {/* Header */}
         {(title || !hideCloseButton) && (
@@ -107,8 +113,11 @@ export function Sheet({
             {!hideCloseButton && (
               <button
                 type="button"
-                onClick={onClose}
-                className="p-2 -mr-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted/60 transition-colors flex-shrink-0 min-h-[40px] min-w-[40px] flex items-center justify-center"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose();
+                }}
+                className="p-2 -mr-1 text-muted-foreground hover:text-foreground active:text-foreground rounded-full hover:bg-muted/80 active:bg-muted transition-colors flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer z-20"
                 aria-label="Close dialog"
               >
                 <X className="w-5 h-5" />

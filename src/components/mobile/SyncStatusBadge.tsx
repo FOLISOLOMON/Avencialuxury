@@ -67,6 +67,16 @@ export function SyncStatusBadge() {
         isOpen={sheetOpen}
         onClose={() => setSheetOpen(false)}
         title="Offline & Sync Status"
+        footer={
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setSheetOpen(false)}
+            className="w-full h-11 text-sm font-semibold rounded-xl"
+          >
+            Close
+          </Button>
+        }
       >
         <div className="space-y-4 pt-2">
           {/* Connection summary */}
@@ -117,12 +127,23 @@ export function SyncStatusBadge() {
             </h4>
 
             {pendingCount === 0 ? (
-              <div className="p-4 rounded-xl border border-dashed border-border text-center">
-                <CheckCircle2 className="w-6 h-6 text-emerald-400 mx-auto mb-1.5" />
-                <p className="text-sm font-medium text-foreground">All data is up to date</p>
-                <p className="text-xs text-muted-foreground">
-                  All sales and customers are securely synced with the server.
-                </p>
+              <div className="p-4 rounded-xl border border-dashed border-border text-center space-y-3">
+                <CheckCircle2 className="w-6 h-6 text-emerald-400 mx-auto" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">All data is up to date</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    All sales and customers are securely synced with the server.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSheetOpen(false)}
+                  className="w-full text-xs h-9 font-medium"
+                >
+                  Close Window
+                </Button>
               </div>
             ) : (
               <div className="space-y-2 max-h-56 overflow-y-auto">
