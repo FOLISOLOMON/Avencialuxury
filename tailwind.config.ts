@@ -10,12 +10,16 @@ const config: Config = {
   theme: {
     container: {
       center: true,
-      padding: "2rem",
+      padding: "1.5rem",
       screens: {
         "2xl": "1400px",
       },
     },
     extend: {
+      fontFamily: {
+        sans: ["var(--font-sans)", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
+        display: ["var(--font-display)", "var(--font-sans)", "sans-serif"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -29,25 +33,12 @@ const config: Config = {
           300: "#E0C677",
           400: "#D4B44A",
           500: "#C9A227", // Primary Avencia Gold
-          600: "#A8861F", // Dark Gold
+          600: "#A8861F",
           700: "#846817",
           800: "#5E4A10",
           900: "#392C0A",
           950: "#211A05",
-        },
-        avencia: {
-          lightBg: "#F8F7F3",
-          lightSurface: "#FFFFFF",
-          lightElevated: "#FFFFFF",
-          lightBorder: "#E5E2D8",
-          lightText: "#171717",
-          lightMuted: "#737373",
-          darkBg: "#0D0D0D",
-          darkSurface: "#151515",
-          darkElevated: "#1C1C1C",
-          darkBorder: "#2A2A2A",
-          darkText: "#F5F5F5",
-          darkMuted: "#A3A3A3",
+          ink: "hsl(var(--gold-ink))",
         },
         primary: {
           DEFAULT: "hsl(var(--primary))",
@@ -60,6 +51,18 @@ const config: Config = {
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
+        },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          foreground: "hsl(var(--info-foreground))",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
@@ -76,12 +79,44 @@ const config: Config = {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+          elevated: "hsl(var(--card-elevated))",
         },
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        xl: "var(--radius-xl)",
+        lg: "var(--radius-lg)",
+        md: "var(--radius-md)",
+        sm: "var(--radius-sm)",
+      },
+      boxShadow: {
+        subtle: "0 1px 2px 0 rgba(0, 0, 0, 0.04)",
+        card: "0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05)",
+        floating: "0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04)",
+        gold: "0 4px 14px 0 rgba(201, 162, 39, 0.35)",
+      },
+      keyframes: {
+        "slide-up": {
+          "0%": { transform: "translateY(100%)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
+        },
+        "slide-down": {
+          "0%": { transform: "translateY(-10px)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
+        },
+        "fade-in": {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        "pulse-subtle": {
+          "0%, 100%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.03)" },
+        },
+      },
+      animation: {
+        "slide-up": "slide-up 0.24s cubic-bezier(0.16, 1, 0.3, 1)",
+        "slide-down": "slide-down 0.18s ease-out",
+        "fade-in": "fade-in 0.15s ease-out",
+        "pulse-subtle": "pulse-subtle 2.4s ease-in-out infinite",
       },
     },
   },

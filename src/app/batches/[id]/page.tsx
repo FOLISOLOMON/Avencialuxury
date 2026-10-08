@@ -1,34 +1,42 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, use } from "react";
+import { useState, useEffect, useCallback, use } from "react";
 import { useRouter } from "next/navigation";
-import { formatCurrency, generateProductSku } from "@/lib/utils";
-import { PageHeader } from "@/components/ui/PageHeader";
+import Link from "next/link";
+import dynamic from "next/dynamic";
+import { formatCurrency } from "@/lib/utils";
+import {
+  Button,
+  IconButton,
+  Input,
+  Select,
+  Textarea,
+  SearchField,
+  Sheet,
+  Card,
+  Badge,
+  Money,
+  ConfirmDialog,
+} from "@/components/ui";
 import {
   Layers,
   ArrowLeft,
   Plus,
-  Scan,
   Package,
-  Trash2,
   CheckCheck,
-  X,
-  Loader2,
   AlertTriangle,
-  CheckCircle2,
   Search,
   Barcode,
   Camera,
   Calendar,
   Truck,
-  Info,
-  ShoppingBag,
-  Tag,
+  DollarSign,
+  TrendingUp,
+  X,
+  Pencil,
+  Boxes,
   Sparkles,
-  Edit3,
-  Save,
 } from "lucide-react";
-import dynamic from "next/dynamic";
 
 const CameraScanner = dynamic(() => import("@/components/scanner/CameraScanner"), { ssr: false });
 
@@ -40,8 +48,8 @@ interface Product {
   brand: string | null;
   size: string | null;
   category: string | null;
-  sellingPrice: number;
-  defaultCostPrice: number;
+  sellingPriceNum?: number;
+  defaultCostPriceNum?: number;
 }
 
 interface BatchItem {
@@ -64,32 +72,9 @@ interface Batch {
   additionalCosts: number;
   totalInvestment: number;
   notes: string | null;
+  supplier?: { id: string; name: string } | null;
   batchItems: BatchItem[];
 }
-
-type AddProductStep = "scan" | "fill-existing" | "fill-new" | "confirm";
-
-interface NewProductForm {
-  name: string;
-  brand: string;
-  size: string;
-  category: string;
-  sku: string;
-  barcode: string;
-  sellingPrice: string;
-  defaultCostPrice: string;
-}
-
-const emptyNewProduct: NewProductForm = {
-  name: "",
-  brand: "",
-  size: "",
-  category: "",
-  sku: "",
-  barcode: "",
-  sellingPrice: "",
-  defaultCostPrice: "",
-};
 
 export default function BatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -97,13 +82,81 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
   const [batch, setBatch] = useState<Batch | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [closing, setClosing] = useState(false);
-  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
-  // Add Cost Modal state
-  const [isCostModalOpen, setIsCostModalOpen] = useState(false);
+  // Close Batch Confirm
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [closing, setClosing] = useState(false);
+
+  // Edit Additional Landed Cost Sheet
+  const [isCostSheetOpen, setIsCostSheetOpen] = useState(false);
   const [additionalCostInput, setAdditionalCostInput] = useState("");
   const [costSubmitting, setCostSubmitting] = useState(false);
+
+  // Add Item to Batch Sheet
+  const [isAddItemOpen, setIsAddItemOpen] = useState(false);
+  const [addMode, setAddMode] = useState<"search" | "new">("search");
+  const [addItemSubmitting, setAddItemSubmitting] = useState(false);
+  const [addItemError, setAddItemError] = useState<string | null>(null);
+
+  // Search existing product state
+  const [productQuery, setProductQuery] = useState("");
+  const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  // Form Fields for Item
+  const [itemQuantity, setItemQuantity] = useState("1");
+  const [itemUnitCost, setItemUnitCost] = useState("0");
+
+  // Form Fields for Inline New Product
+  const [newName, setNewName] = useState("");
+  const [newBrand, setNewBrand] = useState("");
+  const [newSize, setNewSize] = useState("100ml");
+  const [newCategory, setNewCategory] = useState("Perfumes");
+  const [newSku, setNewSku] = useState("");
+  const [newBarcode, setNewBarcode] = useState("");
+  const [newSellingPrice, setNewSellingPrice] = useState("");
+
+  // Camera Scanner
+  const [showCamera, setShowCamera] = useState(false);
+
+  const fetchBatch = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/batches/${batchId}`);
+      const json = await res.json();
+      if (json.success) {
+        setBatch(json.data);
+        setAdditionalCostInput(json.data.additionalCosts?.toString() || "0");
+      } else {
+        setError(json.error || "Failed to load batch");
+      }
+    } catch (err: any) {
+      setError(err.message || "Network error");
+    } finally {
+      setLoading(false);
+    }
+  }, [batchId]);
+
+  useEffect(() => {
+    fetchBatch();
+  }, [fetchBatch]);
+
+  // Search Catalog Products
+  useEffect(() => {
+    if (!productQuery.trim()) {
+      setCatalogProducts([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/products?search=${encodeURIComponent(productQuery)}`);
+        const json = await res.json();
+        if (json.success) setCatalogProducts(json.data || []);
+      } catch (e) {}
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [productQuery]);
 
   const handleSaveCost = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,7 +170,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
       const json = await res.json();
       if (json.success) {
         await fetchBatch();
-        setIsCostModalOpen(false);
+        setIsCostSheetOpen(false);
       } else {
         alert(json.error || "Failed to update cost");
       }
@@ -125,239 +178,6 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
       alert("Server error");
     } finally {
       setCostSubmitting(false);
-    }
-  };
-
-  // Add Product Panel State
-  const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const [step, setStep] = useState<AddProductStep>("scan");
-  const [panelError, setPanelError] = useState<string | null>(null);
-  const [panelLoading, setPanelLoading] = useState(false);
-  const [panelSuccess, setPanelSuccess] = useState<string | null>(null);
-
-  // Scan / Search
-  const [scanInput, setScanInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Product[]>([]);
-  const [searching, setSearching] = useState(false);
-  const barcodeInputRef = useRef<HTMLInputElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-
-  // Camera scanner
-  const [showCamera, setShowCamera] = useState(false);
-
-  // Selected product (existing) or new product form
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [newProduct, setNewProduct] = useState<NewProductForm>(emptyNewProduct);
-
-  // Qty + cost (shared for both paths)
-  const [quantity, setQuantity] = useState("1");
-  const [unitCost, setUnitCost] = useState("0");
-
-  // Tab: scan barcode vs search by name
-  const [inputMode, setInputMode] = useState<"barcode" | "search">("barcode");
-
-  const fetchBatch = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/batches/${batchId}`);
-      const json = await res.json();
-      if (json.success) setBatch(json.data);
-      else setError(json.error || "Failed to load batch");
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [batchId]);
-
-  useEffect(() => {
-    fetchBatch();
-  }, [fetchBatch]);
-
-  useEffect(() => {
-    if (isPanelOpen && step === "scan" && inputMode === "barcode") {
-      setTimeout(() => barcodeInputRef.current?.focus(), 150);
-    }
-  }, [isPanelOpen, step, inputMode]);
-
-  useEffect(() => {
-    if (inputMode !== "search" || searchQuery.trim().length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    const timer = setTimeout(async () => {
-      setSearching(true);
-      try {
-        const res = await fetch(`/api/products?search=${encodeURIComponent(searchQuery)}`);
-        const json = await res.json();
-        if (json.success) setSearchResults(json.data.slice(0, 8));
-      } catch {
-        // ignore
-      } finally {
-        setSearching(false);
-      }
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [searchQuery, inputMode]);
-
-  const resetPanel = () => {
-    setStep("scan");
-    setScanInput("");
-    setSearchQuery("");
-    setSearchResults([]);
-    setSelectedProduct(null);
-    setNewProduct(emptyNewProduct);
-    setQuantity("1");
-    setUnitCost("0");
-    setPanelError(null);
-    setPanelSuccess(null);
-    setPanelLoading(false);
-  };
-
-  const openPanel = () => {
-    resetPanel();
-    setIsPanelOpen(true);
-  };
-
-  const closePanel = () => {
-    setIsPanelOpen(false);
-    resetPanel();
-  };
-
-  const handleBarcodeScan = async (barcode: string) => {
-    if (!barcode.trim()) return;
-    setPanelLoading(true);
-    setPanelError(null);
-    try {
-      const res = await fetch(`/api/products/barcode?code=${encodeURIComponent(barcode.trim())}`);
-      const json = await res.json();
-      if (json.success && json.data) {
-        const product: Product = json.data;
-        setSelectedProduct(product);
-        setUnitCost(product.defaultCostPrice?.toString() || "0");
-        setStep("fill-existing");
-      } else {
-        setNewProduct({ ...emptyNewProduct, barcode: barcode.trim() });
-        setStep("fill-new");
-      }
-    } catch {
-      setPanelError("Failed to look up barcode. Please try again.");
-    } finally {
-      setPanelLoading(false);
-    }
-  };
-
-  const handleSelectExistingProduct = (product: Product) => {
-    setSelectedProduct(product);
-    setUnitCost(product.defaultCostPrice?.toString() || "0");
-    setSearchResults([]);
-    setSearchQuery("");
-    setStep("fill-existing");
-  };
-
-  const handleSaveExistingItem = async () => {
-    if (!selectedProduct) return;
-    const qty = parseInt(quantity);
-    if (isNaN(qty) || qty <= 0) {
-      setPanelError("Quantity must be a positive whole number.");
-      return;
-    }
-    setPanelLoading(true);
-    setPanelError(null);
-    try {
-      const res = await fetch(`/api/batches/${batchId}/items`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId: selectedProduct.id,
-          quantityPurchased: qty,
-          unitCost: parseFloat(unitCost) || 0,
-        }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        setPanelSuccess(`✓ ${qty} × ${selectedProduct.name} added to batch`);
-        await fetchBatch();
-        setTimeout(() => {
-          resetPanel();
-        }, 1500);
-      } else {
-        setPanelError(json.error || "Failed to add product");
-      }
-    } catch (err: any) {
-      setPanelError(err.message || "Server error");
-    } finally {
-      setPanelLoading(false);
-    }
-  };
-
-  const handleSaveNewProduct = async () => {
-    if (!newProduct.name.trim()) {
-      setPanelError("Product name is required.");
-      return;
-    }
-    const sellingPriceNum = parseFloat(newProduct.sellingPrice);
-    if (isNaN(sellingPriceNum) || sellingPriceNum < 0) {
-      setPanelError("Enter a valid selling price.");
-      return;
-    }
-    const qty = parseInt(quantity);
-    if (isNaN(qty) || qty <= 0) {
-      setPanelError("Quantity must be a positive whole number.");
-      return;
-    }
-
-    setPanelLoading(true);
-    setPanelError(null);
-    try {
-      const prodRes = await fetch("/api/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newProduct.name.trim(),
-          brand: newProduct.brand.trim() || undefined,
-          size: newProduct.size.trim() || undefined,
-          category: newProduct.category.trim() || undefined,
-          sku: newProduct.sku.trim() || undefined,
-          barcode: newProduct.barcode.trim() || undefined,
-          sellingPrice: sellingPriceNum,
-          defaultCostPrice: parseFloat(unitCost) || 0,
-        }),
-      });
-      const prodJson = await prodRes.json();
-      if (!prodJson.success) {
-        setPanelError(prodJson.error || "Failed to create product");
-        setPanelLoading(false);
-        return;
-      }
-
-      const createdProduct: Product = prodJson.data;
-
-      const itemRes = await fetch(`/api/batches/${batchId}/items`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId: createdProduct.id,
-          quantityPurchased: qty,
-          unitCost: parseFloat(unitCost) || 0,
-        }),
-      });
-      const itemJson = await itemRes.json();
-      if (itemJson.success) {
-        setPanelSuccess(`✓ New product "${createdProduct.name}" created & added to batch`);
-        await fetchBatch();
-        setTimeout(() => {
-          resetPanel();
-        }, 1800);
-      } else {
-        setPanelError(itemJson.error || "Product created but failed to add to batch");
-      }
-    } catch (err: any) {
-      setPanelError(err.message || "Server error");
-    } finally {
-      setPanelLoading(false);
     }
   };
 
@@ -379,860 +199,610 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
     }
   };
 
-  if (loading) {
+  const handleAddExistingProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProduct) return;
+    setAddItemError(null);
+
+    const qty = parseInt(itemQuantity);
+    if (isNaN(qty) || qty <= 0) {
+      setAddItemError("Quantity must be greater than 0.");
+      return;
+    }
+
+    setAddItemSubmitting(true);
+    try {
+      const res = await fetch(`/api/batches/${batchId}/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: selectedProduct.id,
+          quantityPurchased: qty,
+          unitCost: parseFloat(itemUnitCost || "0"),
+        }),
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        await fetchBatch();
+        setIsAddItemOpen(false);
+        setSelectedProduct(null);
+        setProductQuery("");
+      } else {
+        setAddItemError(json.error || "Failed to add item to batch");
+      }
+    } catch (err: any) {
+      setAddItemError(err.message || "Server error");
+    } finally {
+      setAddItemSubmitting(false);
+    }
+  };
+
+  const handleAddNewProductToBatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddItemError(null);
+
+    if (!newName.trim()) {
+      setAddItemError("Product name is required.");
+      return;
+    }
+    const sellPrice = parseFloat(newSellingPrice);
+    if (isNaN(sellPrice) || sellPrice <= 0) {
+      setAddItemError("Valid selling price is required.");
+      return;
+    }
+    const qty = parseInt(itemQuantity);
+    if (isNaN(qty) || qty <= 0) {
+      setAddItemError("Quantity must be greater than 0.");
+      return;
+    }
+
+    setAddItemSubmitting(true);
+    try {
+      // 1. Create product
+      const prodRes = await fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newName.trim(),
+          brand: newBrand.trim() || undefined,
+          size: newSize || undefined,
+          category: newCategory || undefined,
+          sku: newSku.trim() || undefined,
+          barcode: newBarcode.trim() || undefined,
+          sellingPrice: sellPrice,
+          defaultCostPrice: parseFloat(itemUnitCost || "0"),
+        }),
+      });
+
+      const prodJson = await prodRes.json();
+      if (!prodJson.success) {
+        setAddItemError(prodJson.error || "Failed to create product");
+        setAddItemSubmitting(false);
+        return;
+      }
+
+      // 2. Add to batch
+      const itemRes = await fetch(`/api/batches/${batchId}/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: prodJson.data.id,
+          quantityPurchased: qty,
+          unitCost: parseFloat(itemUnitCost || "0"),
+        }),
+      });
+
+      const itemJson = await itemRes.json();
+      if (itemJson.success) {
+        await fetchBatch();
+        setIsAddItemOpen(false);
+        setNewName("");
+        setNewBrand("");
+        setNewSellingPrice("");
+      } else {
+        setAddItemError(itemJson.error || "Product created but failed to link to batch");
+      }
+    } catch (err: any) {
+      setAddItemError(err.message || "Server error");
+    } finally {
+      setAddItemSubmitting(false);
+    }
+  };
+
+  if (loading && !batch) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 text-slate-400 dark:text-slate-500 animate-spin" />
+      <div className="py-24 text-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-xs text-muted-foreground font-semibold">Loading shipment details...</p>
       </div>
     );
   }
 
   if (error || !batch) {
     return (
-      <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-6 rounded-2xl text-rose-700 dark:text-rose-300 text-sm flex items-center gap-3">
-        <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-        <span>{error || "Batch not found"}</span>
+      <div className="py-16 text-center space-y-4">
+        <AlertTriangle className="w-10 h-10 text-destructive mx-auto" />
+        <h2 className="text-base font-bold text-foreground">{error || "Batch not found"}</h2>
+        <Button variant="outline" onClick={() => router.push("/batches")}>
+          Return to Batches
+        </Button>
       </div>
     );
   }
 
-  const totalPurchased = batch.batchItems.reduce((a, b) => a + b.quantityPurchased, 0);
-  const totalRemaining = batch.batchItems.reduce((a, b) => a + b.quantityRemaining, 0);
-  const totalSold = Math.max(0, totalPurchased - totalRemaining);
-  const sellThrough = totalPurchased > 0 ? Math.round((totalSold / totalPurchased) * 100) : 0;
-  const isHighSellThrough = sellThrough >= 80;
-  const isActive = batch.status === "ACTIVE";
-
-  const totalRevenue = batch.batchItems.reduce(
-    (sum, item) => sum + (item.quantityPurchased - item.quantityRemaining) * Number(item.product.sellingPrice),
-    0
-  );
-  const totalCostOfSold = batch.batchItems.reduce(
-    (sum, item) => sum + (item.quantityPurchased - item.quantityRemaining) * Number(item.unitCost),
-    0
-  );
-  const batchProfit = totalRevenue - totalCostOfSold;
+  const items = batch.batchItems || [];
+  const totalPurchased = items.reduce((acc, i) => acc + (i.quantityPurchased || 0), 0);
+  const totalRemaining = items.reduce((acc, i) => acc + (i.quantityRemaining || 0), 0);
+  const totalSold = totalPurchased - totalRemaining;
+  const sellThroughRate = totalPurchased > 0 ? Math.round((totalSold / totalPurchased) * 100) : 0;
+  const isCompleted = batch.status === "COMPLETED";
 
   return (
-    <div className="space-y-6 font-sans">
-      {/* Detail Workspace Header */}
-      <PageHeader
-        backLink={{ href: "/batches", label: "Back to Batches" }}
-        title={batch.reference}
-        subtitle={`Purchased on ${new Date(batch.purchaseDate).toLocaleDateString()} ${
-          batch.additionalCosts > 0 ? `• Landing Transport Cost: ${formatCurrency(batch.additionalCosts)}` : ""
-        }`}
-        badge={
-          <div className="flex items-center gap-2">
-            <span
-              className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                isActive ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
-              }`}
-            >
-              {batch.status}
-            </span>
-            {isActive && isHighSellThrough && (
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
-                🔥 {sellThrough}% Sold — Ready to Close
-              </span>
-            )}
+    <div className="space-y-6 pb-24 md:pb-8">
+      {/* Top Breadcrumb & Actions Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <Link
+            href="/batches"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors mb-1"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>All Shipments</span>
+          </Link>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-black tracking-tight text-foreground flex items-center gap-2">
+              <Truck className="w-6 h-6 text-primary" />
+              <span>{batch.reference}</span>
+            </h1>
+            <Badge variant={isCompleted ? "secondary" : "success"}>{batch.status}</Badge>
           </div>
-        }
-        actions={
-          isActive ? (
+          <p className="text-xs text-muted-foreground">
+            Purchased {new Date(batch.purchaseDate).toLocaleDateString()}
+            {batch.supplier && ` • Vendor: ${batch.supplier.name}`}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {!isCompleted && (
             <>
-              <button
-                onClick={openPanel}
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-lg shadow-indigo-500/25 transition-all"
+              <Button
+                variant="outline"
+                size="md"
+                onClick={() => setIsCostSheetOpen(true)}
+                className="gap-1.5"
               >
-                <Plus className="w-3.5 h-3.5 text-amber-300" /> Add Item
-              </button>
-              <button
+                <Pencil className="w-3.5 h-3.5" />
+                <span>Edit Landed Cost</span>
+              </Button>
+
+              <Button
+                size="md"
+                className="gap-2 font-bold"
                 onClick={() => {
-                  setAdditionalCostInput(batch.additionalCosts.toString());
-                  setIsCostModalOpen(true);
+                  setSelectedProduct(null);
+                  setProductQuery("");
+                  setItemQuantity("1");
+                  setItemUnitCost("0");
+                  setIsAddItemOpen(true);
                 }}
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs transition-colors"
               >
-                <Truck className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" /> Add Cost
-              </button>
-              <button
+                <Plus className="w-4 h-4" />
+                <span>Add Items</span>
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="md"
                 onClick={() => setShowCloseConfirm(true)}
-                disabled={!isHighSellThrough && batch.batchItems.length === 0}
-                className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl font-bold text-xs transition-colors ${
-                  isHighSellThrough
-                    ? "bg-amber-500 text-slate-900 hover:bg-amber-400 shadow-sm"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-                }`}
+                className="text-muted-foreground hover:text-destructive"
               >
-                <CheckCheck className="w-3.5 h-3.5" /> Close Batch
-              </button>
+                Close Batch
+              </Button>
             </>
-          ) : undefined
-        }
-      />
-
-      {/* Financial Summary Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-slate-900 dark:bg-slate-800/80 p-4 rounded-3xl text-white border border-slate-800 space-y-1 shadow-lg shadow-slate-900/10">
-          <span className="text-[10px] text-amber-400 font-extrabold uppercase tracking-wider block">Investment</span>
-          <span className="font-black text-xl text-white block">{formatCurrency(batch.totalInvestment)}</span>
-          <span className="text-[10px] text-slate-400 font-medium block">Total Landing Cost</span>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 space-y-1">
-          <span className="text-[10px] text-slate-400 dark:text-slate-400 font-bold uppercase tracking-wider block">Revenue</span>
-          <span className="font-black text-xl text-slate-900 dark:text-slate-100 block">{formatCurrency(totalRevenue)}</span>
-          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium block">Sales from this batch</span>
-        </div>
-
-        <div className="bg-emerald-50 dark:bg-emerald-950/40 p-4 rounded-3xl border border-emerald-100 dark:border-emerald-900 space-y-1">
-          <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold uppercase tracking-wider block">Profit</span>
-          <span className="font-black text-xl text-emerald-800 dark:text-emerald-300 block">{formatCurrency(batchProfit)}</span>
-          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium block">Revenue minus unit cost</span>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 space-y-1">
-          <span className="text-[10px] text-slate-400 dark:text-slate-400 font-bold uppercase tracking-wider block">Remaining Stock</span>
-          <span className="font-black text-xl text-slate-900 dark:text-slate-100 block">{totalRemaining} units</span>
-          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium block">{totalSold} / {totalPurchased} sold ({sellThrough}%)</span>
-        </div>
-      </div>
-
-      {/* Product Items Table */}
-      <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 bg-white dark:bg-slate-900 overflow-hidden">
-        <div className="p-5 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
-          <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <Package className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-            Products in this Batch
-          </h3>
-          {isActive && (
-            <button
-              onClick={openPanel}
-              className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add Product
-            </button>
           )}
         </div>
-
-        {batch.batchItems.length === 0 ? (
-          <div className="p-10 text-center space-y-3">
-            <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto">
-              <ShoppingBag className="w-6 h-6 text-slate-400 dark:text-slate-500" />
-            </div>
-            <h4 className="font-bold text-sm text-slate-700 dark:text-slate-200">No products added yet</h4>
-            <p className="text-xs text-slate-400 dark:text-slate-500 max-w-xs mx-auto">
-              Click <strong>Add Product</strong> to start recording what you bought on this trip. You can scan a
-              barcode or search by name.
-            </p>
-            {isActive && (
-              <button
-                onClick={openPanel}
-                className="mx-auto inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25 transition-all font-bold text-xs"
-              >
-                <Scan className="w-3.5 h-3.5 text-amber-300" /> Add First Product
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="text-slate-400 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/60">
-                  <th className="font-semibold py-3 px-5">Product</th>
-                  <th className="font-semibold py-3 px-3">Purchased</th>
-                  <th className="font-semibold py-3 px-3">Remaining</th>
-                  <th className="font-semibold py-3 px-3">Sold</th>
-                  <th className="font-semibold py-3 px-3">Unit Cost</th>
-                  <th className="font-semibold py-3 px-3">Selling Price</th>
-                  <th className="font-semibold py-3 px-5 text-right">Line Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {batch.batchItems.map((item) => {
-                  const sold = item.quantityPurchased - item.quantityRemaining;
-                  const sellPct = Math.round((sold / item.quantityPurchased) * 100);
-                  return (
-                    <tr key={item.id} className="text-slate-800 dark:text-slate-200 hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
-                      <td className="py-3 px-5">
-                        <div className="font-bold text-slate-900 dark:text-slate-100">{item.product.name}</div>
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          {item.product.brand && (
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500">{item.product.brand}</span>
-                          )}
-                          {item.product.size && (
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500">{item.product.size}</span>
-                          )}
-                          {item.product.sku && (
-                            <span className="text-[10px] font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-500 dark:text-slate-400">
-                              {item.product.sku}
-                            </span>
-                          )}
-                          {item.product.barcode && (
-                            <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 flex items-center gap-0.5">
-                              <Barcode className="w-2.5 h-2.5" />
-                              {item.product.barcode}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-3 font-bold text-slate-900 dark:text-slate-100">{item.quantityPurchased}</td>
-                      <td className="py-3 px-3 font-bold text-emerald-600 dark:text-emerald-400">{item.quantityRemaining}</td>
-                      <td className="py-3 px-3">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{sold}</span>
-                          {item.quantityPurchased > 0 && (
-                            <div className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-amber-400 rounded-full"
-                                style={{ width: `${sellPct}%` }}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-3 font-medium text-slate-800 dark:text-slate-200">{formatCurrency(item.unitCost)}</td>
-                      <td className="py-3 px-3 font-medium text-slate-500 dark:text-slate-400">
-                        {formatCurrency(item.product.sellingPrice)}
-                      </td>
-                      <td className="py-3 px-5 font-bold text-right text-slate-900 dark:text-slate-100">{formatCurrency(item.totalCost)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot className="border-t-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60">
-                <tr>
-                  <td className="py-3 px-5 font-bold text-xs text-slate-700 dark:text-slate-300">
-                    {batch.batchItems.length} product line{batch.batchItems.length !== 1 ? "s" : ""}
-                  </td>
-                  <td className="py-3 px-3 font-bold text-xs text-slate-900 dark:text-slate-100">{totalPurchased}</td>
-                  <td className="py-3 px-3 font-bold text-xs text-emerald-600 dark:text-emerald-400">{totalRemaining}</td>
-                  <td className="py-3 px-3 font-bold text-xs text-amber-700 dark:text-amber-400">{totalSold}</td>
-                  <td colSpan={2} className="py-3 px-3 text-xs text-slate-400 dark:text-slate-500">
-                    {batch.additionalCosts > 0 && (
-                      <span>+{formatCurrency(batch.additionalCosts)} transport</span>
-                    )}
-                  </td>
-                  <td className="py-3 px-5 font-extrabold text-xs text-right text-slate-900 dark:text-slate-100">
-                    {formatCurrency(batch.totalInvestment)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
       </div>
 
-      {/* ── ADD PRODUCT SLIDE-OVER PANEL ── */}
-      {isPanelOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 dark:bg-slate-950/80 backdrop-blur-sm flex justify-end">
-          <div className="bg-white dark:bg-slate-900 border-l border-slate-100 dark:border-slate-800 w-full max-w-md h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
-            {/* Panel Header */}
-            <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800">
-              <div>
-                <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Add Product to Batch</h3>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{batch.reference}</p>
-              </div>
-              <button
-                onClick={closePanel}
-                className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-              >
-                <X className="w-4 h-4" />
-              </button>
+      {/* Financial & Inventory Overview */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <Card className="p-4">
+          <span className="text-[11px] font-semibold text-muted-foreground uppercase">
+            Total Investment
+          </span>
+          <div className="text-2xl font-black text-foreground mt-1">
+            <Money amount={batch.totalInvestment} />
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">
+            Products: {formatCurrency(batch.purchaseCost)}
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <span className="text-[11px] font-semibold text-muted-foreground uppercase">
+            Extra Landed Costs
+          </span>
+          <div className="text-2xl font-black text-primary mt-1">
+            <Money amount={batch.additionalCosts} />
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">
+            Shipping & import duties
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <span className="text-[11px] font-semibold text-muted-foreground uppercase">
+            Units Remaining
+          </span>
+          <div className="text-2xl font-black text-foreground tabular-nums mt-1">
+            {totalRemaining} / {totalPurchased}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">
+            {totalSold} units sold
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <span className="text-[11px] font-semibold text-muted-foreground uppercase">
+            Sell-Through
+          </span>
+          <div className="text-2xl font-black text-success mt-1">{sellThroughRate}%</div>
+          <div className="w-full h-1.5 rounded-full bg-muted mt-2 overflow-hidden">
+            <div
+              className="h-full bg-success rounded-full"
+              style={{ width: `${sellThroughRate}%` }}
+            />
+          </div>
+        </Card>
+      </div>
+
+      {/* Shipment Manifest / Items Table */}
+      <Card className="p-5 space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-border">
+          <div>
+            <h3 className="text-base font-bold text-foreground">Shipment Manifest</h3>
+            <p className="text-xs text-muted-foreground">
+              {items.length} unique perfume lines in this consignment
+            </p>
+          </div>
+        </div>
+
+        {items.length === 0 ? (
+          <div className="py-12 text-center text-muted-foreground">
+            <Package className="w-10 h-10 mx-auto mb-2 opacity-30" />
+            <p className="text-sm font-semibold">No products added yet</p>
+            <p className="text-xs mt-1">Click "Add Items" to log perfume bottles into this batch</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {items.map((item) => {
+              const itemProgress =
+                item.quantityPurchased > 0
+                  ? Math.round(
+                      ((item.quantityPurchased - item.quantityRemaining) / item.quantityPurchased) *
+                        100
+                    )
+                  : 0;
+
+              return (
+                <div
+                  key={item.id}
+                  className="p-3.5 rounded-2xl bg-card border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                      <Package className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-foreground leading-snug">
+                        {item.product.name}
+                      </h4>
+                      <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
+                        {item.product.sku && <span>SKU: {item.product.sku}</span>}
+                        <span>•</span>
+                        <span>Unit Cost: {formatCurrency(item.unitCost)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between sm:justify-end gap-6 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/60">
+                    <div className="text-left sm:text-right">
+                      <div className="text-xs font-bold text-foreground">
+                        {item.quantityRemaining} of {item.quantityPurchased} left
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {itemProgress}% sold through
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <div className="text-sm font-black text-foreground">
+                        <Money amount={item.totalCost} />
+                      </div>
+                      <div className="text-[10px] text-muted-foreground uppercase font-semibold">
+                        Total Cost
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
+      {/* EDIT LANDED COST SHEET */}
+      <Sheet
+        isOpen={isCostSheetOpen}
+        onClose={() => setIsCostSheetOpen(false)}
+        title="Update Landed Costs"
+        description="Add air freight, shipping or customs clearance costs"
+      >
+        <form onSubmit={handleSaveCost} className="space-y-4 pt-2">
+          <Input
+            label="Additional Shipping & Clearing Cost (GH₵)"
+            type="number"
+            step="any"
+            min="0"
+            value={additionalCostInput}
+            onChange={(e) => setAdditionalCostInput(e.target.value)}
+            required
+          />
+
+          <div className="pt-2 flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setIsCostSheetOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              className="flex-1 font-black"
+              isLoading={costSubmitting}
+            >
+              Save Costs
+            </Button>
+          </div>
+        </form>
+      </Sheet>
+
+      {/* ADD ITEMS TO BATCH SHEET */}
+      <Sheet
+        isOpen={isAddItemOpen}
+        onClose={() => setIsAddItemOpen(false)}
+        title="Add Inventory Item to Shipment"
+        description="Select from existing catalog or register a new perfume SKU"
+      >
+        <div className="space-y-4 pt-2">
+          {addItemError && (
+            <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-xs font-semibold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{addItemError}</span>
             </div>
+          )}
 
-            {/* Panel Body */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-5">
-              {/* Success message */}
-              {panelSuccess && (
-                <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                  <span>{panelSuccess}</span>
-                </div>
-              )}
+          {/* Mode Switcher */}
+          <div className="inline-flex p-1 bg-muted rounded-xl border border-border w-full">
+            <button
+              type="button"
+              onClick={() => setAddMode("search")}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                addMode === "search"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Existing Catalog SKU
+            </button>
+            <button
+              type="button"
+              onClick={() => setAddMode("new")}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                addMode === "new"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Create New Perfume
+            </button>
+          </div>
 
-              {/* Error */}
-              {panelError && (
-                <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                  <span>{panelError}</span>
-                  <button onClick={() => setPanelError(null)} className="ml-auto">
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              )}
+          {addMode === "search" ? (
+            <form onSubmit={handleAddExistingProduct} className="space-y-4">
+              {!selectedProduct ? (
+                <div className="space-y-3">
+                  <SearchField
+                    value={productQuery}
+                    onChange={setProductQuery}
+                    placeholder="Search existing perfumes by name or SKU..."
+                  />
 
-              {/* STEP 1 — Scan or Search */}
-              {step === "scan" && (
-                <div className="space-y-4">
-                  {/* Mode toggle */}
-                  <div className="flex rounded-full bg-slate-100 dark:bg-slate-800 p-1">
-                    <button
-                      onClick={() => setInputMode("barcode")}
-                      className={`flex-1 py-2 text-xs font-bold rounded-full flex items-center justify-center gap-1.5 transition-all ${
-                        inputMode === "barcode"
-                          ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
-                          : "text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-                      }`}
-                    >
-                      <Scan className="w-3.5 h-3.5" /> Scan Barcode
-                    </button>
-                    <button
-                      onClick={() => setInputMode("search")}
-                      className={`flex-1 py-2 text-xs font-bold rounded-full flex items-center justify-center gap-1.5 transition-all ${
-                        inputMode === "search"
-                          ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
-                          : "text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-                      }`}
-                    >
-                      <Search className="w-3.5 h-3.5" /> Search by Name
-                    </button>
-                  </div>
-
-                  {inputMode === "barcode" ? (
-                    <div className="space-y-3">
-                      {/* PRIMARY: Camera scan button */}
-                      <button
-                        onClick={() => setShowCamera(true)}
-                        className="w-full bg-indigo-600 rounded-3xl p-5 flex flex-col items-center gap-3 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/25"
-                      >
-                        <div className="w-16 h-16 rounded-2xl bg-amber-400 flex items-center justify-center shadow-md">
-                          <Camera className="w-9 h-9 text-slate-900" />
-                        </div>
-                        <div className="text-center">
-                          <p className="text-white text-sm font-bold">Tap to Open Camera</p>
-                          <p className="text-indigo-100 text-[11px] mt-0.5">
-                            Point your camera at the barcode or QR code on the product box
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-3 text-[10px] text-indigo-200">
-                          <span className="flex items-center gap-1">✓ EAN-13 / EAN-8</span>
-                          <span className="flex items-center gap-1">✓ QR Code</span>
-                          <span className="flex items-center gap-1">✓ Code128</span>
-                        </div>
-                      </button>
-
-                      {/* FALLBACK: Manual barcode entry */}
-                      <div className="relative">
-                        <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                        <input
-                          ref={barcodeInputRef}
-                          type="text"
-                          placeholder="Or type / paste barcode manually..."
-                          value={scanInput}
-                          onChange={(e) => setScanInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && scanInput.trim()) {
-                              handleBarcodeScan(scanInput);
-                            }
-                          }}
-                          className="w-full pl-9 pr-24 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                        />
+                  {catalogProducts.length > 0 && (
+                    <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                      {catalogProducts.map((p) => (
                         <button
-                          onClick={() => handleBarcodeScan(scanInput)}
-                          disabled={!scanInput.trim() || panelLoading}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold shadow-md shadow-indigo-500/20 disabled:opacity-40"
-                        >
-                          {panelLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Look Up"}
-                        </button>
-                      </div>
-
-                      <button
-                        onClick={() => {
-                          setNewProduct(emptyNewProduct);
-                          setStep("fill-new");
-                        }}
-                        className="w-full py-2 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
-                      >
-                        + Add new product without barcode
-                      </button>
-                    </div>
-
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                        <input
-                          ref={searchInputRef}
-                          type="text"
-                          placeholder="Type product name, brand..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                          autoFocus
-                        />
-                        {searching && (
-                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500 animate-spin" />
-                        )}
-                      </div>
-
-                      {searchResults.length > 0 && (
-                        <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
-                          {searchResults.map((p) => (
-                            <button
-                              key={p.id}
-                              onClick={() => handleSelectExistingProduct(p)}
-                              className="w-full px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                            >
-                              <div className="font-bold text-xs text-slate-900 dark:text-slate-100">{p.name}</div>
-                              <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400 dark:text-slate-500">
-                                {p.brand && <span>{p.brand}</span>}
-                                {p.size && <span>{p.size}</span>}
-                                <span className="ml-auto font-bold text-slate-700 dark:text-slate-300">
-                                  {formatCurrency(p.sellingPrice)}
-                                </span>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-
-                      {searchQuery.trim().length >= 2 && !searching && searchResults.length === 0 && (
-                        <div className="text-center py-4 space-y-2">
-                          <p className="text-xs text-slate-400 dark:text-slate-500">No products found for "{searchQuery}"</p>
-                          <button
-                            onClick={() => {
-                              setNewProduct({ ...emptyNewProduct, name: searchQuery });
-                              setStep("fill-new");
-                            }}
-                            className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
-                          >
-                            + Create new product "{searchQuery}"
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* STEP 2A — Existing product found: enter qty + cost */}
-              {step === "fill-existing" && selectedProduct && (
-                <div className="space-y-4">
-                  {/* Product card */}
-                  <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                          <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">Product Found</span>
-                        </div>
-                        <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 mt-1">{selectedProduct.name}</h4>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          {selectedProduct.brand && (
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded">
-                              {selectedProduct.brand}
-                            </span>
-                          )}
-                          {selectedProduct.size && (
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded">
-                              {selectedProduct.size}
-                            </span>
-                          )}
-                          {selectedProduct.barcode && (
-                            <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 flex items-center gap-0.5">
-                              <Barcode className="w-2.5 h-2.5" />
-                              {selectedProduct.barcode}
-                            </span>
-                          )}
-                        </div>
-                        <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                          Catalog selling price:{" "}
-                          <span className="font-bold text-slate-800 dark:text-slate-200">
-                            {formatCurrency(selectedProduct.sellingPrice)}
-                          </span>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setSelectedProduct(null);
-                          setScanInput("");
-                          setStep("scan");
-                        }}
-                        className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Quantity + cost */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                        Quantity Purchased *
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={quantity}
-                        onChange={(e) => setQuantity(e.target.value)}
-                        placeholder="e.g. 10"
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                        autoFocus
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                        Unit Cost Price (GH₵) *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={unitCost}
-                        onChange={(e) => setUnitCost(e.target.value)}
-                        placeholder="0.00"
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Live total */}
-                  {parseInt(quantity) > 0 && (
-                    <div className="bg-slate-900 dark:bg-slate-800 text-white border border-slate-800 rounded-xl p-3 flex items-center justify-between text-xs">
-                      <span className="text-slate-400 dark:text-slate-400">
-                        {quantity} × {formatCurrency(parseFloat(unitCost) || 0)}
-                      </span>
-                      <span className="font-bold text-amber-400">
-                        = {formatCurrency((parseInt(quantity) || 0) * (parseFloat(unitCost) || 0))}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* STEP 2B — New product: fill all details */}
-              {step === "fill-new" && (
-                <div className="space-y-4">
-                  <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900 p-3 rounded-xl text-indigo-800 dark:text-indigo-300 text-xs flex items-center gap-2">
-                    <Tag className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
-                    <span>
-                      This product doesn't exist in your catalog yet. Fill in the details to create it and add
-                      it to this batch.
-                    </span>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Product Name *</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Creed Aventus"
-                      value={newProduct.name}
-                      onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                      autoFocus
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Brand</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Creed"
-                        value={newProduct.brand}
-                        onChange={(e) => setNewProduct({ ...newProduct, brand: e.target.value })}
-                        className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Size / Volume</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. 100ml"
-                        value={newProduct.size}
-                        onChange={(e) => setNewProduct({ ...newProduct, size: e.target.value })}
-                        className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Category</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Perfume, Body Care"
-                        value={newProduct.category}
-                        onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
-                        className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                      />
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">SKU (Auto-Generated)</label>
-                        <button
+                          key={p.id}
                           type="button"
-                          onClick={() => setNewProduct({ ...newProduct, sku: generateProductSku(newProduct.name, newProduct.brand, newProduct.size) })}
-                          className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 flex items-center gap-0.5 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-full transition-colors"
-                          title="Auto-generate SKU"
+                          onClick={() => {
+                            setSelectedProduct(p);
+                            setItemUnitCost(p.defaultCostPriceNum?.toString() || "0");
+                          }}
+                          className="w-full text-left p-2.5 rounded-xl border border-border/80 hover:border-primary/60 hover:bg-muted/40 transition-all flex items-center justify-between"
                         >
-                          <Sparkles className="w-3 h-3" /> Auto
+                          <div>
+                            <div className="text-xs font-bold text-foreground">{p.name}</div>
+                            <div className="text-[11px] text-muted-foreground">
+                              {p.sku || p.category || "Perfume"}
+                            </div>
+                          </div>
+                          <Plus className="w-4 h-4 text-primary" />
                         </button>
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="e.g. AV-PRF-100ML-9A2F"
-                        value={newProduct.sku}
-                        onChange={(e) => setNewProduct({ ...newProduct, sku: e.target.value })}
-                        className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                      />
+                      ))}
                     </div>
-                  </div>
-
+                  )}
+                </div>
+              ) : (
+                <div className="p-3 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-between">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      Barcode (Optional)
-                    </label>
-                    <div className="relative">
-                      <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                      <input
-                        type="text"
-                        placeholder="Scan or type barcode..."
-                        value={newProduct.barcode}
-                        onChange={(e) => setNewProduct({ ...newProduct, barcode: e.target.value })}
-                        className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                      />
+                    <div className="text-xs font-bold text-foreground">{selectedProduct.name}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {selectedProduct.sku && `SKU: ${selectedProduct.sku}`}
                     </div>
                   </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setSelectedProduct(null)}
+                    className="text-xs"
+                  >
+                    Change
+                  </Button>
+                </div>
+              )}
 
-                  <div className="border-t border-slate-100 dark:border-slate-800 pt-3 grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                        Selling Price (GH₵) *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        value={newProduct.sellingPrice}
-                        onChange={(e) => setNewProduct({ ...newProduct, sellingPrice: e.target.value })}
-                        className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                        Cost Price (GH₵) *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        value={unitCost}
-                        onChange={(e) => setUnitCost(e.target.value)}
-                        className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      Quantity Purchased *
-                    </label>
-                    <input
+              {selectedProduct && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      label="Quantity Purchased (Bottles)"
                       type="number"
                       min="1"
-                      placeholder="e.g. 10"
-                      value={quantity}
-                      onChange={(e) => setQuantity(e.target.value)}
-                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                      value={itemQuantity}
+                      onChange={(e) => setItemQuantity(e.target.value)}
+                      required
+                    />
+                    <Input
+                      label="Unit Wholesale Cost (GH₵)"
+                      type="number"
+                      step="any"
+                      min="0"
+                      value={itemUnitCost}
+                      onChange={(e) => setItemUnitCost(e.target.value)}
+                      required
                     />
                   </div>
 
-                  {parseInt(quantity) > 0 && parseFloat(unitCost) > 0 && (
-                    <div className="bg-slate-900 dark:bg-slate-800 text-white border border-slate-800 rounded-xl p-3 flex items-center justify-between text-xs">
-                      <span className="text-slate-400 dark:text-slate-400">
-                        {quantity} × {formatCurrency(parseFloat(unitCost) || 0)} cost
-                      </span>
-                      <span className="font-bold text-amber-400">
-                        = {formatCurrency((parseInt(quantity) || 0) * (parseFloat(unitCost) || 0))}
-                      </span>
-                    </div>
-                  )}
-                </div>
+                  <div className="pt-2 flex gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setIsAddItemOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      className="flex-1 font-black"
+                      isLoading={addItemSubmitting}
+                    >
+                      Add to Batch
+                    </Button>
+                  </div>
+                </>
               )}
-            </div>
+            </form>
+          ) : (
+            <form onSubmit={handleAddNewProductToBatch} className="space-y-4">
+              <Input
+                label="Perfume Name"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="e.g. Baccarat Rouge 540 Extrait"
+                required
+              />
 
-            {/* Panel Footer Buttons */}
-            <div className="p-5 border-t border-slate-100 dark:border-slate-800 space-y-2">
-              {step === "fill-existing" && (
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setStep("scan");
-                      setScanInput("");
-                      setSelectedProduct(null);
-                    }}
-                    className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
-                  >
-                    ← Back
-                  </button>
-                  <button
-                    onClick={handleSaveExistingItem}
-                    disabled={panelLoading}
-                    className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-500/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {panelLoading ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <>
-                        <Save className="w-3.5 h-3.5 text-amber-300" /> Add to Batch
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
-
-              {step === "fill-new" && (
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setStep("scan");
-                      setNewProduct(emptyNewProduct);
-                    }}
-                    className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
-                  >
-                    ← Back
-                  </button>
-                  <button
-                    onClick={handleSaveNewProduct}
-                    disabled={panelLoading}
-                    className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-500/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {panelLoading ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <>
-                        <Plus className="w-3.5 h-3.5" /> Create & Add to Batch
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
-
-              {step === "scan" && (
-                <button
-                  onClick={closePanel}
-                  className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
-                >
-                  Done Adding Products
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Close Batch Confirmation */}
-      {showCloseConfirm && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 max-w-sm w-full p-6 shadow-2xl space-y-4 animate-in fade-in duration-200">
-            <div className="text-center space-y-2">
-              <div className="w-12 h-12 bg-amber-100 dark:bg-amber-950/50 rounded-2xl flex items-center justify-center mx-auto">
-                <CheckCheck className="w-6 h-6 text-amber-600 dark:text-amber-400" />
-              </div>
-              <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Close this Batch?</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                The batch will be marked as <strong className="text-slate-800 dark:text-slate-200">Completed</strong>. Any remaining stock from this batch
-                will still be available for sale via FIFO.
-              </p>
-              {!isHighSellThrough && (
-                <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900 p-2 rounded-lg text-amber-700 dark:text-amber-300 text-xs">
-                  ⚠️ Only {sellThrough}% sold. Batches are typically closed at 80%+. Are you sure?
-                </div>
-              )}
-            </div>
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={() => setShowCloseConfirm(false)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCloseBatch}
-                disabled={closing}
-                className="flex-1 py-2.5 rounded-xl bg-amber-500 text-slate-900 text-xs font-bold hover:bg-amber-400 disabled:opacity-50 flex items-center justify-center gap-1.5"
-              >
-                {closing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Yes, Close Batch"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Landing Cost Modal */}
-      {isCostModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 max-w-sm w-full p-6 shadow-2xl space-y-4 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Add Landing / Transport Cost</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Log additional freight or shipping expenses</p>
-              </div>
-              <button
-                onClick={() => setIsCostModalOpen(false)}
-                className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveCost} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Additional Transport / Freight Cost (GH₵)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  required
-                  placeholder="0.00"
-                  value={additionalCostInput}
-                  onChange={(e) => setAdditionalCostInput(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  autoFocus
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Brand / House"
+                  value={newBrand}
+                  onChange={(e) => setNewBrand(e.target.value)}
+                  placeholder="e.g. MFK"
+                />
+                <Select
+                  label="Size"
+                  value={newSize}
+                  onChange={(e) => setNewSize(e.target.value)}
+                  options={[
+                    { value: "30ml", label: "30ml" },
+                    { value: "50ml", label: "50ml" },
+                    { value: "100ml", label: "100ml" },
+                    { value: "200ml", label: "200ml" },
+                  ]}
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <button
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Selling Price (GH₵)"
+                  type="number"
+                  step="any"
+                  min="0"
+                  value={newSellingPrice}
+                  onChange={(e) => setNewSellingPrice(e.target.value)}
+                  placeholder="0.00"
+                  required
+                />
+                <Input
+                  label="Wholesale Cost in Batch (GH₵)"
+                  type="number"
+                  step="any"
+                  min="0"
+                  value={itemUnitCost}
+                  onChange={(e) => setItemUnitCost(e.target.value)}
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+
+              <Input
+                label="Quantity in this Shipment (Bottles)"
+                type="number"
+                min="1"
+                value={itemQuantity}
+                onChange={(e) => setItemQuantity(e.target.value)}
+                required
+              />
+
+              <div className="pt-2 flex gap-3">
+                <Button
                   type="button"
-                  onClick={() => setIsCostModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setIsAddItemOpen(false)}
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  disabled={costSubmitting}
-                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-500/20 disabled:opacity-50 flex items-center gap-1.5"
+                  variant="primary"
+                  className="flex-1 font-black"
+                  isLoading={addItemSubmitting}
                 >
-                  {costSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save Landing Cost"}
-                </button>
+                  Create & Add
+                </Button>
               </div>
             </form>
-          </div>
+          )}
         </div>
-      )}
+      </Sheet>
 
-      {/* Camera Scanner Overlay */}
-      {showCamera && (
-        <CameraScanner
-          hint="Point camera at the barcode or QR code on the product box"
-          onScan={(barcode) => {
-            setShowCamera(false);
-            setScanInput(barcode);
-            handleBarcodeScan(barcode);
-          }}
-          onClose={() => setShowCamera(false)}
-        />
-      )}
+      {/* CLOSE BATCH CONFIRM DIALOG */}
+      <ConfirmDialog
+        isOpen={showCloseConfirm}
+        title="Mark Shipment as Completed?"
+        message="This closes the batch for further additions. Remaining inventory units will continue to be allocated according to FIFO logic."
+        confirmLabel="Complete Shipment"
+        variant="primary"
+        isLoading={closing}
+        onClose={() => setShowCloseConfirm(false)}
+        onConfirm={handleCloseBatch}
+      />
     </div>
   );
 }

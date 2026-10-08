@@ -1,36 +1,51 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { formatCurrency } from "@/lib/utils";
 import { normalizeBarcode } from "@/lib/barcode/decoder";
 import { voidSaleAction } from "@/lib/actions/sale-actions";
 import { ReceiptModal } from "@/components/sales/ReceiptModal";
-import { PageHeader } from "@/components/ui/PageHeader";
+import {
+  Button,
+  IconButton,
+  Input,
+  Select,
+  Textarea,
+  SearchField,
+  Sheet,
+  Card,
+  Badge,
+  Money,
+  ConfirmDialog,
+  FilterChips,
+} from "@/components/ui";
 import {
   ShoppingBag,
   Plus,
-  Search,
+  Minus,
+  Trash2,
+  Camera,
+  Barcode,
+  CreditCard,
+  Banknote,
+  Receipt,
+  RotateCcw,
+  User,
+  CheckCircle2,
+  AlertTriangle,
+  History,
+  Store,
+  ArrowRight,
+  Printer,
+  Share2,
+  Calendar,
   DollarSign,
   TrendingUp,
-  AlertTriangle,
-  CheckCircle2,
   X,
-  Loader2,
-  Trash2,
-  CreditCard,
-  User,
-  Eye,
-  Calendar,
-  RotateCcw,
-  Share2,
-  Barcode,
-  ScanLine,
-  Camera,
-  Download,
-  Printer,
-  Filter,
+  Search,
+  Sparkles,
 } from "lucide-react";
-import dynamic from "next/dynamic";
 
 const CameraScanner = dynamic(() => import("@/components/scanner/CameraScanner"), { ssr: false });
 
@@ -39,6 +54,7 @@ interface Product {
   name: string;
   barcode?: string | null;
   sku?: string | null;
+  category?: string | null;
   sellingPriceNum: number;
   remainingStock: number;
 }
@@ -46,6 +62,7 @@ interface Product {
 interface Customer {
   id: string;
   name: string;
+  phone?: string | null;
 }
 
 interface SaleItem {
@@ -75,7 +92,7 @@ interface Sale {
   status: string;
   notes: string | null;
   customerId?: string | null;
-  customer: { id?: string; name: string } | null;
+  customer: { id?: string; name: string; phone?: string | null } | null;
   saleItems: SaleItem[];
 }
 
@@ -91,12 +108,23 @@ interface SalesSummary {
   netProfit: number;
   averageOrderValue: number;
   profitMargin: number;
-  voidedSalesCount: number;
-  refundedSalesCount: number;
+}
+
+interface CartItem {
+  productId: string;
+  product: Product;
+  quantity: number;
+  unitPrice: number;
 }
 
 export default function SalesPage() {
+  // Navigation / View Tabs
+  const [activeTab, setActiveTab] = useState<"pos" | "history">("pos");
+
+  // Core Data
   const [sales, setSales] = useState<Sale[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [summary, setSummary] = useState<SalesSummary>({
     totalTransactions: 0,
     totalItemsSold: 0,
@@ -109,100 +137,82 @@ export default function SalesPage() {
     netProfit: 0,
     averageOrderValue: 0,
     profitMargin: 0,
-    voidedSalesCount: 0,
-    refundedSalesCount: 0,
   });
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filters State
-  const [quickRange, setQuickRange] = useState<string>("ALL");
-  const [customStart, setCustomStart] = useState<string>("");
-  const [customEnd, setCustomEnd] = useState<string>("");
-  const [filterCustomer, setFilterCustomer] = useState<string>("ALL");
-  const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("ALL");
-  const [filterPaymentMethod, setFilterPaymentMethod] = useState<string>("ALL");
-  const [searchQuery, setSearchQuery] = useState<string>("");
-
-  // Detail Modal & Receipt Modal
-  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
-  const [receiptSale, setReceiptSale] = useState<Sale | null>(null);
-
-  // Record Debt Payment Modal for specific sale
-  const [paymentSale, setPaymentSale] = useState<Sale | null>(null);
-  const [paymentAmount, setPaymentAmount] = useState("");
-  const [paymentMethodSelect, setPaymentMethodSelect] = useState("CASH");
-  const [paymentNotes, setPaymentNotes] = useState("");
-  const [paymentSubmitting, setPaymentSubmitting] = useState(false);
-  const [paymentError, setPaymentError] = useState<string | null>(null);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
-
-  // Void Sale Modal
-  const [voidingSale, setVoidingSale] = useState<Sale | null>(null);
-  const [voidReason, setVoidReason] = useState("Customer return");
-  const [voidSubmitting, setVoidSubmitting] = useState(false);
-
-  // Rapid Sale Entry Modal
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [formSuccess, setFormSuccess] = useState(false);
-  const [scanInput, setScanInput] = useState("");
+  // POS State
+  const [productSearch, setProductSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("ALL");
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [showCheckoutSheet, setShowCheckoutSheet] = useState(false);
+  const [showCameraScanner, setShowCameraScanner] = useState(false);
+  const [manualBarcode, setManualBarcode] = useState("");
   const [scanNotice, setScanNotice] = useState<string | null>(null);
-  const [showCamera, setShowCamera] = useState(false);
 
-  // Form Fields
-  const [customerId, setCustomerId] = useState("");
+  // Checkout Form State
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [discount, setDiscount] = useState("0");
   const [isPartialCredit, setIsPartialCredit] = useState(false);
   const [amountPaid, setAmountPaid] = useState("");
   const [notes, setNotes] = useState("");
-  const [items, setItems] = useState<Array<{ productId: string; quantity: string; unitPrice: string }>>([
-    { productId: "", quantity: "1", unitPrice: "0" },
-  ]);
+  const [submittingSale, setSubmittingSale] = useState(false);
+  const [saleError, setSaleError] = useState<string | null>(null);
 
+  // Modals & Sheets
+  const [receiptSale, setReceiptSale] = useState<Sale | null>(null);
+  const [selectedSaleDetail, setSelectedSaleDetail] = useState<Sale | null>(null);
+
+  // Record Debt Payment State
+  const [debtSale, setDebtSale] = useState<Sale | null>(null);
+  const [debtAmount, setDebtAmount] = useState("");
+  const [debtMethod, setDebtMethod] = useState("CASH");
+  const [debtNotes, setDebtNotes] = useState("");
+  const [debtSubmitting, setDebtSubmitting] = useState(false);
+  const [debtError, setDebtError] = useState<string | null>(null);
+
+  // Void Sale State
+  const [voidSaleTarget, setVoidSaleTarget] = useState<Sale | null>(null);
+  const [voidReason, setVoidReason] = useState("Customer Return");
+  const [voidSubmitting, setVoidSubmitting] = useState(false);
+
+  // History Filter State
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyRange, setHistoryRange] = useState("ALL");
+  const [historyPaymentStatus, setHistoryPaymentStatus] = useState("ALL");
+
+  // Fetch initial data
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const queryParams = new URLSearchParams();
-      if (quickRange && quickRange !== "ALL") queryParams.set("quickRange", quickRange);
-      if (quickRange === "CUSTOM") {
-        if (customStart) queryParams.set("startDate", customStart);
-        if (customEnd) queryParams.set("endDate", customEnd);
-      }
-      if (filterCustomer && filterCustomer !== "ALL") queryParams.set("customerId", filterCustomer);
-      if (filterPaymentStatus && filterPaymentStatus !== "ALL") queryParams.set("paymentStatus", filterPaymentStatus);
-      if (filterPaymentMethod && filterPaymentMethod !== "ALL") queryParams.set("paymentMethod", filterPaymentMethod);
-      if (searchQuery.trim()) queryParams.set("search", searchQuery.trim());
-
-      const salesUrl = `/api/sales?${queryParams.toString()}`;
+      const q = new URLSearchParams();
+      if (historyRange !== "ALL") q.set("quickRange", historyRange);
+      if (historyPaymentStatus !== "ALL") q.set("paymentStatus", historyPaymentStatus);
+      if (historySearch.trim()) q.set("search", historySearch.trim());
 
       const [salesRes, prodRes, custRes] = await Promise.all([
-        fetch(salesUrl),
+        fetch(`/api/sales?${q.toString()}`),
         fetch("/api/products"),
         fetch("/api/customers"),
       ]);
 
-      const salesJson = await salesRes.json();
-      const prodJson = await prodRes.json();
-      const custJson = await custRes.json();
+      const [salesJson, prodJson, custJson] = await Promise.all([
+        salesRes.json(),
+        prodRes.json(),
+        custRes.json(),
+      ]);
 
       if (salesJson.success) {
-        setSales(salesJson.data);
+        setSales(salesJson.data || []);
         if (salesJson.summary) setSummary(salesJson.summary);
-      } else {
-        setError(salesJson.error || "Failed to load sales");
       }
-
-      if (prodJson.success) setProducts(prodJson.data);
-      if (custJson.success) setCustomers(custJson.data);
+      if (prodJson.success) setProducts(prodJson.data || []);
+      if (custJson.success) setCustomers(custJson.data || []);
     } catch (err: any) {
-      setError(err.message || "Failed to fetch sales data");
+      setError(err.message || "Failed to load sales data");
     } finally {
       setLoading(false);
     }
@@ -210,24 +220,91 @@ export default function SalesPage() {
 
   useEffect(() => {
     fetchData();
-  }, [quickRange, customStart, customEnd, filterCustomer, filterPaymentStatus, filterPaymentMethod, searchQuery]);
+  }, [historyRange, historyPaymentStatus, historySearch]);
 
+  // Listen to Global "Add Sale" Header Event
   useEffect(() => {
-    const handler = () => setIsModalOpen(true);
+    const handler = () => {
+      setActiveTab("pos");
+    };
     window.addEventListener("avencia:open-add-sale", handler);
     return () => window.removeEventListener("avencia:open-add-sale", handler);
   }, []);
 
-  const handleScanBarcode = async (rawCode: string) => {
+  // Filter products for POS
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    products.forEach((p) => {
+      if (p.category) set.add(p.category);
+    });
+    return ["ALL", ...Array.from(set)];
+  }, [products]);
+
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      const matchesCat = selectedCategory === "ALL" || p.category === selectedCategory;
+      const term = productSearch.toLowerCase().trim();
+      const matchesSearch =
+        !term ||
+        p.name.toLowerCase().includes(term) ||
+        (p.sku && p.sku.toLowerCase().includes(term)) ||
+        (p.barcode && p.barcode.toLowerCase().includes(term));
+      return matchesCat && matchesSearch;
+    });
+  }, [products, selectedCategory, productSearch]);
+
+  // Cart operations
+  const addToCart = (product: Product) => {
+    setCart((prev) => {
+      const existing = prev.find((item) => item.productId === product.id);
+      if (existing) {
+        if (existing.quantity >= product.remainingStock) return prev;
+        return prev.map((item) =>
+          item.productId === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        );
+      }
+      if (product.remainingStock <= 0) return prev;
+      return [
+        ...prev,
+        {
+          productId: product.id,
+          product,
+          quantity: 1,
+          unitPrice: product.sellingPriceNum,
+        },
+      ];
+    });
+  };
+
+  const updateCartQty = (productId: string, delta: number) => {
+    setCart((prev) =>
+      prev
+        .map((item) => {
+          if (item.productId === productId) {
+            const newQty = item.quantity + delta;
+            if (newQty <= 0) return null;
+            if (newQty > item.product.remainingStock) return item;
+            return { ...item, quantity: newQty };
+          }
+          return item;
+        })
+        .filter(Boolean) as CartItem[]
+    );
+  };
+
+  const removeFromCart = (productId: string) => {
+    setCart((prev) => prev.filter((item) => item.productId !== productId));
+  };
+
+  const clearCart = () => {
+    setCart([]);
+  };
+
+  // Barcode Scanning Handler
+  const handleBarcodeScanned = async (rawCode: string) => {
     const code = normalizeBarcode(rawCode);
     if (!code) return;
     setScanNotice(null);
-
-    console.log("[BARCODE] Image/scan received");
-    console.log("[BARCODE] Decoder result:", rawCode);
-    console.log("[BARCODE] Normalized value:", code);
-    console.log("[BARCODE] Product lookup started");
-    console.log("[BARCODE] Lookup query:", code);
 
     let matched = products.find(
       (p) =>
@@ -247,1312 +324,1093 @@ export default function SalesPage() {
     }
 
     if (matched) {
-      console.log(`[BARCODE] Product found: true (${matched.name})`);
-      const existingIdx = items.findIndex((i) => i.productId === matched!.id);
-      if (existingIdx >= 0) {
-        const updated = [...items];
-        const currentQty = parseInt(updated[existingIdx].quantity) || 0;
-        updated[existingIdx].quantity = (currentQty + 1).toString();
-        setItems(updated);
-      } else {
-        const priceStr = matched.sellingPriceNum ? matched.sellingPriceNum.toString() : "0";
-        if (items.length === 1 && items[0].productId === "") {
-          setItems([{ productId: matched.id, quantity: "1", unitPrice: priceStr }]);
-        } else {
-          setItems([...items, { productId: matched.id, quantity: "1", unitPrice: priceStr }]);
-        }
-      }
-      setScanNotice(`Barcode detected (${code}). Product found: ${matched.name}`);
-      setScanInput("");
+      addToCart(matched);
+      setScanNotice(`Added: ${matched.name}`);
+      setManualBarcode("");
+      setShowCameraScanner(false);
+      setTimeout(() => setScanNotice(null), 3000);
     } else {
-      console.log("[BARCODE] Product found: false");
-      setScanNotice(`Barcode detected (${code}), but no matching product was found in Avencia.`);
+      setScanNotice(`Barcode (${code}) not recognized.`);
+      setTimeout(() => setScanNotice(null), 4000);
     }
   };
 
-  const handleVoidSale = async (e: React.FormEvent) => {
+  // Cart calculations
+  const cartSubtotal = cart.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+  const discountVal = Math.max(0, parseFloat(discount) || 0);
+  const cartTotal = Math.max(0, cartSubtotal - discountVal);
+  const parsedPaid = isPartialCredit ? Math.max(0, parseFloat(amountPaid) || 0) : cartTotal;
+  const balanceDue = Math.max(0, cartTotal - parsedPaid);
+
+  // Complete Sale
+  const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!voidingSale) return;
+    setSaleError(null);
 
-    setVoidSubmitting(true);
-    const res = await voidSaleAction(voidingSale.id, voidReason);
-    setVoidSubmitting(false);
-
-    if (res.success) {
-      setVoidingSale(null);
-      setSelectedSale(null);
-      fetchData();
-    } else {
-      alert(res.error || "Failed to void sale");
-    }
-  };
-
-  const openPaymentModal = (s: Sale) => {
-    setPaymentSale(s);
-    const amtPaid = (s as any).amountPaid !== undefined && (s as any).amountPaid !== null ? Number((s as any).amountPaid) : Number(s.totalAmount);
-    const balDue = (s as any).balanceDue !== undefined && (s as any).balanceDue !== null ? Number((s as any).balanceDue) : (s.status === "PARTIAL" ? Number(s.totalAmount) - amtPaid : 0);
-    setPaymentAmount(balDue.toString());
-    setPaymentMethodSelect("CASH");
-    setPaymentNotes(`Debt payment for invoice #${s.id.slice(-6)}`);
-    setPaymentError(null);
-    setPaymentSuccess(false);
-  };
-
-  const handleRecordPayment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!paymentSale) return;
-
-    const customerId = (paymentSale as any).customerId || paymentSale.customer?.id;
-    if (!customerId) {
-      setPaymentError("A customer record is required to apply payment.");
+    if (cart.length === 0) {
+      setSaleError("Your cart is empty.");
       return;
     }
 
-    const amt = parseFloat(paymentAmount);
-    if (isNaN(amt) || amt <= 0) {
-      setPaymentError("Payment amount must be greater than 0.");
+    if (balanceDue > 0 && !selectedCustomerId) {
+      setSaleError("A customer must be selected for sales on credit or partial payment.");
       return;
     }
 
-    setPaymentSubmitting(true);
-    setPaymentError(null);
-    try {
-      const res = await fetch("/api/debt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerId,
-          saleId: paymentSale.id,
-          amount: amt,
-          paymentMethod: paymentMethodSelect,
-          notes: paymentNotes || undefined,
-        }),
-      });
-
-      const json = await res.json();
-      if (json.success) {
-        setPaymentSuccess(true);
-        setTimeout(() => {
-          setPaymentSale(null);
-          setSelectedSale(null);
-          setPaymentSuccess(false);
-          fetchData();
-        }, 800);
-      } else {
-        setPaymentError(json.error || "Failed to record payment.");
-      }
-    } catch (err: any) {
-      setPaymentError(err.message || "Failed to submit payment.");
-    } finally {
-      setPaymentSubmitting(false);
-    }
-  };
-
-  const handleAddItemRow = () => {
-    const defaultProduct = products[0]?.id || "";
-    const defaultPrice = products[0]?.sellingPriceNum?.toString() || "0";
-    setItems([...items, { productId: defaultProduct, quantity: "1", unitPrice: defaultPrice }]);
-  };
-
-  const handleRemoveItemRow = (index: number) => {
-    if (items.length <= 1) return;
-    setItems(items.filter((_, i) => i !== index));
-  };
-
-  const handleItemChange = (index: number, field: string, value: string) => {
-    const updated = [...items];
-    (updated[index] as any)[field] = value;
-
-    if (field === "productId") {
-      const p = products.find((prod) => prod.id === value);
-      if (p && p.sellingPriceNum) {
-        updated[index].unitPrice = p.sellingPriceNum.toString();
-      }
-    }
-    setItems(updated);
-  };
-
-  const subtotal = items.reduce((sum, i) => {
-    const qty = parseFloat(i.quantity) || 0;
-    const price = parseFloat(i.unitPrice) || 0;
-    return sum + qty * price;
-  }, 0);
-
-  const discountAmount = parseFloat(discount) || 0;
-  const totalAmountDue = Math.max(0, subtotal - discountAmount);
-
-  const handleCreateSale = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
-    setFormSuccess(false);
-
-    const validItems = items.filter((i) => i.productId && parseInt(i.quantity) > 0);
-    if (validItems.length === 0) {
-      setFormError("Sale must contain at least one valid product line with quantity > 0.");
-      return;
-    }
-
-    for (const line of validItems) {
-      const prod = products.find((p) => p.id === line.productId);
-      if (prod && parseInt(line.quantity) > prod.remainingStock) {
-        setFormError(
-          `Requested quantity (${line.quantity}) for "${prod.name}" exceeds available stock (${prod.remainingStock} units).`
-        );
-        return;
-      }
-    }
-
-    const calculatedAmountPaid = isPartialCredit
-      ? Math.min(totalAmountDue, Math.max(0, parseFloat(amountPaid || "0")))
-      : totalAmountDue;
-
-    const balanceDue = Math.max(0, totalAmountDue - calculatedAmountPaid);
-
-    if (balanceDue > 0 && !customerId) {
-      setFormError("A Customer must be selected when selling on credit or partial payment.");
-      return;
-    }
-
-    setSubmitting(true);
+    setSubmittingSale(true);
     try {
       const res = await fetch("/api/sales", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          customerId: customerId || undefined,
+          customerId: selectedCustomerId || undefined,
           paymentMethod,
-          discount: discountAmount,
-          amountPaid: calculatedAmountPaid,
-          notes: notes || undefined,
-          items: validItems.map((i) => ({
+          discount: discountVal,
+          amountPaid: parsedPaid,
+          notes: notes.trim() || undefined,
+          items: cart.map((i) => ({
             productId: i.productId,
-            quantity: parseInt(i.quantity),
-            unitPrice: parseFloat(i.unitPrice),
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
           })),
         }),
       });
 
       const json = await res.json();
       if (json.success) {
-        setFormSuccess(true);
+        // Reset POS state
+        clearCart();
+        setSelectedCustomerId("");
         setDiscount("0");
-        setNotes("");
-        setCustomerId("");
         setIsPartialCredit(false);
         setAmountPaid("");
-        setScanNotice(null);
-        setTimeout(() => {
-          setIsModalOpen(false);
-          setFormSuccess(false);
-          fetchData();
-        }, 800);
+        setNotes("");
+        setShowCheckoutSheet(false);
+
+        // Fetch refreshed history and open receipt
+        await fetchData();
+        if (json.data) {
+          setReceiptSale(json.data);
+        }
       } else {
-        setFormError(json.error || "Failed to process sale");
+        setSaleError(json.error || "Failed to process sale.");
       }
     } catch (err: any) {
-      setFormError(err.message || "Failed to submit sale to server");
+      setSaleError(err.message || "Network error submitting sale.");
     } finally {
-      setSubmitting(false);
+      setSubmittingSale(false);
     }
   };
 
-  // Filter completed sales & today's metrics
-  const todayStr = new Date().toISOString().split("T")[0];
-  const completedSales = sales.filter((s) => s.status === "COMPLETED");
-  const todaySales = completedSales.filter(
-    (s) => new Date(s.saleDate).toISOString().split("T")[0] === todayStr
-  );
-  const todayRevenue = todaySales.reduce((acc, s) => acc + Number(s.totalAmount), 0);
-  const totalRevenue = completedSales.reduce((acc, s) => acc + Number(s.totalAmount), 0);
-  const transactionsCount = completedSales.length;
-  const avgOrderValue = transactionsCount > 0 ? totalRevenue / transactionsCount : 0;
+  // Record Debt Settlement
+  const handleRecordDebtPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!debtSale) return;
+    setDebtError(null);
 
-  const outstandingCredit = sales.reduce((sum, s) => {
-    const isUnsettled =
-      s.status === "PARTIAL" ||
-      s.status === "UNPAID" ||
-      (s as any).paymentStatus === "PARTIAL" ||
-      (s as any).paymentStatus === "UNPAID";
-    if (isUnsettled && s.status !== "VOIDED") {
-      const amtPaid =
-        (s as any).amountPaid !== undefined && (s as any).amountPaid !== null
-          ? Number((s as any).amountPaid)
-          : Number(s.totalAmount);
-      const due =
-        (s as any).balanceDue !== undefined && (s as any).balanceDue !== null
-          ? Number((s as any).balanceDue)
-          : s.status === "PARTIAL"
-          ? Number(s.totalAmount) - amtPaid
-          : Number(s.totalAmount);
-      return sum + due;
-    }
-    return sum;
-  }, 0);
-
-  const renderStatusBadge = (s: Sale) => {
-    if (s.status === "VOIDED") {
-      return (
-        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 line-through">
-          VOIDED
-        </span>
-      );
-    }
-    const isPartial = s.status === "PARTIAL" || (s as any).paymentStatus === "PARTIAL";
-    const isUnpaid = s.status === "UNPAID" || (s as any).paymentStatus === "UNPAID";
-    const due = (s as any).balanceDue !== undefined && (s as any).balanceDue !== null ? Number((s as any).balanceDue) : 0;
-
-    if (isPartial) {
-      return (
-        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
-          PARTIAL (Due: {formatCurrency(due)})
-        </span>
-      );
-    }
-    if (isUnpaid) {
-      const unpaidDue = due > 0 ? due : Number(s.totalAmount);
-      return (
-        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
-          UNPAID (Due: {formatCurrency(unpaidDue)})
-        </span>
-      );
-    }
-    return (
-      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-        COMPLETED
-      </span>
-    );
-  };
-
-  const handleExportCSV = () => {
-    if (!sales || sales.length === 0) {
-      alert("No sales data available to export.");
+    const custId = debtSale.customerId || debtSale.customer?.id;
+    if (!custId) {
+      setDebtError("A customer record is required to apply payment.");
       return;
     }
 
-    const headers = [
-      "Sale Reference",
-      "Date",
-      "Customer",
-      "Items Count",
-      "Total Amount (GHS)",
-      "Amount Paid (GHS)",
-      "Balance Due (GHS)",
-      "Payment Status",
-      "Payment Method",
-      "Gross Profit (GHS)"
-    ];
+    const amt = parseFloat(debtAmount);
+    if (isNaN(amt) || amt <= 0) {
+      setDebtError("Payment amount must be greater than 0.");
+      return;
+    }
 
-    const rows = sales.map((s: any) => [
-      `"${s.referenceNumber || s.id}"`,
-      `"${new Date(s.createdAt || s.saleDate).toLocaleString("en-GB")}"`,
-      `"${s.customer?.name || s.customerName || "Guest Customer"}"`,
-      s.saleItems ? s.saleItems.length : (s.itemCount || 1),
-      Number(s.totalAmount || 0).toFixed(2),
-      Number(s.amountPaid || 0).toFixed(2),
-      Number(s.balanceDue || 0).toFixed(2),
-      `"${s.paymentStatus || s.status}"`,
-      `"${s.paymentMethod || "CASH"}"`,
-      Number(s.grossProfit || 0).toFixed(2)
-    ]);
+    setDebtSubmitting(true);
+    try {
+      const res = await fetch("/api/debt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: custId,
+          saleId: debtSale.id,
+          amount: amt,
+          paymentMethod: debtMethod,
+          notes: debtNotes.trim() || undefined,
+        }),
+      });
 
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `avencia_sales_report_${new Date().toISOString().split("T")[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const json = await res.json();
+      if (json.success) {
+        setDebtSale(null);
+        setDebtAmount("");
+        setDebtNotes("");
+        fetchData();
+      } else {
+        setDebtError(json.error || "Failed to record payment.");
+      }
+    } catch (err: any) {
+      setDebtError(err.message || "Failed to process debt payment.");
+    } finally {
+      setDebtSubmitting(false);
+    }
+  };
+
+  // Void Sale
+  const handleVoidSale = async () => {
+    if (!voidSaleTarget) return;
+    setVoidSubmitting(true);
+    try {
+      const res = await voidSaleAction(voidSaleTarget.id, voidReason);
+      if (res.success) {
+        setVoidSaleTarget(null);
+        setSelectedSaleDetail(null);
+        fetchData();
+      } else {
+        alert(res.error || "Failed to void sale");
+      }
+    } catch (err: any) {
+      alert(err.message || "Error voiding sale");
+    } finally {
+      setVoidSubmitting(false);
+    }
   };
 
   return (
-    <div className="space-y-6 font-sans">
-      {/* Authoritative Financial Summary KPI Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Total Sales Revenue</span>
-            <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400">
-              <DollarSign className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{formatCurrency(summary.totalSalesRevenue)}</div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">Total invoice revenue (Active sales)</p>
+    <div className="space-y-6 pb-24 md:pb-8">
+      {/* Top Segmented Navigation */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black tracking-tight text-foreground">
+            Sales & POS Register
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Instant point-of-sale checkout, FIFO batch allocation & invoice register
+          </p>
         </div>
 
-        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Cash Collected</span>
-            <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{formatCurrency(summary.totalAmountCollected)}</div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">Realized cash received so far</p>
-        </div>
-
-        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Outstanding Balance</span>
-            <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-rose-600 dark:text-rose-400">{formatCurrency(summary.totalOutstanding)}</div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">Customer debt balance due</p>
-        </div>
-
-        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Gross Profit</span>
-            <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{formatCurrency(summary.totalGrossProfit)}</div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">Revenue minus FIFO COGS</p>
+        {/* View Switcher */}
+        <div className="inline-flex p-1 bg-muted rounded-2xl border border-border self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => setActiveTab("pos")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === "pos"
+                ? "bg-card text-foreground shadow-sm border border-border/80"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Store className="w-4 h-4 text-primary" />
+            <span>POS Register</span>
+            {cart.length > 0 && (
+              <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-black flex items-center justify-center">
+                {cart.reduce((s, i) => s + i.quantity, 0)}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("history")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === "history"
+                ? "bg-card text-foreground shadow-sm border border-border/80"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <History className="w-4 h-4 text-primary" />
+            <span>Sales History ({sales.length})</span>
+          </button>
         </div>
       </div>
 
-      {/* Filter Toolbar & Actions */}
-      <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-            <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">Sales History Filters</h4>
-          </div>
+      {/* POS VIEW */}
+      {activeTab === "pos" && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Left Column: Product Catalog & Scanner (Cols 1-7 or 1-8) */}
+          <div className="lg:col-span-7 xl:col-span-8 space-y-4">
+            {/* Search, Barcode & Camera Bar */}
+            <Card className="p-3">
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <SearchField
+                    value={productSearch}
+                    onChange={setProductSearch}
+                    placeholder="Search perfumes by name, SKU or brand..."
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="md"
+                  onClick={() => setShowCameraScanner(true)}
+                  className="gap-2 shrink-0"
+                >
+                  <Camera className="w-4 h-4 text-primary" />
+                  <span className="hidden sm:inline">Camera</span>
+                </Button>
+              </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleExportCSV}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all"
-            >
-              <Download className="w-3.5 h-3.5" /> Export CSV
-            </button>
-
-            <button
-              onClick={() => window.print()}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all"
-            >
-              <Printer className="w-3.5 h-3.5" /> Print / PDF
-            </button>
-          </div>
-        </div>
-
-        {/* Quick Date Range Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {[
-            { id: "ALL", label: "All Time" },
-            { id: "TODAY", label: "Today" },
-            { id: "YESTERDAY", label: "Yesterday" },
-            { id: "THIS_WEEK", label: "This Week" },
-            { id: "LAST_7_DAYS", label: "Last 7 Days" },
-            { id: "THIS_MONTH", label: "This Month" },
-            { id: "LAST_MONTH", label: "Last Month" },
-            { id: "THIS_YEAR", label: "This Year" },
-            { id: "CUSTOM", label: "Custom Range" },
-          ].map((range) => (
-            <button
-              key={range.id}
-              onClick={() => setQuickRange(range.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                quickRange === range.id
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-              }`}
-            >
-              {range.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Custom Date Pickers */}
-        {quickRange === "CUSTOM" && (
-          <div className="flex items-center gap-3 pt-2">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500 font-medium">From:</span>
-              <input
-                type="date"
-                value={customStart}
-                onChange={(e) => setCustomStart(e.target.value)}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-slate-900 dark:text-slate-100"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500 font-medium">To:</span>
-              <input
-                type="date"
-                value={customEnd}
-                onChange={(e) => setCustomEnd(e.target.value)}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-slate-900 dark:text-slate-100"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Additional Filters Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-1">
-          {/* Customer Filter */}
-          <div>
-            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Customer</label>
-            <select
-              value={filterCustomer}
-              onChange={(e) => setFilterCustomer(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 font-medium"
-            >
-              <option value="ALL">All Customers</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Payment Status Filter */}
-          <div>
-            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Payment Status</label>
-            <select
-              value={filterPaymentStatus}
-              onChange={(e) => setFilterPaymentStatus(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 font-medium"
-            >
-              <option value="ALL">All Statuses</option>
-              <option value="PAID">PAID</option>
-              <option value="PARTIAL">PARTIAL</option>
-              <option value="UNPAID">UNPAID</option>
-              <option value="VOIDED">VOIDED</option>
-              <option value="REFUNDED">REFUNDED</option>
-            </select>
-          </div>
-
-          {/* Payment Method Filter */}
-          <div>
-            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Payment Method</label>
-            <select
-              value={filterPaymentMethod}
-              onChange={(e) => setFilterPaymentMethod(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 font-medium"
-            >
-              <option value="ALL">All Methods</option>
-              <option value="CASH">Cash</option>
-              <option value="MOBILE_MONEY">Mobile Money</option>
-              <option value="BANK_TRANSFER">Bank Transfer</option>
-              <option value="CARD">Card</option>
-              <option value="OTHER">Other</option>
-            </select>
-          </div>
-
-          {/* Search Input */}
-          <div>
-            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Search Reference / Notes</label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search sale ID, client..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 font-medium"
-              />
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-3" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Sales History Table */}
-      <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-6 bg-white dark:bg-slate-900 space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 flex-wrap gap-2">
-          <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <ShoppingBag className="w-4 h-4 text-slate-900 dark:text-slate-100" />
-            Sales History Log
-          </h3>
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{sales.length} Invoices</span>
-            <button
-              onClick={() => {
-                setFormError(null);
-                setScanNotice(null);
-                if (products.length > 0 && !items[0].productId) {
-                  setItems([{ productId: products[0].id, quantity: "1", unitPrice: products[0].sellingPriceNum.toString() }]);
-                }
-                setIsModalOpen(true);
-              }}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-lg shadow-indigo-500/25 transition-all whitespace-nowrap active:scale-95"
-            >
-              <Plus className="w-4 h-4 text-amber-300" />
-              <span>New Sale</span>
-            </button>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="p-12 text-center space-y-3">
-            <Loader2 className="w-8 h-8 text-slate-400 dark:text-slate-500 animate-spin mx-auto" />
-            <p className="text-xs text-slate-500 dark:text-slate-400">Loading sales history...</p>
-          </div>
-        ) : error ? (
-          <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-4 rounded-2xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-            <span>{error}</span>
-          </div>
-        ) : sales.length === 0 ? (
-          <div className="text-center py-12 space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 mx-auto flex items-center justify-center">
-              <ShoppingBag className="w-6 h-6" />
-            </div>
-            <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm">No Sales Recorded Yet</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-              Click 'Rapid Sale Entry' to process your first perfume sale.
-            </p>
-          </div>
-        ) : (
-          <>
-            {/* DESKTOP table */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="text-slate-400 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 pb-2">
-                    <th className="font-semibold pb-2">Date & Time</th>
-                    <th className="font-semibold pb-2">Invoice Ref</th>
-                    <th className="font-semibold pb-2">Status</th>
-                    <th className="font-semibold pb-2">Customer</th>
-                    <th className="font-semibold pb-2">Total Amount</th>
-                    <th className="font-semibold pb-2">Gross Profit</th>
-                    <th className="font-semibold pb-2 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {sales.map((sale) => (
-                    <tr key={sale.id} className="text-slate-800 dark:text-slate-200 hover:bg-slate-50/60 dark:hover:bg-slate-800/50">
-                      <td className="py-3 text-slate-500 dark:text-slate-400">
-                        {new Date(sale.saleDate).toLocaleString()}
-                      </td>
-                      <td className="py-3 font-bold text-slate-900 dark:text-slate-100">#{sale.id.slice(-6)}</td>
-                      <td className="py-3">{renderStatusBadge(sale)}</td>
-                      <td className="py-3 font-medium text-slate-700 dark:text-slate-300">
-                        {sale.customer ? sale.customer.name : "Walk-in Client"}
-                      </td>
-                      <td className="py-3 font-black text-slate-900 dark:text-slate-100">{formatCurrency(sale.totalAmount)}</td>
-                      <td className="py-3 font-extrabold text-emerald-600 dark:text-emerald-400">
-                        {formatCurrency(sale.grossProfit)}
-                      </td>
-                      <td className="py-3 px-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {(() => {
-                            const isUnsettled = sale.status === "PARTIAL" || sale.status === "UNPAID" || (sale as any).paymentStatus === "PARTIAL" || (sale as any).paymentStatus === "UNPAID" || (Number((sale as any).balanceDue) > 0);
-                            return isUnsettled && sale.status !== "VOIDED" ? (
-                              <button
-                                onClick={() => openPaymentModal(sale)}
-                                className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs inline-flex items-center gap-1 hover:bg-emerald-700 shadow-sm transition-all"
-                              >
-                                <DollarSign className="w-3.5 h-3.5" /> Add Payment
-                              </button>
-                            ) : null;
-                          })()}
-                          <button
-                            onClick={() => setSelectedSale(sale)}
-                            className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold text-xs inline-flex items-center gap-1 transition-colors"
-                          >
-                            <Eye className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" /> View
-                          </button>
-                          <button
-                            onClick={() => setReceiptSale(sale)}
-                            className="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 font-bold text-xs inline-flex items-center gap-1 transition-colors"
-                          >
-                            <Share2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> Receipt
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* MOBILE cards */}
-            <div className="md:hidden space-y-6 mb-8">
-              {sales.map((sale) => {
-                const isUnsettled =
-                  (sale.status === "PARTIAL" ||
-                    sale.status === "UNPAID" ||
-                    (sale as any).paymentStatus === "PARTIAL" ||
-                    (sale as any).paymentStatus === "UNPAID" ||
-                    Number((sale as any).balanceDue) > 0) &&
-                  sale.status !== "VOIDED";
-
-                return (
-                  <div
-                    key={sale.id}
-                    className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-lg shadow-indigo-500/5 space-y-4"
+              {/* Quick Manual Barcode Input */}
+              <div className="mt-2.5 pt-2.5 border-t border-border/60 flex items-center gap-2">
+                <Barcode className="w-4 h-4 text-muted-foreground shrink-0" />
+                <input
+                  type="text"
+                  value={manualBarcode}
+                  onChange={(e) => setManualBarcode(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleBarcodeScanned(manualBarcode);
+                    }
+                  }}
+                  placeholder="Scan or enter barcode number + Press Enter"
+                  className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground focus:outline-none"
+                />
+                {manualBarcode && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleBarcodeScanned(manualBarcode)}
                   >
-                    {/* Card Header: Invoice Ref + Status Badge */}
-                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3 pt-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-black text-xs text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2.5 py-1 rounded-xl">
-                          #{sale.id.slice(-6)}
-                        </span>
-                        <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold pt-0.5">
-                          {new Date(sale.saleDate).toLocaleDateString()}
-                        </span>
-                      </div>
-                      {renderStatusBadge(sale)}
-                    </div>
+                    Lookup
+                  </Button>
+                )}
+              </div>
 
-                    {/* Card Body: Amount & Client */}
-                    <div className="flex items-center justify-between gap-2 py-1">
-                      <div>
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase block">Total Amount</span>
-                        <span className="font-black text-xl text-slate-900 dark:text-slate-100">{formatCurrency(sale.totalAmount)}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase block">Gross Profit</span>
-                        <span className="font-extrabold text-base text-emerald-600 dark:text-emerald-400">{formatCurrency(sale.grossProfit)}</span>
-                      </div>
-                    </div>
+              {scanNotice && (
+                <div className="mt-2 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary flex items-center gap-2 animate-in fade-in">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>{scanNotice}</span>
+                </div>
+              )}
+            </Card>
 
-                    <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-100 dark:border-slate-700">
-                      <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
-                        👤 {sale.customer ? sale.customer.name : "Walk-in Client"}
-                      </span>
-                      <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase px-2.5 py-0.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                        {sale.paymentMethod}
-                      </span>
-                    </div>
+            {/* Category Filter Chips */}
+            <div className="overflow-x-auto pb-1 no-scrollbar">
+              <FilterChips
+                options={categories.map((c) => ({
+                  id: c,
+                  label: c === "ALL" ? "All Items" : c,
+                  count:
+                    c === "ALL"
+                      ? products.length
+                      : products.filter((p) => p.category === c).length,
+                }))}
+                selected={selectedCategory}
+                onChange={setSelectedCategory}
+              />
+            </div>
 
-                    {/* Action Buttons */}
-                    <div className="space-y-2.5 pt-2 pb-1">
-                      {isUnsettled && (
-                        <button
-                          onClick={() => openPaymentModal(sale)}
-                          className="w-full py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-98 transition-all"
-                        >
-                          <DollarSign className="w-4 h-4" /> Add Payment
-                        </button>
+            {/* Product Grid */}
+            {filteredProducts.length === 0 ? (
+              <Card className="p-12 text-center text-muted-foreground">
+                <ShoppingBag className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <p className="text-sm font-semibold">No perfumes match your search</p>
+                <p className="text-xs mt-1">Try another keyword or category</p>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+                {filteredProducts.map((p) => {
+                  const inCart = cart.find((item) => item.productId === p.id);
+                  const isOutOfStock = p.remainingStock <= 0;
+
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      disabled={isOutOfStock}
+                      onClick={() => addToCart(p)}
+                      className={`text-left p-3.5 rounded-2xl border transition-all flex flex-col justify-between min-h-[135px] relative group ${
+                        isOutOfStock
+                          ? "bg-muted/40 border-border opacity-50 cursor-not-allowed"
+                          : inCart
+                          ? "bg-card border-primary/60 shadow-md shadow-primary/5 ring-1 ring-primary/40"
+                          : "bg-card border-border hover:border-primary/40 hover:shadow-sm"
+                      }`}
+                    >
+                      {inCart && (
+                        <div className="absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-primary text-primary-foreground font-black text-xs flex items-center justify-center shadow-sm">
+                          {inCart.quantity}
+                        </div>
                       )}
 
-                      <div className="flex items-center gap-2.5">
-                        <button
-                          onClick={() => setSelectedSale(sale)}
-                          className="flex-1 py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                      <div>
+                        <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider line-clamp-1">
+                          {p.category || "Perfume"}
+                        </div>
+                        <h4 className="text-xs font-bold text-foreground mt-0.5 line-clamp-2 leading-snug group-hover:text-primary transition-colors">
+                          {p.name}
+                        </h4>
+                      </div>
+
+                      <div className="pt-2 mt-2 border-t border-border/40 flex items-end justify-between">
+                        <div>
+                          <div className="text-xs font-black text-foreground">
+                            <Money amount={p.sellingPriceNum} />
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {isOutOfStock ? (
+                              <span className="text-destructive font-bold">Out of stock</span>
+                            ) : (
+                              <span>{p.remainingStock} in stock</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {!isOutOfStock && (
+                          <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-all">
+                            <Plus className="w-3.5 h-3.5" />
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Right Column: Desktop Cart Ticket (Cols 8-12) */}
+          <div className="hidden lg:block lg:col-span-5 xl:col-span-4 sticky top-20">
+            <Card className="p-5 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-border">
+                <div>
+                  <h3 className="text-sm font-bold text-foreground">Current Order</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {cart.reduce((s, i) => s + i.quantity, 0)} items in ticket
+                  </p>
+                </div>
+                {cart.length > 0 && (
+                  <Button variant="ghost" size="sm" onClick={clearCart} className="text-xs text-muted-foreground hover:text-destructive">
+                    Clear Ticket
+                  </Button>
+                )}
+              </div>
+
+              {/* Cart Items List */}
+              <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                {cart.length === 0 ? (
+                  <div className="py-12 text-center text-muted-foreground">
+                    <ShoppingBag className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-xs font-semibold">Cart is currently empty</p>
+                    <p className="text-[11px] mt-0.5">Click any perfume to add to this sale</p>
+                  </div>
+                ) : (
+                  cart.map((item) => (
+                    <div
+                      key={item.productId}
+                      className="p-2.5 rounded-xl bg-muted/30 border border-border/60 flex items-center justify-between gap-3"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-xs font-bold text-foreground truncate">
+                          {item.product.name}
+                        </h4>
+                        <div className="text-[11px] text-muted-foreground">
+                          <Money amount={item.unitPrice} /> each
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <IconButton
+                          aria-label="Decrease quantity"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => updateCartQty(item.productId, -1)}
                         >
-                          <Eye className="w-4 h-4 text-slate-500 dark:text-slate-400" /> View
-                        </button>
-                        <button
-                          onClick={() => setReceiptSale(sale)}
-                          className="flex-1 py-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                          <Minus className="w-3 h-3" />
+                        </IconButton>
+                        <span className="w-6 text-center text-xs font-black tabular-nums">
+                          {item.quantity}
+                        </span>
+                        <IconButton
+                          aria-label="Increase quantity"
+                          size="sm"
+                          variant="outline"
+                          disabled={item.quantity >= item.product.remainingStock}
+                          onClick={() => updateCartQty(item.productId, 1)}
                         >
-                          <Share2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /> Receipt
-                        </button>
+                          <Plus className="w-3 h-3" />
+                        </IconButton>
+                        <IconButton
+                          aria-label="Remove item"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => removeFromCart(item.productId)}
+                          className="text-muted-foreground hover:text-destructive ml-1"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </IconButton>
                       </div>
                     </div>
+                  ))
+                )}
+              </div>
+
+              {/* Order Calculations */}
+              {cart.length > 0 && (
+                <div className="pt-3 border-t border-border space-y-2 text-xs">
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Subtotal</span>
+                    <span className="font-semibold text-foreground">
+                      <Money amount={cartSubtotal} />
+                    </span>
                   </div>
+                  {discountVal > 0 && (
+                    <div className="flex justify-between text-success">
+                      <span>Discount</span>
+                      <span className="font-semibold">
+                        -<Money amount={discountVal} />
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm font-black text-foreground pt-2 border-t border-border">
+                    <span>Total Due</span>
+                    <span className="text-primary text-base">
+                      <Money amount={cartTotal} />
+                    </span>
+                  </div>
+
+                  <Button
+                    size="lg"
+                    className="w-full mt-4 font-black"
+                    onClick={() => setShowCheckoutSheet(true)}
+                  >
+                    Proceed to Payment
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </div>
+              )}
+            </Card>
+          </div>
+
+          {/* Mobile Sticky Bottom Cart Bar */}
+          {cart.length > 0 && (
+            <div className="lg:hidden fixed bottom-16 left-0 right-0 p-3 z-40 bg-background/90 backdrop-blur-md border-t border-border animate-in slide-in-from-bottom-2">
+              <div className="max-w-md mx-auto flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-[11px] font-bold text-muted-foreground">
+                    {cart.reduce((s, i) => s + i.quantity, 0)} items in ticket
+                  </div>
+                  <div className="text-base font-black text-primary">
+                    <Money amount={cartTotal} />
+                  </div>
+                </div>
+                <Button
+                  size="md"
+                  onClick={() => setShowCheckoutSheet(true)}
+                  className="font-black px-6"
+                >
+                  Review & Charge
+                  <ArrowRight className="w-4 h-4 ml-1.5" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SALES HISTORY VIEW */}
+      {activeTab === "history" && (
+        <div className="space-y-6">
+          {/* KPI Summary Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+            <Card className="p-4">
+              <span className="text-[11px] font-semibold text-muted-foreground uppercase">
+                Total Revenue
+              </span>
+              <div className="text-xl sm:text-2xl font-black text-foreground mt-1">
+                <Money amount={summary.totalSalesRevenue} />
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">
+                {summary.totalTransactions} transactions
+              </div>
+            </Card>
+
+            <Card className="p-4">
+              <span className="text-[11px] font-semibold text-muted-foreground uppercase">
+                Cash Collected
+              </span>
+              <div className="text-xl sm:text-2xl font-black text-success mt-1">
+                <Money amount={summary.totalAmountCollected} />
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">
+                Realized cash inflow
+              </div>
+            </Card>
+
+            <Card className="p-4">
+              <span className="text-[11px] font-semibold text-muted-foreground uppercase">
+                Outstanding Credit
+              </span>
+              <div className="text-xl sm:text-2xl font-black text-warning mt-1">
+                <Money amount={summary.totalOutstanding} />
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">
+                Pending debtor balance
+              </div>
+            </Card>
+
+            <Card className="p-4">
+              <span className="text-[11px] font-semibold text-muted-foreground uppercase">
+                Gross Profit
+              </span>
+              <div className="text-xl sm:text-2xl font-black text-primary mt-1">
+                <Money amount={summary.totalGrossProfit} />
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">
+                {summary.profitMargin ? `${summary.profitMargin.toFixed(1)}% margin` : "FIFO calculated"}
+              </div>
+            </Card>
+          </div>
+
+          {/* History Filters */}
+          <Card className="p-4 space-y-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1">
+                <SearchField
+                  value={historySearch}
+                  onChange={setHistorySearch}
+                  placeholder="Filter sales by invoice # or customer..."
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <Select
+                  value={historyRange}
+                  onChange={(e) => setHistoryRange(e.target.value)}
+                  options={[
+                    { value: "ALL", label: "All Time" },
+                    { value: "TODAY", label: "Today" },
+                    { value: "THIS_WEEK", label: "This Week" },
+                    { value: "THIS_MONTH", label: "This Month" },
+                  ]}
+                  className="w-36"
+                />
+
+                <Select
+                  value={historyPaymentStatus}
+                  onChange={(e) => setHistoryPaymentStatus(e.target.value)}
+                  options={[
+                    { value: "ALL", label: "All Statuses" },
+                    { value: "PAID", label: "Fully Paid" },
+                    { value: "PARTIAL", label: "Partial / Credit" },
+                    { value: "VOIDED", label: "Voided" },
+                  ]}
+                  className="w-36"
+                />
+              </div>
+            </div>
+          </Card>
+
+          {/* Sales List */}
+          {sales.length === 0 ? (
+            <Card className="p-12 text-center text-muted-foreground">
+              <Receipt className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p className="text-sm font-semibold">No sales found</p>
+              <p className="text-xs mt-1">Try relaxing filters or record a new sale</p>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {sales.map((s) => {
+                const isVoided = s.status === "VOIDED";
+                const isPartial = s.paymentStatus === "PARTIAL" || s.balanceDue > 0;
+                const formattedDate = new Date(s.saleDate).toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
+
+                return (
+                  <Card
+                    key={s.id}
+                    className={`p-4 transition-all hover:border-primary/40 ${
+                      isVoided ? "opacity-60 bg-muted/20" : ""
+                    }`}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      {/* Sale Info */}
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5 font-black text-xs">
+                          {s.customer?.name ? s.customer.name.slice(0, 2).toUpperCase() : "WK"}
+                        </div>
+
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-bold text-foreground">
+                              {s.customer?.name || "Walk-in Customer"}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground">
+                              #{s.id.slice(-6).toUpperCase()}
+                            </span>
+
+                            {isVoided ? (
+                              <Badge variant="destructive">Voided</Badge>
+                            ) : isPartial ? (
+                              <Badge variant="warning">
+                                Due: {formatCurrency(s.balanceDue)}
+                              </Badge>
+                            ) : (
+                              <Badge variant="success">Paid</Badge>
+                            )}
+
+                            <Badge variant="outline">{s.paymentMethod}</Badge>
+                          </div>
+
+                          <div className="text-xs text-muted-foreground mt-1 flex items-center gap-3">
+                            <span>{formattedDate}</span>
+                            <span>•</span>
+                            <span>{s.saleItems.length} line items</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Amounts & Action buttons */}
+                      <div className="flex items-center justify-between sm:justify-end gap-4 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/60">
+                        <div className="text-right">
+                          <div className="text-sm font-black text-foreground">
+                            <Money amount={s.totalAmount} />
+                          </div>
+                          <div className="text-[11px] text-success">
+                            +<Money amount={s.grossProfit} /> profit
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setReceiptSale(s)}
+                            className="gap-1.5"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            <span className="hidden md:inline">Receipt</span>
+                          </Button>
+
+                          {isPartial && !isVoided && (
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              onClick={() => {
+                                setDebtSale(s);
+                                setDebtAmount(s.balanceDue.toString());
+                                setDebtNotes(`Payment for #${s.id.slice(-6)}`);
+                              }}
+                              className="gap-1.5"
+                            >
+                              <Banknote className="w-3.5 h-3.5" />
+                              <span className="hidden md:inline">Collect Debt</span>
+                            </Button>
+                          )}
+
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setSelectedSaleDetail(s)}
+                          >
+                            Details
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
                 );
               })}
             </div>
-          </>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
-      {/* WhatsApp Sales Receipt Modal */}
-      <ReceiptModal
-        sale={receiptSale}
-        isOpen={Boolean(receiptSale)}
-        onClose={() => setReceiptSale(null)}
-      />
+      {/* CHECKOUT SHEET / MODAL */}
+      <Sheet
+        isOpen={showCheckoutSheet}
+        onClose={() => setShowCheckoutSheet(false)}
+        title="Complete Checkout"
+        description="Verify order total, customer record & payment method"
+      >
+        <form onSubmit={handleCheckout} className="space-y-4 pt-2">
+          {saleError && (
+            <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-xs font-semibold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{saleError}</span>
+            </div>
+          )}
 
-      {/* Sale Details & Void Action Modal */}
-      {selectedSale && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 max-w-lg w-full p-6 shadow-2xl space-y-4 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Invoice #{selectedSale.id.slice(-6)}</h3>
-                  {renderStatusBadge(selectedSale)}
+          {/* Cart Items Summary inside Checkout */}
+          <div className="p-3 rounded-2xl bg-muted/40 border border-border space-y-2">
+            <div className="text-xs font-bold text-foreground">Items in Order ({cart.length})</div>
+            <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+              {cart.map((i) => (
+                <div key={i.productId} className="flex justify-between text-xs">
+                  <span className="text-muted-foreground truncate max-w-[200px]">
+                    {i.quantity}x {i.product.name}
+                  </span>
+                  <span className="font-semibold text-foreground">
+                    <Money amount={i.quantity * i.unitPrice} />
+                  </span>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {new Date(selectedSale.saleDate).toLocaleString()}
-                </p>
-              </div>
-              <button
-                onClick={() => setSelectedSale(null)}
-                className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              ))}
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-              <div>
-                <span className="text-slate-400 dark:text-slate-500 block text-[10px]">Customer</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">
-                  {selectedSale.customer ? selectedSale.customer.name : "Walk-in Client"}
+            <div className="pt-2 border-t border-border flex justify-between text-sm font-black text-foreground">
+              <span>Total Payable</span>
+              <span className="text-primary">
+                <Money amount={cartTotal} />
+              </span>
+            </div>
+          </div>
+
+          {/* Customer Selection */}
+          <Select
+            label="Customer (Required for Debt/Credit)"
+            value={selectedCustomerId}
+            onChange={(e) => setSelectedCustomerId(e.target.value)}
+            options={[
+              { value: "", label: "Walk-in Customer (No debt allowed)" },
+              ...customers.map((c) => ({
+                value: c.id,
+                label: `${c.name} ${c.phone ? `(${c.phone})` : ""}`,
+              })),
+            ]}
+          />
+
+          {/* Payment Method */}
+          <Select
+            label="Payment Method"
+            value={paymentMethod}
+            onChange={(e) => setPaymentMethod(e.target.value)}
+            options={[
+              { value: "CASH", label: "Cash" },
+              { value: "BANK_TRANSFER", label: "Bank Transfer" },
+              { value: "MOMO", label: "Mobile Money (MoMo)" },
+              { value: "CARD", label: "POS Card Payment" },
+              { value: "CREDIT", label: "100% Credit / Pay Later" },
+            ]}
+          />
+
+          {/* Discount & Partial Payment */}
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Discount (GH₵)"
+              type="number"
+              step="any"
+              min="0"
+              value={discount}
+              onChange={(e) => setDiscount(e.target.value)}
+              placeholder="0.00"
+            />
+
+            <div className="flex flex-col justify-end pb-1">
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-foreground">
+                <input
+                  type="checkbox"
+                  checked={isPartialCredit}
+                  onChange={(e) => {
+                    setIsPartialCredit(e.target.checked);
+                    if (e.target.checked && !amountPaid) {
+                      setAmountPaid(Math.floor(cartTotal / 2).toString());
+                    }
+                  }}
+                  className="rounded border-border text-primary focus:ring-primary w-4 h-4"
+                />
+                <span>Partial / Split Credit</span>
+              </label>
+            </div>
+          </div>
+
+          {isPartialCredit && (
+            <div className="p-3 rounded-2xl bg-warning/10 border border-warning/30 space-y-2">
+              <Input
+                label="Amount Paid Upfront (GH₵)"
+                type="number"
+                step="any"
+                min="0"
+                value={amountPaid}
+                onChange={(e) => setAmountPaid(e.target.value)}
+                placeholder="0.00"
+              />
+              <div className="flex justify-between text-xs font-bold text-foreground pt-1">
+                <span>Remaining Debt Due:</span>
+                <span className="text-warning">
+                  <Money amount={balanceDue} />
                 </span>
               </div>
-              <div>
-                <span className="text-slate-400 dark:text-slate-500 block text-[10px]">Payment Method</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">{selectedSale.paymentMethod}</span>
+            </div>
+          )}
+
+          {/* Notes */}
+          <Textarea
+            label="Internal Notes (Optional)"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Delivery details, special packaging request..."
+          />
+
+          <div className="pt-2 flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setShowCheckoutSheet(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              className="flex-1 font-black"
+              isLoading={submittingSale}
+            >
+              Confirm & Print Receipt
+            </Button>
+          </div>
+        </form>
+      </Sheet>
+
+      {/* RECORD DEBT PAYMENT SHEET */}
+      <Sheet
+        isOpen={!!debtSale}
+        onClose={() => setDebtSale(null)}
+        title="Record Debt Settlement"
+        description={debtSale ? `Invoice #${debtSale.id.slice(-6).toUpperCase()} • Customer: ${debtSale.customer?.name}` : ""}
+      >
+        <form onSubmit={handleRecordDebtPayment} className="space-y-4 pt-2">
+          {debtError && (
+            <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-xs font-semibold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{debtError}</span>
+            </div>
+          )}
+
+          <div className="p-3 rounded-2xl bg-muted/40 border border-border text-xs space-y-1">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Original Invoice Total:</span>
+              <span className="font-bold">{debtSale && formatCurrency(debtSale.totalAmount)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Already Paid:</span>
+              <span className="font-bold text-success">{debtSale && formatCurrency(debtSale.amountPaid)}</span>
+            </div>
+            <div className="flex justify-between text-sm font-black pt-1 border-t border-border">
+              <span>Outstanding Due:</span>
+              <span className="text-warning">{debtSale && formatCurrency(debtSale.balanceDue)}</span>
+            </div>
+          </div>
+
+          <Input
+            label="Settlement Amount (GH₵)"
+            type="number"
+            step="any"
+            min="0.01"
+            value={debtAmount}
+            onChange={(e) => setDebtAmount(e.target.value)}
+            required
+          />
+
+          <Select
+            label="Payment Method"
+            value={debtMethod}
+            onChange={(e) => setDebtMethod(e.target.value)}
+            options={[
+              { value: "CASH", label: "Cash" },
+              { value: "BANK_TRANSFER", label: "Bank Transfer" },
+              { value: "MOMO", label: "Mobile Money (MoMo)" },
+              { value: "CARD", label: "Card Payment" },
+            ]}
+          />
+
+          <Input
+            label="Notes"
+            value={debtNotes}
+            onChange={(e) => setDebtNotes(e.target.value)}
+            placeholder="MoMo transaction ID or settlement note"
+          />
+
+          <div className="pt-2 flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setDebtSale(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              className="flex-1 font-black"
+              isLoading={debtSubmitting}
+            >
+              Apply Payment
+            </Button>
+          </div>
+        </form>
+      </Sheet>
+
+      {/* SALE DETAIL SHEET */}
+      <Sheet
+        isOpen={!!selectedSaleDetail}
+        onClose={() => setSelectedSaleDetail(null)}
+        title={selectedSaleDetail ? `Invoice #${selectedSaleDetail.id.slice(-6).toUpperCase()}` : "Sale Details"}
+        description={selectedSaleDetail?.customer?.name || "Walk-in Customer"}
+      >
+        {selectedSaleDetail && (
+          <div className="space-y-4 pt-2 text-xs">
+            {/* Quick Summary Pill */}
+            <div className="p-3 rounded-2xl bg-muted/40 border border-border space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Sale Date</span>
+                <span className="font-bold text-foreground">
+                  {new Date(selectedSaleDetail.saleDate).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Payment Method</span>
+                <Badge variant="outline">{selectedSaleDetail.paymentMethod}</Badge>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Status</span>
+                <Badge
+                  variant={
+                    selectedSaleDetail.status === "VOIDED"
+                      ? "destructive"
+                      : selectedSaleDetail.balanceDue > 0
+                      ? "warning"
+                      : "success"
+                  }
+                >
+                  {selectedSaleDetail.status}
+                </Badge>
               </div>
             </div>
 
             {/* Line Items */}
-            <div className="space-y-2 pt-1">
-              <h4 className="font-bold text-xs text-slate-700 dark:text-slate-300">Line Items</h4>
-              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                {selectedSale.saleItems.map((item) => (
+            <div>
+              <h4 className="font-bold text-foreground mb-2">Line Items (FIFO Allocated)</h4>
+              <div className="space-y-2">
+                {selectedSaleDetail.saleItems.map((item) => (
                   <div
                     key={item.id}
-                    className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-between text-xs"
+                    className="p-2.5 rounded-xl bg-card border border-border flex items-center justify-between"
                   >
                     <div>
-                      <span className="font-bold text-slate-900 dark:text-slate-100">{item.product.name}</span>
-                      <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                        {item.quantity} units × {formatCurrency(item.unitPrice)} (Batch: {item.batch.reference})
-                      </p>
+                      <div className="font-bold text-foreground">{item.product.name}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Batch: {item.batch.reference} • {item.quantity} units @ {formatCurrency(item.unitPrice)}
+                      </div>
                     </div>
-                    <span className="font-bold text-slate-900 dark:text-slate-100">{formatCurrency(item.revenue)}</span>
+                    <div className="text-right">
+                      <div className="font-black text-foreground">
+                        {formatCurrency(item.revenue)}
+                      </div>
+                      <div className="text-[11px] text-success">
+                        +{formatCurrency(item.profit)} profit
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Financial Summary Box */}
-            {(() => {
-              const amtPaid = (selectedSale as any).amountPaid !== undefined && (selectedSale as any).amountPaid !== null
-                ? Number((selectedSale as any).amountPaid)
-                : Number(selectedSale.totalAmount);
-              const balDue = (selectedSale as any).balanceDue !== undefined && (selectedSale as any).balanceDue !== null
-                ? Number((selectedSale as any).balanceDue)
-                : (selectedSale.status === "PARTIAL" ? Number(selectedSale.totalAmount) - amtPaid : 0);
-
-              return (
-                <div className="p-4 bg-slate-900 dark:bg-slate-800/90 text-white border border-slate-800 rounded-2xl space-y-2 text-xs">
-                  <div className="flex justify-between text-slate-300">
-                    <span>Subtotal:</span>
-                    <span>{formatCurrency(selectedSale.subtotal)}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-300">
-                    <span>Discount:</span>
-                    <span>-{formatCurrency(selectedSale.discount)}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-300">
-                    <span>Total FIFO COGS:</span>
-                    <span>{formatCurrency(selectedSale.totalCost)}</span>
-                  </div>
-                  <div className="flex justify-between pt-2 border-t border-slate-800 text-sm font-bold">
-                    <span>Total Invoice Amount:</span>
-                    <span>{formatCurrency(selectedSale.totalAmount)}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-300">
-                    <span>Amount Paid So Far:</span>
-                    <span>{formatCurrency(amtPaid)}</span>
-                  </div>
-                  {balDue > 0 && (
-                    <div className="flex justify-between text-rose-400 font-bold">
-                      <span>Balance Due:</span>
-                      <span>{formatCurrency(balDue)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-amber-400 font-extrabold text-xs pt-1 border-t border-slate-800">
-                    <span>Gross Profit Generated:</span>
-                    <span>{formatCurrency(selectedSale.grossProfit)}</span>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Modal Actions */}
-            <div className="flex items-center justify-between gap-2 pt-2">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setReceiptSale(selectedSale)}
-                  className="px-3.5 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold text-xs hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-colors flex items-center gap-1.5"
-                >
-                  <Share2 className="w-3.5 h-3.5" /> WhatsApp Receipt
-                </button>
-
-                {(() => {
-                  const isUnsettled = selectedSale.status === "PARTIAL" || selectedSale.status === "UNPAID" || (selectedSale as any).paymentStatus === "PARTIAL" || (selectedSale as any).paymentStatus === "UNPAID" || (Number((selectedSale as any).balanceDue) > 0);
-                  return isUnsettled && selectedSale.status !== "VOIDED" ? (
-                    <button
-                      onClick={() => openPaymentModal(selectedSale)}
-                      className="px-3.5 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 transition-colors flex items-center gap-1.5 shadow-sm"
-                    >
-                      <DollarSign className="w-3.5 h-3.5" /> Record Payment
-                    </button>
-                  ) : null;
-                })()}
+            {/* Financial Summary */}
+            <div className="p-3 rounded-2xl bg-muted/20 border border-border space-y-1.5">
+              <div className="flex justify-between text-muted-foreground">
+                <span>Subtotal</span>
+                <span>{formatCurrency(selectedSaleDetail.subtotal)}</span>
               </div>
+              {selectedSaleDetail.discount > 0 && (
+                <div className="flex justify-between text-success">
+                  <span>Discount</span>
+                  <span>-{formatCurrency(selectedSaleDetail.discount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-black text-sm text-foreground pt-1 border-t border-border">
+                <span>Total Amount</span>
+                <span className="text-primary">{formatCurrency(selectedSaleDetail.totalAmount)}</span>
+              </div>
+              <div className="flex justify-between text-success">
+                <span>Total Amount Paid</span>
+                <span>{formatCurrency(selectedSaleDetail.amountPaid)}</span>
+              </div>
+              {selectedSaleDetail.balanceDue > 0 && (
+                <div className="flex justify-between text-warning font-bold">
+                  <span>Balance Due</span>
+                  <span>{formatCurrency(selectedSaleDetail.balanceDue)}</span>
+                </div>
+              )}
+            </div>
 
-              {selectedSale.status !== "VOIDED" && (
-                <button
-                  onClick={() => setVoidingSale(selectedSale)}
-                  className="px-3.5 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 font-bold text-xs hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors flex items-center gap-1.5"
+            {/* Actions: Print Receipt & Void */}
+            <div className="pt-2 flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setReceiptSale(selectedSaleDetail);
+                }}
+              >
+                <Printer className="w-4 h-4 mr-2" />
+                Print / Share Receipt
+              </Button>
+
+              {selectedSaleDetail.status !== "VOIDED" && (
+                <Button
+                  variant="destructive"
+                  className="flex-1"
+                  onClick={() => setVoidSaleTarget(selectedSaleDetail)}
                 >
-                  <RotateCcw className="w-3.5 h-3.5" /> Void / Return
-                </button>
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  Void Sale
+                </Button>
               )}
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Sheet>
 
-      {/* Void Sale Confirmation Modal */}
-      {voidingSale && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in duration-200">
-            <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
-              <AlertTriangle className="w-6 h-6" />
-              <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100">Void / Return Sale</h3>
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Voiding invoice <strong className="text-slate-900 dark:text-slate-100">#{voidingSale.id.slice(-6)}</strong> will restore product stock back to original batches and log a RETURN inventory transaction.
-            </p>
+      {/* CONFIRM VOID DIALOG */}
+      <ConfirmDialog
+        isOpen={!!voidSaleTarget}
+        title="Void Sale Invoice?"
+        message="Voiding returns all sold perfume units back to their original batch inventories and marks this transaction as cancelled."
+        confirmLabel="Confirm Void Sale"
+        variant="destructive"
+        isLoading={voidSubmitting}
+        onClose={() => setVoidSaleTarget(null)}
+        onConfirm={handleVoidSale}
+      />
 
-            <form onSubmit={handleVoidSale} className="space-y-4 text-xs font-bold text-slate-700 dark:text-slate-300">
-              <div>
-                <label className="block mb-1">Reason for Return / Void</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Customer brought back item, wrong order"
-                  value={voidReason}
-                  onChange={(e) => setVoidReason(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-500"
-                />
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setVoidingSale(null)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-100 dark:hover:bg-slate-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={voidSubmitting}
-                  className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white font-bold hover:bg-rose-700 disabled:opacity-50"
-                >
-                  {voidSubmitting ? "Voiding..." : "Confirm Void"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Rapid Sale Entry Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 max-w-2xl w-full p-6 shadow-2xl space-y-5 animate-in fade-in duration-200 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Rapid Sale Entry</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Record customer purchase & automatic FIFO stock allocation</p>
-              </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+      {/* CAMERA BARCODE SCANNER MODAL */}
+      {showCameraScanner && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card w-full max-w-md rounded-3xl overflow-hidden border border-border shadow-2xl p-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <Camera className="w-4 h-4 text-primary" />
+                Scan Product Barcode
+              </h3>
+              <IconButton
+                aria-label="Close Scanner"
+                size="sm"
+                variant="ghost"
+                onClick={() => setShowCameraScanner(false)}
               >
                 <X className="w-4 h-4" />
-              </button>
+              </IconButton>
             </div>
 
-            {scanNotice && (
-              <div className="bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 p-3 rounded-xl text-sky-800 dark:text-sky-300 text-xs flex items-center gap-2">
-                <ScanLine className="w-4 h-4 flex-shrink-0 text-sky-600 dark:text-sky-400" />
-                <span>{scanNotice}</span>
-              </div>
-            )}
-
-            {formError && (
-              <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                <span>{formError}</span>
-              </div>
-            )}
-
-            {formSuccess && (
-              <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                <span>Sale processed successfully!</span>
-              </div>
-            )}
-
-            <form onSubmit={handleCreateSale} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Customer {isPartialCredit && <span className="text-rose-600 dark:text-rose-400 font-bold">* Required for Credit</span>}
-                  </label>
-                  <select
-                    value={customerId}
-                    onChange={(e) => setCustomerId(e.target.value)}
-                    className={`w-full px-3.5 py-2 border rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 ${
-                      isPartialCredit && !customerId ? "bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800" : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
-                    }`}
-                  >
-                    <option value="">Walk-in Client (Guest)</option>
-                    {customers.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Payment Method</label>
-                  <select
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  >
-                    <option value="CASH">Cash</option>
-                    <option value="MOBILE_MONEY">Mobile Money (MoMo)</option>
-                    <option value="BANK_TRANSFER">Bank Transfer</option>
-                    <option value="CARD">Card Payment</option>
-                    <option value="OTHER">Other</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Payment Type Selector */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Payment Type</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => { setIsPartialCredit(false); setAmountPaid(""); }}
-                    className={`py-2 px-3 rounded-full text-xs font-bold transition-all ${
-                      !isPartialCredit ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-                    }`}
-                  >
-                    Full Payment (Paid)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setIsPartialCredit(true); setAmountPaid(""); }}
-                    className={`py-2 px-3 rounded-full text-xs font-bold transition-all ${
-                      isPartialCredit ? "bg-amber-500 text-slate-900 shadow-md" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-                    }`}
-                  >
-                    Partial / Credit Sale 💳
-                  </button>
-                </div>
-              </div>
-
-              {/* Partial Credit Input Box */}
-              {isPartialCredit && (
-                <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-3.5 rounded-2xl space-y-3 animate-in fade-in duration-150">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-amber-900 dark:text-amber-300 mb-1">Amount Paid Now (GH₵)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max={totalAmountDue}
-                        placeholder="0.00"
-                        value={amountPaid}
-                        onChange={(e) => setAmountPaid(e.target.value)}
-                        className="w-full px-3.5 py-2 bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-amber-900 dark:text-amber-300 mb-1">Remaining Balance Due</label>
-                      <div className="px-3.5 py-2 bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 rounded-xl text-xs font-black text-rose-600 dark:text-rose-400 flex items-center h-[34px]">
-                        {formatCurrency(Math.max(0, totalAmountDue - (parseFloat(amountPaid) || 0)))}
-                      </div>
-                    </div>
-                  </div>
-                  {!customerId && (
-                    <p className="text-[11px] font-bold text-rose-700 dark:text-rose-400 flex items-center gap-1">
-                      <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" /> Select a Customer above to track this debt balance.
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Items List */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-900 dark:text-slate-100">Sale Products *</label>
-                  <button
-                    type="button"
-                    onClick={handleAddItemRow}
-                    className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline flex items-center gap-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Add Product Item
-                  </button>
-                </div>
-
-                <div className="space-y-2.5">
-                  {items.map((item, idx) => {
-                    const selectedProd = products.find((p) => p.id === item.productId);
-
-                    return (
-                      <div
-                        key={idx}
-                        className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 grid grid-cols-12 gap-2 items-center"
-                      >
-                        <div className="col-span-5">
-                          <select
-                            value={item.productId}
-                            onChange={(e) => handleItemChange(idx, "productId", e.target.value)}
-                            className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-600"
-                          >
-                            <option value="">-- Select Product --</option>
-                            {products.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.name} ({p.remainingStock} in stock)
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div className="col-span-3">
-                          <input
-                            type="number"
-                            min="1"
-                            max={selectedProd ? selectedProd.remainingStock : undefined}
-                            placeholder="Qty"
-                            value={item.quantity}
-                            onChange={(e) => handleItemChange(idx, "quantity", e.target.value)}
-                            className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-600"
-                          />
-                        </div>
-
-                        <div className="col-span-3">
-                          <input
-                            type="number"
-                            step="0.01"
-                            placeholder="Unit Price"
-                            value={item.unitPrice}
-                            onChange={(e) => handleItemChange(idx, "unitPrice", e.target.value)}
-                            className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-600"
-                          />
-                        </div>
-
-                        <div className="col-span-1 flex justify-center">
-                          <button
-                            type="button"
-                            disabled={items.length <= 1}
-                            onClick={() => handleRemoveItemRow(idx)}
-                            className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 disabled:opacity-30"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Discount Amount (GH₵)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={discount}
-                  onChange={(e) => setDiscount(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                />
-              </div>
-
-              {/* Live Totals Box */}
-              <div className="p-4 bg-slate-900 dark:bg-slate-800/90 text-white border border-slate-800 rounded-2xl flex items-center justify-between text-xs">
-                <div>
-                  <span className="text-slate-400 dark:text-slate-400 block text-[10px]">Subtotal</span>
-                  <span className="font-bold text-sm">{formatCurrency(subtotal)}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 dark:text-slate-400 block text-[10px]">Discount</span>
-                  <span className="font-bold text-rose-400">-{formatCurrency(discountAmount)}</span>
-                </div>
-                <div className="text-right">
-                  <span className="text-amber-400 block text-[10px] font-bold">Total Amount Due</span>
-                  <span className="font-black text-base">{formatCurrency(totalAmountDue)}</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Notes</label>
-                <textarea
-                  rows={2}
-                  placeholder="Optional sale notes..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-lg shadow-indigo-500/25 transition-all disabled:opacity-50 flex items-center gap-2"
-                >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Submitting...
-                    </>
-                  ) : (
-                    "Complete Sale"
-                  )}
-                </button>
-              </div>
-            </form>
+            <div className="mt-4">
+              <CameraScanner
+                onScan={(code) => handleBarcodeScanned(code)}
+                onClose={() => setShowCameraScanner(false)}
+                hint="Position perfume box barcode inside the viewfinder"
+              />
+            </div>
           </div>
         </div>
       )}
 
-      {/* Camera Scanner Overlay */}
-      {showCamera && (
-        <CameraScanner
-          hint="Point camera at product barcode to add it to the cart"
-          onScan={(barcode: string) => {
-            setShowCamera(false);
-            setScanInput(barcode);
-            handleScanBarcode(barcode);
-          }}
-          onClose={() => setShowCamera(false)}
+      {/* PRINTABLE / SHAREABLE RECEIPT MODAL */}
+      {receiptSale && (
+        <ReceiptModal
+          sale={receiptSale}
+          isOpen={!!receiptSale}
+          onClose={() => setReceiptSale(null)}
         />
-      )}
-
-      {/* Record Debt Payment Modal for specific sale */}
-      {paymentSale && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Add Payment to Invoice</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Invoice #{paymentSale.id.slice(-6)} • {paymentSale.customer?.name || "Customer"}</p>
-              </div>
-              <button
-                onClick={() => setPaymentSale(null)}
-                className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Summary Box */}
-            <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 p-3.5 rounded-2xl space-y-1.5 text-xs font-sans">
-              <div className="flex justify-between text-slate-600 dark:text-slate-400">
-                <span>Total Invoice Amount:</span>
-                <span className="font-bold text-slate-900 dark:text-slate-100">{formatCurrency(paymentSale.totalAmount)}</span>
-              </div>
-              {(() => {
-                const amtPaid = (paymentSale as any).amountPaid !== undefined && (paymentSale as any).amountPaid !== null ? Number((paymentSale as any).amountPaid) : Number(paymentSale.totalAmount);
-                const balDue = (paymentSale as any).balanceDue !== undefined && (paymentSale as any).balanceDue !== null ? Number((paymentSale as any).balanceDue) : (paymentSale.status === "PARTIAL" ? Number(paymentSale.totalAmount) - amtPaid : 0);
-                return (
-                  <>
-                    <div className="flex justify-between text-slate-600 dark:text-slate-400">
-                      <span>Amount Paid So Far:</span>
-                      <span className="font-bold text-slate-800 dark:text-slate-200">{formatCurrency(amtPaid)}</span>
-                    </div>
-                    <div className="flex justify-between text-rose-600 dark:text-rose-400 font-bold border-t border-slate-200 dark:border-slate-700 pt-1">
-                      <span>Remaining Balance Due:</span>
-                      <span>{formatCurrency(balDue)}</span>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-
-            {paymentError && (
-              <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                <span>{paymentError}</span>
-              </div>
-            )}
-
-            {paymentSuccess && (
-              <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                <span>Payment recorded! Invoice balance updated.</span>
-              </div>
-            )}
-
-            <form onSubmit={handleRecordPayment} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Payment Amount (GH₵) *</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  min="0.01"
-                  placeholder="0.00"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Payment Method</label>
-                <select
-                  value={paymentMethodSelect}
-                  onChange={(e) => setPaymentMethodSelect(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                >
-                  <option value="CASH">Cash</option>
-                  <option value="MOBILE_MONEY">Mobile Money (MoMo)</option>
-                  <option value="BANK_TRANSFER">Bank Transfer</option>
-                  <option value="CARD">Card Payment</option>
-                  <option value="OTHER">Other</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Notes (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Paid part balance via MoMo"
-                  value={paymentNotes}
-                  onChange={(e) => setPaymentNotes(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setPaymentSale(null)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={paymentSubmitting}
-                  className="px-5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2"
-                >
-                  {paymentSubmitting ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...
-                    </>
-                  ) : (
-                    "Record Payment ✓"
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
       )}
     </div>
   );

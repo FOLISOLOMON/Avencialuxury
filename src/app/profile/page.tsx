@@ -2,7 +2,14 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { PageHeader } from "@/components/ui/PageHeader";
+import {
+  Button,
+  IconButton,
+  Input,
+  Textarea,
+  Card,
+  Badge,
+} from "@/components/ui";
 import {
   Building2,
   User,
@@ -12,13 +19,12 @@ import {
   Users,
   CheckCircle2,
   AlertTriangle,
-  Loader2,
   Phone,
   MapPin,
-  FileText,
   Mail,
   Lock,
-  Boxes,
+  KeyRound,
+  Sparkles,
 } from "lucide-react";
 
 interface ProfileData {
@@ -47,7 +53,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<"BUSINESS" | "OWNER" | "SECURITY" | "SYSTEM">("BUSINESS");
+  const [activeTab, setActiveTab] = useState<"BUSINESS" | "OWNER" | "SECURITY">("BUSINESS");
 
   // Business Form State
   const [busName, setBusName] = useState("");
@@ -67,7 +73,7 @@ export default function ProfilePage() {
 
   // Security / PIN Management State
   const [storedPin, setStoredPin] = useState<string | null>(null);
-  const [pinMode, setPinMode] = useState<"view" | "set" | "confirm">("view");
+  const [pinMode, setPinMode] = useState<"view" | "set">("view");
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [pinError, setPinError] = useState<string | null>(null);
@@ -119,10 +125,10 @@ export default function ProfilePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           target: "business",
-          name: busName,
-          phone: busPhone || undefined,
-          address: busAddress || undefined,
-          description: busDescription || undefined,
+          name: busName.trim(),
+          phone: busPhone.trim() || undefined,
+          address: busAddress.trim() || undefined,
+          description: busDescription.trim() || undefined,
         }),
       });
       const json = await res.json();
@@ -149,10 +155,6 @@ export default function ProfilePage() {
       setOwnerError("Owner Name is required.");
       return;
     }
-    if (!ownerEmail.trim()) {
-      setOwnerError("Owner Email is required.");
-      return;
-    }
 
     setOwnerSubmitting(true);
     try {
@@ -161,9 +163,8 @@ export default function ProfilePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           target: "owner",
-          ownerId: profile?.ownerId,
-          name: ownerName,
-          email: ownerEmail,
+          name: ownerName.trim(),
+          email: ownerEmail.trim() || undefined,
         }),
       });
       const json = await res.json();
@@ -172,7 +173,7 @@ export default function ProfilePage() {
         setTimeout(() => setOwnerSuccess(false), 3000);
         fetchProfileData();
       } else {
-        setOwnerError(json.error || "Could not update owner account");
+        setOwnerError(json.error || "Could not update owner details");
       }
     } catch (err: any) {
       setOwnerError(err.message || "Failed to connect to server");
@@ -187,8 +188,8 @@ export default function ProfilePage() {
       setPinError("PIN must be exactly 4 digits.");
       return;
     }
-    if (confirmPin !== newPin) {
-      setPinError("PINs do not match.");
+    if (newPin !== confirmPin) {
+      setPinError("PIN codes do not match.");
       return;
     }
     localStorage.setItem("avencia_quick_pin", newPin);
@@ -212,499 +213,296 @@ export default function ProfilePage() {
     setTimeout(() => setPinSuccess(false), 3000);
   };
 
-  if (loading) {
-    return (
-      <div className="p-12 text-center space-y-3">
-        <Loader2 className="w-8 h-8 text-slate-400 dark:text-slate-500 animate-spin mx-auto" />
-        <p className="text-xs text-slate-500 dark:text-slate-400">Loading business profile...</p>
-      </div>
-    );
-  }
-
-  if (error || !profile) {
-    return (
-      <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-4 rounded-2xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-3">
-        <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-        <span>{error || "Failed to load profile"}</span>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      {/* Standardized Page Header */}
-      <PageHeader
-        title="Profile"
-        subtitle="User info & business details"
-      />
-
-      {/* Profile Header Banner */}
-      <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-800 flex flex-col sm:flex-row items-center sm:items-start gap-5">
-        <div className="w-16 h-16 rounded-2xl bg-slate-800 p-2 flex items-center justify-center shadow-lg border border-slate-700/60 flex-shrink-0 overflow-hidden">
-          <Image
-            src="/logo/Avencia gold logo.png"
-            alt="Avencia Logo"
-            width={60}
-            height={60}
-            className="w-full h-full object-contain"
-          />
-        </div>
-        <div className="flex-1 text-center sm:text-left space-y-1">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-            <h2 className="text-2xl font-black tracking-tight">{profile.name}</h2>
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 w-fit mx-auto sm:mx-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Active Business
-            </span>
+    <div className="space-y-6 max-w-4xl pb-24 md:pb-8">
+      {/* Brand Header Card */}
+      <Card className="p-6 bg-gradient-to-br from-card via-card to-primary/5 border-primary/30">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 text-center sm:text-left">
+          <div className="w-16 h-16 rounded-2xl bg-card border-2 border-primary/40 p-2 shadow-lg flex items-center justify-center shrink-0">
+            <Image
+              src="/logo/Avencia gold icon logo.png"
+              alt="Avencia Logo"
+              width={48}
+              height={48}
+              className="object-contain"
+            />
           </div>
-          <p className="text-xs text-slate-400 font-medium">
-            Owned by <strong className="text-slate-200">{profile.owner?.name}</strong> ({profile.owner?.email})
-          </p>
-          {profile.description && (
-            <p className="text-xs text-amber-300/90 pt-1 italic font-serif">"{profile.description}"</p>
-          )}
-        </div>
-      </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <div className="flex-1 space-y-1">
+            <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
+              <h1 className="text-xl font-black text-foreground">{profile?.name || "Avencia Luxury"}</h1>
+              <Badge variant="gold">Retail Enterprise</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {profile?.description || "Luxury fragrances, bespoke perfume oils & scent consulting."}
+            </p>
+            <div className="text-xs text-muted-foreground pt-1 flex items-center justify-center sm:justify-start gap-3 flex-wrap">
+              {profile?.phone && <span>📞 {profile.phone}</span>}
+              {profile?.address && <span>📍 {profile.address}</span>}
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Enterprise Metrics */}
+        <div className="grid grid-cols-3 gap-3 pt-5 mt-5 border-t border-border/60 text-center">
+          <div>
+            <div className="text-[10px] text-muted-foreground uppercase font-semibold">Catalog SKUs</div>
+            <div className="text-lg font-black text-foreground mt-0.5">
+              {profile?.metrics.productCount || 0}
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] text-muted-foreground uppercase font-semibold">Active Consignments</div>
+            <div className="text-lg font-black text-primary mt-0.5">
+              {profile?.metrics.activeBatchCount || 0}
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] text-muted-foreground uppercase font-semibold">Client Accounts</div>
+            <div className="text-lg font-black text-foreground mt-0.5">
+              {profile?.metrics.customerCount || 0}
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Segmented Control */}
+      <div className="inline-flex p-1 bg-muted rounded-xl border border-border">
         <button
+          type="button"
           onClick={() => setActiveTab("BUSINESS")}
-          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+          className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
             activeTab === "BUSINESS"
-              ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
-              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <Building2 className={`w-4 h-4 ${activeTab === "BUSINESS" ? "text-amber-300" : "text-slate-400"}`} /> Business Info
+          Business Entity
         </button>
-
         <button
+          type="button"
           onClick={() => setActiveTab("OWNER")}
-          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+          className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
             activeTab === "OWNER"
-              ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
-              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <User className={`w-4 h-4 ${activeTab === "OWNER" ? "text-indigo-200" : "text-slate-400"}`} /> Account Owner
+          Owner Account
         </button>
-
         <button
+          type="button"
           onClick={() => setActiveTab("SECURITY")}
-          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+          className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
             activeTab === "SECURITY"
-              ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
-              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <ShieldCheck className={`w-4 h-4 ${activeTab === "SECURITY" ? "text-emerald-300" : "text-slate-400"}`} /> PIN Security
-        </button>
-
-        <button
-          onClick={() => setActiveTab("SYSTEM")}
-          className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-2 ${
-            activeTab === "SYSTEM"
-              ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
-              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-          }`}
-        >
-          <Boxes className={`w-4 h-4 ${activeTab === "SYSTEM" ? "text-rose-300" : "text-slate-400"}`} /> System Metrics
+          PIN Security
         </button>
       </div>
 
-      {/* TAB 1: Business Info Form */}
+      {/* TAB 1: BUSINESS ENTITY */}
       {activeTab === "BUSINESS" && (
-        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-6 bg-white dark:bg-slate-900 space-y-5">
-          <div className="border-b border-slate-100 dark:border-slate-800 pb-3 flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Business Identity Details</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Update store name, contact numbers & physical shop address</p>
-            </div>
+        <Card className="p-5 space-y-4">
+          <div className="flex items-center gap-2 pb-3 border-b border-border">
+            <Building2 className="w-4 h-4 text-primary" />
+            <h3 className="font-bold text-sm text-foreground">Business Information</h3>
           </div>
-
-          {busSuccess && (
-            <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3.5 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-              <span>Business profile updated successfully!</span>
-            </div>
-          )}
 
           {busError && (
-            <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3.5 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-xs font-semibold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
               <span>{busError}</span>
             </div>
           )}
 
-          <form onSubmit={handleSaveBusiness} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="col-span-1 sm:col-span-2">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Business Name *</label>
-                <div className="relative">
-                  <Building2 className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Avencia Perfumes"
-                    value={busName}
-                    onChange={(e) => setBusName(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Business Phone / WhatsApp</label>
-                <div className="relative">
-                  <Phone className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
-                  <input
-                    type="tel"
-                    placeholder="e.g. +233 24 000 0000"
-                    value={busPhone}
-                    onChange={(e) => setBusPhone(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Physical Location / Address</label>
-                <div className="relative">
-                  <MapPin className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
-                  <input
-                    type="text"
-                    placeholder="e.g. Accra, Ghana"
-                    value={busAddress}
-                    onChange={(e) => setBusAddress(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
-
-              <div className="col-span-1 sm:col-span-2">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Business Description / Tagline</label>
-                <div className="relative">
-                  <FileText className="w-4 h-4 absolute left-3.5 top-3 text-slate-400 dark:text-slate-500" />
-                  <textarea
-                    rows={3}
-                    placeholder="e.g. Premium luxury fragrances, designer colognes & oil perfumes"
-                    value={busDescription}
-                    onChange={(e) => setBusDescription(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
-              <button
-                type="submit"
-                disabled={busSubmitting}
-                className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25 transition-all text-xs font-bold disabled:opacity-50 flex items-center gap-2 active:scale-95"
-              >
-                {busSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : "Save Business Profile ✓"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* TAB 2: Owner Account Form */}
-      {activeTab === "OWNER" && (
-        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-6 bg-white dark:bg-slate-900 space-y-5">
-          <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
-            <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Account Owner Information</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Manage owner credentials & primary email address</p>
-          </div>
-
-          {ownerSuccess && (
-            <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3.5 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-              <span>Owner account details saved!</span>
+          {busSuccess && (
+            <div className="p-3 rounded-xl bg-success/10 text-success text-xs font-semibold flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>Business profile updated successfully!</span>
             </div>
           )}
 
+          <form onSubmit={handleSaveBusiness} className="space-y-4">
+            <Input
+              label="Legal Trade Name"
+              value={busName}
+              onChange={(e) => setBusName(e.target.value)}
+              required
+            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input
+                label="Store Phone Contact"
+                value={busPhone}
+                onChange={(e) => setBusPhone(e.target.value)}
+                placeholder="+233 24 000 0000"
+              />
+              <Input
+                label="Boutique / Physical Address"
+                value={busAddress}
+                onChange={(e) => setBusAddress(e.target.value)}
+                placeholder="Accra Mall / East Legon"
+              />
+            </div>
+
+            <Textarea
+              label="Store Tagline / Bio"
+              value={busDescription}
+              onChange={(e) => setBusDescription(e.target.value)}
+              placeholder="Boutique perfume business..."
+            />
+
+            <div className="pt-2 flex justify-end">
+              <Button type="submit" variant="primary" className="font-black" isLoading={busSubmitting}>
+                Save Business Info
+              </Button>
+            </div>
+          </form>
+        </Card>
+      )}
+
+      {/* TAB 2: OWNER ACCOUNT */}
+      {activeTab === "OWNER" && (
+        <Card className="p-5 space-y-4">
+          <div className="flex items-center gap-2 pb-3 border-b border-border">
+            <User className="w-4 h-4 text-primary" />
+            <h3 className="font-bold text-sm text-foreground">Account Holder Credentials</h3>
+          </div>
+
           {ownerError && (
-            <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3.5 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-xs font-semibold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
               <span>{ownerError}</span>
             </div>
           )}
 
-          <form onSubmit={handleSaveOwner} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Owner Full Name *</label>
-                <div className="relative">
-                  <User className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Business Owner"
-                    value={ownerName}
-                    onChange={(e) => setOwnerName(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Owner Email Address *</label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
-                  <input
-                    type="email"
-                    required
-                    placeholder="e.g. owner@avencia.com"
-                    value={ownerEmail}
-                    onChange={(e) => setOwnerEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
+          {ownerSuccess && (
+            <div className="p-3 rounded-xl bg-success/10 text-success text-xs font-semibold flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>Owner credentials updated successfully!</span>
             </div>
+          )}
 
-            <div className="flex justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
-              <button
-                type="submit"
-                disabled={ownerSubmitting}
-                className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25 transition-all text-xs font-bold disabled:opacity-50 flex items-center gap-2 active:scale-95"
-              >
-                {ownerSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : "Update Owner Account ✓"}
-              </button>
+          <form onSubmit={handleSaveOwner} className="space-y-4">
+            <Input
+              label="Full Name"
+              value={ownerName}
+              onChange={(e) => setOwnerName(e.target.value)}
+              required
+            />
+
+            <Input
+              label="Email Address"
+              type="email"
+              value={ownerEmail}
+              onChange={(e) => setOwnerEmail(e.target.value)}
+              required
+            />
+
+            <div className="pt-2 flex justify-end">
+              <Button type="submit" variant="primary" className="font-black" isLoading={ownerSubmitting}>
+                Update Account
+              </Button>
             </div>
           </form>
-        </div>
+        </Card>
       )}
 
-      {/* TAB 3: Quick PIN Security */}
+      {/* TAB 3: PIN SECURITY */}
       {activeTab === "SECURITY" && (
-        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-6 bg-white dark:bg-slate-900 space-y-5">
-          <div className="border-b border-slate-100 dark:border-slate-800 pb-3 flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-            <div>
-              <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Security & 4-Digit Quick PIN</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Require 4-digit PIN authentication upon opening the app</p>
+        <Card className="p-5 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-border">
+            <div className="flex items-center gap-2">
+              <Lock className="w-4 h-4 text-primary" />
+              <h3 className="font-bold text-sm text-foreground">Quick Screen Lock PIN</h3>
             </div>
+            <Badge variant={storedPin ? "success" : "outline"}>
+              {storedPin ? "PIN Active" : "Not Configured"}
+            </Badge>
           </div>
 
           {pinSuccess && (
-            <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3.5 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-              <span>{storedPin ? "PIN updated! PIN prompt active." : "PIN removed. App will open without authentication."}</span>
+            <div className="p-3 rounded-xl bg-success/10 text-success text-xs font-semibold flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>PIN security updated!</span>
             </div>
           )}
 
           {pinError && (
-            <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3.5 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-xs font-semibold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
               <span>{pinError}</span>
             </div>
           )}
 
-          {pinMode === "view" && (
-            <div className="space-y-4 max-w-md mx-auto">
-              {storedPin ? (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-300 flex items-center justify-center">
-                        <Lock className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-emerald-900 dark:text-emerald-200">PIN Protection Active</p>
-                        <p className="text-[11px] text-emerald-700 dark:text-emerald-400">4-digit PIN ●●●● is active</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => { setNewPin(""); setConfirmPin(""); setPinMode("set"); setPinError(null); }}
-                      className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                    >
-                      Change PIN
-                    </button>
-                    <button
-                      onClick={handleRemovePin}
-                      className="flex-1 py-2.5 rounded-xl border border-rose-200 dark:border-rose-800 text-xs font-bold text-rose-600 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
-                    >
-                      Remove PIN
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl">
-                    <div className="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 flex items-center justify-center">
-                      <ShieldCheck className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">No PIN Set</p>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">App opens without authentication. Set a PIN to secure access.</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => { setNewPin(""); setConfirmPin(""); setPinMode("set"); setPinError(null); }}
-                    className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25 transition-all text-xs font-bold"
-                  >
-                    Set 4-Digit PIN
-                  </button>
-                </div>
+          {pinMode === "view" ? (
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setNewPin("");
+                  setConfirmPin("");
+                  setPinMode("set");
+                }}
+              >
+                <KeyRound className="w-3.5 h-3.5 mr-1.5 text-primary" />
+                <span>{storedPin ? "Change PIN" : "Setup PIN"}</span>
+              </Button>
+
+              {storedPin && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRemovePin}
+                  className="text-xs text-muted-foreground hover:text-destructive"
+                >
+                  Disable
+                </Button>
               )}
             </div>
-          )}
-
-          {(pinMode === "set" || pinMode === "confirm") && (
-            <div className="space-y-4 max-w-xs mx-auto text-center">
-              <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                {pinMode === "set" ? "Enter a 4-digit PIN" : "Confirm your 4-digit PIN"}
-              </p>
-
-              {/* Digit Indicator */}
-              <div className="flex gap-2 justify-center py-2">
-                {[0, 1, 2, 3].map((i) => {
-                  const val = pinMode === "set" ? newPin : confirmPin;
-                  return (
-                    <div
-                      key={i}
-                      className={`w-12 h-12 rounded-xl border-2 flex items-center justify-center text-xl font-black transition-all ${
-                        i < val.length
-                          ? "border-indigo-600 bg-indigo-600 text-white"
-                          : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-300 dark:text-slate-600"
-                      }`}
-                    >
-                      {i < val.length ? "●" : "○"}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Custom Keypad */}
-              <div className="grid grid-cols-3 gap-2 max-w-[200px] mx-auto">
-                {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
-                  <button
-                    key={num}
-                    type="button"
-                    onClick={() => {
-                      if (pinMode === "set" && newPin.length < 4) setNewPin(newPin + num);
-                      if (pinMode === "confirm" && confirmPin.length < 4) setConfirmPin(confirmPin + num);
-                    }}
-                    className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold text-lg hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all flex items-center justify-center"
-                  >
-                    {num}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => (pinMode === "set" ? setNewPin("") : setConfirmPin(""))}
-                  className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center justify-center"
-                >
-                  CLR
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (pinMode === "set" && newPin.length < 4) setNewPin(newPin + "0");
-                    if (pinMode === "confirm" && confirmPin.length < 4) setConfirmPin(confirmPin + "0");
-                  }}
-                  className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold text-lg hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all flex items-center justify-center"
-                >
-                  0
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (pinMode === "set") setNewPin(newPin.slice(0, -1));
-                    if (pinMode === "confirm") setConfirmPin(confirmPin.slice(0, -1));
-                  }}
-                  className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center justify-center text-lg"
-                >
-                  ⌫
-                </button>
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => { setPinMode("view"); setNewPin(""); setConfirmPin(""); setPinError(null); }}
-                  className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+          ) : (
+            <div className="space-y-3 p-4 rounded-2xl bg-muted/30 border border-border max-w-sm">
+              <Input
+                label="Enter 4-Digit PIN"
+                type="password"
+                maxLength={4}
+                value={newPin}
+                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
+                placeholder="••••"
+              />
+              <Input
+                label="Confirm 4-Digit PIN"
+                type="password"
+                maxLength={4}
+                value={confirmPin}
+                onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
+                placeholder="••••"
+              />
+              <div className="flex gap-2 pt-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setPinMode("view")}
                 >
                   Cancel
-                </button>
-
-                {pinMode === "set" ? (
-                  <button
-                    type="button"
-                    disabled={newPin.length < 4}
-                    onClick={() => { setPinMode("confirm"); setConfirmPin(""); }}
-                    className="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25 transition-all text-xs font-bold disabled:opacity-40"
-                  >
-                    Next →
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={confirmPin.length < 4 || confirmPin !== newPin}
-                    onClick={handleSavePin}
-                    className="flex-1 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-40"
-                  >
-                    Save PIN ✓
-                  </button>
-                )}
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="flex-1 font-black"
+                  onClick={handleSavePin}
+                >
+                  Save PIN
+                </Button>
               </div>
             </div>
           )}
-        </div>
-      )}
-
-      {/* TAB 4: System Metrics */}
-      {activeTab === "SYSTEM" && (
-        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-6 bg-white dark:bg-slate-900 space-y-5">
-          <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
-            <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Operating System Summary</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Live operational counts & configuration parameters</p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 p-4 rounded-2xl space-y-1">
-              <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-                <Package className="w-4 h-4 text-amber-500" />
-                <span className="text-xs font-bold">Product Catalog</span>
-              </div>
-              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{profile.metrics.productCount}</p>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500">Active product items</p>
-            </div>
-
-            <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 p-4 rounded-2xl space-y-1">
-              <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-                <Layers className="w-4 h-4 text-emerald-500" />
-                <span className="text-xs font-bold">Active Batches</span>
-              </div>
-              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{profile.metrics.activeBatchCount}</p>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500">Stock batches in rotation</p>
-            </div>
-
-            <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 p-4 rounded-2xl space-y-1">
-              <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-                <Users className="w-4 h-4 text-indigo-500" />
-                <span className="text-xs font-bold">Client Directory</span>
-              </div>
-              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{profile.metrics.customerCount}</p>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500">Registered customers</p>
-            </div>
-          </div>
-
-          <div className="p-4 bg-slate-900 border border-slate-800 text-white rounded-2xl text-xs space-y-2">
-            <div className="flex justify-between">
-              <span className="text-slate-400">Database Currency:</span>
-              <span className="font-bold text-amber-400">{profile.currency} (Ghana Cedi)</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-400">Member Since:</span>
-              <span>{new Date(profile.owner.createdAt).toLocaleDateString()}</span>
-            </div>
-          </div>
-        </div>
+        </Card>
       )}
     </div>
   );

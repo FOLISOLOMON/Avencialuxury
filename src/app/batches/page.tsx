@@ -1,22 +1,33 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { formatCurrency } from "@/lib/utils";
-import { PageHeader } from "@/components/ui/PageHeader";
+import {
+  Button,
+  IconButton,
+  Input,
+  Select,
+  Textarea,
+  Sheet,
+  Card,
+  Badge,
+  Money,
+} from "@/components/ui";
 import {
   Layers,
   Plus,
   Calendar,
   AlertTriangle,
-  CheckCircle2,
-  X,
-  Loader2,
   Package,
   CheckCheck,
   ArrowRight,
   Truck,
+  TrendingUp,
+  DollarSign,
+  Boxes,
   Clock,
+  Sparkles,
 } from "lucide-react";
 
 interface BatchItem {
@@ -37,6 +48,7 @@ interface Batch {
   additionalCosts: number;
   totalInvestment: number;
   notes: string | null;
+  supplier?: { id: string; name: string } | null;
   batchItems: BatchItem[];
 }
 
@@ -47,29 +59,27 @@ export default function BatchesPage() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "COMPLETED">("ACTIVE");
 
-  // Create Batch Header Modal
+  // Create Batch Sheet
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [formSuccess, setFormSuccess] = useState(false);
   const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([]);
 
-  // Form fields — header only
+  // Form Fields
   const [reference, setReference] = useState("");
   const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split("T")[0]);
   const [additionalCosts, setAdditionalCosts] = useState("0");
   const [supplierId, setSupplierId] = useState("");
   const [notes, setNotes] = useState("");
 
-  const fetchBatches = async (isInitial = false) => {
-    if (isInitial || batches.length === 0) {
-      setLoading(true);
-    }
+  const fetchBatches = async () => {
+    setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/batches?status=${statusFilter}`);
+      const q = statusFilter !== "ALL" ? `?status=${statusFilter}` : "";
+      const res = await fetch(`/api/batches${q}`);
       const json = await res.json();
-      if (json.success) setBatches(json.data);
+      if (json.success) setBatches(json.data || []);
       else setError(json.error || "Failed to load batches");
     } catch (err: any) {
       setError(err.message || "Failed to fetch batches");
@@ -79,9 +89,10 @@ export default function BatchesPage() {
   };
 
   useEffect(() => {
-    fetchBatches(true);
+    fetchBatches();
   }, [statusFilter]);
 
+  // Global Header Event Listener
   useEffect(() => {
     const handler = () => openCreateModal();
     window.addEventListener("avencia:open-add-batch", handler);
@@ -97,13 +108,12 @@ export default function BatchesPage() {
     setSupplierId("");
     setNotes("");
     setFormError(null);
-    setFormSuccess(false);
     setIsModalOpen(true);
 
     try {
       const res = await fetch("/api/suppliers");
       const json = await res.json();
-      if (json.success) setSuppliers(json.data);
+      if (json.success) setSuppliers(json.data || []);
     } catch (e) {}
   };
 
@@ -132,329 +142,330 @@ export default function BatchesPage() {
 
       const json = await res.json();
       if (json.success) {
-        setFormSuccess(true);
-        setTimeout(() => {
-          setIsModalOpen(false);
-          router.push(`/batches/${json.data.id}`);
-        }, 600);
+        setIsModalOpen(false);
+        router.push(`/batches/${json.data.id}`);
       } else {
         setFormError(json.error || "Could not create batch");
       }
     } catch (err: any) {
-      setFormError(err.message || "Failed to connect to server");
+      setFormError(err.message || "Failed to create shipment batch");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const getBatchStats = (batch: Batch) => {
-    const totalPurchased = batch.batchItems.reduce((a, b) => a + b.quantityPurchased, 0);
-    const totalRemaining = batch.batchItems.reduce((a, b) => a + b.quantityRemaining, 0);
-    const totalSold = Math.max(0, totalPurchased - totalRemaining);
-    const sellThrough = totalPurchased > 0 ? Math.round((totalSold / totalPurchased) * 100) : 0;
-    return { totalPurchased, totalRemaining, totalSold, sellThrough, isHighSellThrough: sellThrough >= 80 };
-  };
-
-  const activeCount = batches.filter((b) => b.status === "ACTIVE").length;
-  const completedCount = batches.filter((b) => b.status === "COMPLETED").length;
-  const totalInvestmentSum = batches.reduce((acc, b) => acc + Number(b.totalInvestment), 0);
+  // Metrics
+  const activeBatchesCount = useMemo(
+    () => batches.filter((b) => b.status === "ACTIVE").length,
+    [batches]
+  );
+  const totalInvestedCapital = useMemo(
+    () => batches.reduce((sum, b) => sum + Number(b.totalInvestment || 0), 0),
+    [batches]
+  );
+  const totalUnitsInBatches = useMemo(
+    () =>
+      batches.reduce(
+        (sum, b) =>
+          sum + (b.batchItems || []).reduce((acc, i) => acc + (i.quantityRemaining || 0), 0),
+        0
+      ),
+    [batches]
+  );
 
   return (
-    <div className="space-y-6 font-sans">
-      {/* Summary Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 space-y-1">
-          <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">Active Batches</span>
-          <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{activeCount}</div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Currently in stock & selling</p>
+    <div className="space-y-6 pb-24 md:pb-8">
+      {/* Header & New Batch Action */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black tracking-tight text-foreground">
+            Inventory Batches & Shipments
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Track imported perfume batches, landed costs & FIFO inventory allocation
+          </p>
         </div>
-        <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 space-y-1">
-          <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">Completed Batches</span>
-          <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{completedCount}</div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Fully sold or closed out</p>
-        </div>
-        <div className="bg-slate-900 dark:bg-slate-800 p-5 rounded-3xl border border-slate-800 shadow-xl shadow-slate-900/10 space-y-1 text-white">
-          <span className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider block">Total Investment</span>
-          <div className="text-2xl font-black text-white">{formatCurrency(totalInvestmentSum)}</div>
-          <p className="text-xs text-slate-400 font-medium">Combined inventory purchase cost</p>
-        </div>
+
+        <Button
+          onClick={openCreateModal}
+          size="md"
+          className="gap-2 font-bold self-start sm:self-auto"
+        >
+          <Plus className="w-4 h-4" />
+          <span>New Shipment Batch</span>
+        </Button>
       </div>
 
-      {/* Status Filter Bar & New Batch Button */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-          {(["ACTIVE", "COMPLETED", "ALL"] as const).map((st) => (
-            <button
-              key={st}
-              onClick={() => setStatusFilter(st)}
-              className={`px-4 py-2 rounded-full text-xs font-bold transition-all focus:outline-none focus:ring-2 focus:ring-indigo-600 ${
-                statusFilter === st
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-              }`}
-            >
-              {st === "ACTIVE" ? "Active Batches" : st === "COMPLETED" ? "Completed" : "All Batches"}
-            </button>
-          ))}
-        </div>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <Card className="p-4">
+          <div className="flex items-center justify-between text-muted-foreground mb-1">
+            <span className="text-[11px] font-semibold uppercase">Active Shipments</span>
+            <Layers className="w-4 h-4 text-primary" />
+          </div>
+          <div className="text-2xl font-black text-foreground">{activeBatchesCount}</div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">
+            Currently selling through
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between text-muted-foreground mb-1">
+            <span className="text-[11px] font-semibold uppercase">Total Capital Invested</span>
+            <DollarSign className="w-4 h-4 text-primary" />
+          </div>
+          <div className="text-2xl font-black text-foreground">
+            <Money amount={totalInvestedCapital} />
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">
+            Product wholesale + logistics
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between text-muted-foreground mb-1">
+            <span className="text-[11px] font-semibold uppercase">Remaining Bottles</span>
+            <Boxes className="w-4 h-4 text-primary" />
+          </div>
+          <div className="text-2xl font-black text-foreground tabular-nums">
+            {totalUnitsInBatches}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">
+            Across active shipments
+          </div>
+        </Card>
+      </div>
+
+      {/* Filter Segmented Control */}
+      <div className="inline-flex p-1 bg-muted rounded-xl border border-border">
         <button
-          onClick={openCreateModal}
-          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-lg shadow-indigo-500/25 transition-all whitespace-nowrap active:scale-95"
+          type="button"
+          onClick={() => setStatusFilter("ACTIVE")}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            statusFilter === "ACTIVE"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
         >
-          <Plus className="w-4 h-4 text-amber-300" />
-          <span>New Batch</span>
+          Active Shipments
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter("COMPLETED")}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            statusFilter === "COMPLETED"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Completed / Sold Out
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter("ALL")}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            statusFilter === "ALL"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          All Batches
         </button>
       </div>
 
-      {/* Main Content */}
-      {loading ? (
-        <div className="bg-white dark:bg-slate-900 p-12 rounded-3xl border border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center text-center space-y-3 shadow-xl shadow-indigo-500/5">
-          <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
-          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Loading batches...</p>
-        </div>
-      ) : error ? (
-        <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-4 rounded-2xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-3">
-          <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-          <span>{error}</span>
-        </div>
-      ) : batches.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 p-12 rounded-3xl border border-slate-100 dark:border-slate-800 text-center space-y-3 shadow-xl shadow-indigo-500/5">
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 mx-auto flex items-center justify-center">
-            <Layers className="w-6 h-6" />
-          </div>
-          <h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-sm">No Batches Found</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto font-medium">
-            {statusFilter === "ACTIVE"
-              ? "No active batches. Click 'New Batch' to record a restocking trip."
-              : "No batches in this view."}
-          </p>
-          {statusFilter === "ACTIVE" && (
-            <button
-              onClick={openCreateModal}
-              className="mx-auto inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 shadow-md shadow-indigo-500/20"
-            >
-              <Plus className="w-3.5 h-3.5" /> Create First Batch
-            </button>
-          )}
-        </div>
+      {/* Batch Cards Grid */}
+      {batches.length === 0 ? (
+        <Card className="p-12 text-center text-muted-foreground">
+          <Layers className="w-10 h-10 mx-auto mb-3 opacity-30" />
+          <p className="text-sm font-semibold">No shipment batches found</p>
+          <p className="text-xs mt-1">Create a new batch to start logging incoming inventory</p>
+        </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {batches.map((batch) => {
-            const { totalPurchased, totalRemaining, totalSold, sellThrough, isHighSellThrough } =
-              getBatchStats(batch);
+            const totalPurchased = (batch.batchItems || []).reduce(
+              (acc, i) => acc + (i.quantityPurchased || 0),
+              0
+            );
+            const totalRemaining = (batch.batchItems || []).reduce(
+              (acc, i) => acc + (i.quantityRemaining || 0),
+              0
+            );
+            const soldCount = totalPurchased - totalRemaining;
+            const progress = totalPurchased > 0 ? Math.round((soldCount / totalPurchased) * 100) : 0;
+            const isCompleted = batch.status === "COMPLETED";
+
+            const purchaseDateStr = new Date(batch.purchaseDate).toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            });
 
             return (
-              <div
+              <Card
                 key={batch.id}
-                className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 hover:border-indigo-100 dark:hover:border-indigo-900 transition-all overflow-hidden"
+                className="p-5 flex flex-col justify-between hover:border-primary/40 transition-all group"
               >
-                <div className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  {/* Left — batch info */}
-                  <div className="flex items-center gap-3.5 flex-1 min-w-0">
-                    <div className="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center flex-shrink-0 shadow-sm">
-                      <Layers className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-black text-sm text-slate-900 dark:text-slate-100 truncate">{batch.reference}</h3>
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase flex-shrink-0 ${
-                            batch.status === "ACTIVE"
-                              ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
-                              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
-                          }`}
-                        >
-                          {batch.status}
-                        </span>
-                        {batch.status === "ACTIVE" && isHighSellThrough && (
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-800 flex-shrink-0">
-                            🔥 {sellThrough}% Sold — Ready to Close
-                          </span>
-                        )}
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <Truck className="w-3.5 h-3.5 text-primary" />
+                      {batch.reference}
+                    </span>
+
+                    <Badge variant={isCompleted ? "secondary" : "success"}>
+                      {batch.status}
+                    </Badge>
+                  </div>
+
+                  <div className="text-xs text-muted-foreground flex items-center gap-2 mb-3">
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>Purchased {purchaseDateStr}</span>
+                    {batch.supplier && (
+                      <>
+                        <span>•</span>
+                        <span className="font-semibold text-foreground">{batch.supplier.name}</span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Financial Stats */}
+                  <div className="grid grid-cols-2 gap-2 p-3 rounded-xl bg-muted/40 border border-border/60 text-xs mb-3">
+                    <div>
+                      <div className="text-[10px] text-muted-foreground uppercase font-semibold">
+                        Total Investment
                       </div>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400 font-medium flex-wrap">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                          {new Date(batch.purchaseDate).toLocaleDateString()}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Package className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                          {batch.batchItems.length} line{batch.batchItems.length !== 1 ? "s" : ""}
-                        </span>
-                        {batch.additionalCosts > 0 && (
-                          <span className="flex items-center gap-1">
-                            <Truck className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                            Transport: {formatCurrency(batch.additionalCosts)}
-                          </span>
-                        )}
+                      <div className="font-black text-foreground mt-0.5">
+                        <Money amount={batch.totalInvestment} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-muted-foreground uppercase font-semibold">
+                        Landed Extra Costs
+                      </div>
+                      <div className="font-black text-muted-foreground mt-0.5">
+                        <Money amount={batch.additionalCosts} />
                       </div>
                     </div>
                   </div>
 
-                  {/* Middle — stats */}
-                  <div className="grid grid-cols-3 gap-4 text-xs bg-slate-50/70 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
-                    <div>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold block">Investment</span>
-                      <span className="font-black text-slate-900 dark:text-slate-100">{formatCurrency(batch.totalInvestment)}</span>
+                  {/* Sell-Through Progress Bar */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Sell-through rate</span>
+                      <span className="font-bold text-foreground">{progress}%</span>
                     </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold block">Profit ROI</span>
-                      <span className="font-bold text-slate-800 dark:text-slate-200">
-                        {sellThrough}% <span className="font-normal text-slate-400 dark:text-slate-500">Sold</span>
-                      </span>
+                    <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all duration-500"
+                        style={{ width: `${progress}%` }}
+                      />
                     </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold block">Stock Level</span>
-                      <span className="font-extrabold text-emerald-600 dark:text-emerald-400">{totalRemaining} / {totalPurchased}</span>
+                    <div className="flex justify-between text-[11px] text-muted-foreground">
+                      <span>{soldCount} units sold</span>
+                      <span>{totalRemaining} units left</span>
                     </div>
                   </div>
-
-                  {/* Right — Open button */}
-                  <button
-                    onClick={() => router.push(`/batches/${batch.id}`)}
-                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-2xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition-all shadow-md shadow-indigo-500/20 flex-shrink-0"
-                  >
-                    Open <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
                 </div>
-              </div>
+
+                {/* Footer Action */}
+                <div className="pt-4 mt-4 border-t border-border/60">
+                  <Button
+                    size="md"
+                    variant="outline"
+                    className="w-full justify-between group-hover:border-primary/60 group-hover:text-primary transition-all font-bold"
+                    onClick={() => router.push(`/batches/${batch.id}`)}
+                  >
+                    <span>Manage Shipment & Items</span>
+                    <ArrowRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+              </Card>
             );
           })}
         </div>
       )}
 
-      {/* Create Batch Header Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 dark:border-slate-800 space-y-5 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">New Restocking Batch</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Create the batch header first — then add products inside it
-                </p>
-              </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-              >
-                <X className="w-4 h-4" />
-              </button>
+      {/* CREATE BATCH SHEET */}
+      <Sheet
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Create Shipment Batch"
+        description="Initialize a new inventory purchase order or imported shipment"
+      >
+        <form onSubmit={handleCreateBatch} className="space-y-4 pt-2">
+          {formError && (
+            <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-xs font-semibold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{formError}</span>
             </div>
+          )}
 
-            {formError && (
-              <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                <span>{formError}</span>
-              </div>
-            )}
+          <Input
+            label="Shipment Reference / Invoice #"
+            value={reference}
+            onChange={(e) => setReference(e.target.value)}
+            placeholder="e.g. BATCH-202610-001"
+            required
+          />
 
-            {formSuccess && (
-              <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                <span>Batch created! Opening it now...</span>
-              </div>
-            )}
+          <Input
+            label="Purchase / Import Date"
+            type="date"
+            value={purchaseDate}
+            onChange={(e) => setPurchaseDate(e.target.value)}
+            required
+          />
 
-            <form onSubmit={handleCreateBatch} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Batch Name / Reference *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Market Run – Sept 26 or BATCH-20260926"
-                  value={reference}
-                  onChange={(e) => setReference(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                />
-              </div>
+          <Input
+            label="Additional Landed Costs (Logistics / Shipping GH₵)"
+            type="number"
+            step="any"
+            min="0"
+            value={additionalCosts}
+            onChange={(e) => setAdditionalCosts(e.target.value)}
+            placeholder="0.00"
+          />
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Purchase Date *</label>
-                  <input
-                    type="date"
-                    required
-                    value={purchaseDate}
-                    onChange={(e) => setPurchaseDate(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Transport Cost (GH₵)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={additionalCosts}
-                    onChange={(e) => setAdditionalCosts(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  />
-                </div>
-              </div>
+          {suppliers.length > 0 && (
+            <Select
+              label="Supplier / Vendor (Optional)"
+              value={supplierId}
+              onChange={(e) => setSupplierId(e.target.value)}
+              options={[
+                { value: "", label: "Select vendor (or leave blank)" },
+                ...suppliers.map((s) => ({ value: s.id, label: s.name })),
+              ]}
+            />
+          )}
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Supplier (Optional)
-                </label>
-                <select
-                  value={supplierId}
-                  onChange={(e) => setSupplierId(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                >
-                  <option value="">-- Select Supplier --</option>
-                  {suppliers.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          <Textarea
+            label="Shipment Notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Air freight tracking #, customs clearing notes..."
+          />
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Notes / Description
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Optional trip notes..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-lg shadow-indigo-500/25 transition-all disabled:opacity-50 flex items-center gap-2"
-                >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Creating...
-                    </>
-                  ) : (
-                    "Create Batch & Add Products →"
-                  )}
-                </button>
-              </div>
-            </form>
+          <div className="pt-2 flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setIsModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              className="flex-1 font-black"
+              isLoading={submitting}
+            >
+              Create & Add Items
+            </Button>
           </div>
-        </div>
-      )}
+        </form>
+      </Sheet>
     </div>
   );
 }

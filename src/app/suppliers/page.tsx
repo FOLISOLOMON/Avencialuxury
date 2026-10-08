@@ -1,24 +1,33 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { formatCurrency } from "@/lib/utils";
-import { PageHeader } from "@/components/ui/PageHeader";
+import {
+  Button,
+  IconButton,
+  Input,
+  Select,
+  Textarea,
+  SearchField,
+  Sheet,
+  Card,
+  Badge,
+  Money,
+} from "@/components/ui";
 import {
   Truck,
   Plus,
-  Search,
-  AlertTriangle,
-  CheckCircle2,
-  X,
-  Loader2,
   Phone,
   Mail,
   MapPin,
   PackageCheck,
   Calendar,
   Layers,
-  Edit,
-  Trash2,
+  Pencil,
+  AlertTriangle,
+  Building2,
+  DollarSign,
+  User,
 } from "lucide-react";
 
 interface BatchSummary {
@@ -48,14 +57,13 @@ export default function SuppliersPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
-  // Modal State
+  // Modal / Sheet State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [formSuccess, setFormSuccess] = useState(false);
 
-  // Detail Modal
+  // Detail Modal / Sheet
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
 
   // Form Fields
@@ -72,10 +80,10 @@ export default function SuppliersPage() {
     try {
       const res = await fetch(`/api/suppliers?search=${encodeURIComponent(search)}`);
       const json = await res.json();
-      if (json.success) setSuppliers(json.data);
+      if (json.success) setSuppliers(json.data || []);
       else setError(json.error || "Failed to load suppliers");
     } catch (err: any) {
-      setError(err.message || "Network error fetching suppliers");
+      setError(err.message || "Network error");
     } finally {
       setLoading(false);
     }
@@ -85,6 +93,7 @@ export default function SuppliersPage() {
     fetchSuppliers();
   }, [search]);
 
+  // Global Header Listener
   useEffect(() => {
     const handler = () => openCreateModal();
     window.addEventListener("avencia:open-add-supplier", handler);
@@ -100,7 +109,6 @@ export default function SuppliersPage() {
     setAddress("");
     setNotes("");
     setFormError(null);
-    setFormSuccess(false);
     setIsModalOpen(true);
   };
 
@@ -113,17 +121,15 @@ export default function SuppliersPage() {
     setAddress(s.address || "");
     setNotes(s.notes || "");
     setFormError(null);
-    setFormSuccess(false);
     setIsModalOpen(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSaveSupplier = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    setFormSuccess(false);
 
     if (!name.trim()) {
-      setFormError("Supplier name is required.");
+      setFormError("Supplier company or vendor name is required.");
       return;
     }
 
@@ -136,352 +142,343 @@ export default function SuppliersPage() {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name,
-          contactPerson: contactPerson || undefined,
-          phone: phone || undefined,
-          email: email || undefined,
-          address: address || undefined,
-          notes: notes || undefined,
+          name: name.trim(),
+          contactPerson: contactPerson.trim() || undefined,
+          phone: phone.trim() || undefined,
+          email: email.trim() || undefined,
+          address: address.trim() || undefined,
+          notes: notes.trim() || undefined,
         }),
       });
 
       const json = await res.json();
       if (json.success) {
-        setFormSuccess(true);
-        setTimeout(() => {
-          setIsModalOpen(false);
-          setFormSuccess(false);
-          fetchSuppliers();
-        }, 600);
+        setIsModalOpen(false);
+        fetchSuppliers();
       } else {
-        setFormError(json.error || "Failed to save supplier");
+        setFormError(json.error || "Could not save supplier");
       }
     } catch (err: any) {
-      setFormError(err.message || "Failed to connect to server");
+      setFormError(err.message || "Server error");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this supplier profile?")) return;
-    try {
-      const res = await fetch(`/api/suppliers/${id}`, { method: "DELETE" });
-      const json = await res.json();
-      if (json.success) {
-        fetchSuppliers();
-      } else {
-        alert(json.error || "Failed to delete supplier");
-      }
-    } catch (err: any) {
-      alert("Error deleting supplier");
-    }
-  };
-
-  const totalSuppliers = suppliers.length;
-  const grandTotalBatches = suppliers.reduce((sum, s) => sum + s.totalBatches, 0);
-  const grandTotalSpend = suppliers.reduce((sum, s) => sum + s.totalInvestment, 0);
+  // Metrics
+  const totalVendors = suppliers.length;
+  const totalCapitalDisbursed = useMemo(
+    () => suppliers.reduce((sum, s) => sum + Number(s.totalInvestment || 0), 0),
+    [suppliers]
+  );
+  const totalBatchesSupplied = useMemo(
+    () => suppliers.reduce((sum, s) => sum + (s.totalBatches || 0), 0),
+    [suppliers]
+  );
 
   return (
-    <div className="space-y-6 font-sans">
-      {/* Action Toolbar Header */}
-      <div className="flex items-center justify-between gap-4">
+    <div className="space-y-6 pb-24 md:pb-8">
+      {/* Header & Add Supplier Action */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-black text-[#171717] dark:text-[#F5F5F5] tracking-tight">Wholesale Supplier Directory</h2>
-          <p className="text-xs text-[#737373] dark:text-[#A3A3A3]">Manage vendor accounts, contact details, and procurement batches</p>
+          <h1 className="text-2xl font-black tracking-tight text-foreground">
+            Suppliers & Fragrance Houses
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Manage wholesale importers, perfumery suppliers & procurement history
+          </p>
         </div>
-        <button
-          onClick={() => {
-            setEditingSupplier(null);
-            setName("");
-            setContactPerson("");
-            setPhone("");
-            setEmail("");
-            setAddress("");
-            setNotes("");
-            setFormError(null);
-            setIsModalOpen(true);
-          }}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gold-500 hover:bg-gold-600 text-white font-bold text-xs shadow-lg shadow-gold-500/25 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+
+        <Button
+          onClick={openCreateModal}
+          size="md"
+          className="gap-2 font-bold self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
           <span>Add Supplier</span>
-        </button>
+        </Button>
       </div>
 
-      {/* Summary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-3xl border border-[#E5E2D8] dark:border-[#2A2A2A] shadow-xl shadow-gold-500/5 p-6 bg-white dark:bg-[#151515] space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#737373] dark:text-[#A3A3A3] uppercase">Active Suppliers</span>
-            <div className="p-2 rounded-xl bg-gold-500/15 text-gold-600 dark:text-gold-400 border border-gold-500/30">
-              <Truck className="w-4 h-4" />
-            </div>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <Card className="p-4">
+          <div className="flex items-center justify-between text-muted-foreground mb-1">
+            <span className="text-[11px] font-semibold uppercase">Total Vendors</span>
+            <Building2 className="w-4 h-4 text-primary" />
           </div>
-          <div className="text-2xl font-black text-[#171717] dark:text-[#F5F5F5]">{totalSuppliers}</div>
-          <p className="text-[11px] text-[#737373] dark:text-[#A3A3A3]">Wholesale partners</p>
-        </div>
+          <div className="text-2xl font-black text-foreground">{totalVendors}</div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">Active wholesale partners</div>
+        </Card>
 
-        <div className="rounded-3xl border border-[#E5E2D8] dark:border-[#2A2A2A] shadow-xl shadow-gold-500/5 p-6 bg-white dark:bg-[#151515] space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#737373] dark:text-[#A3A3A3] uppercase">Batches Supplied</span>
-            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60">
-              <Layers className="w-4 h-4" />
-            </div>
+        <Card className="p-4">
+          <div className="flex items-center justify-between text-muted-foreground mb-1">
+            <span className="text-[11px] font-semibold uppercase">Capital Disbursed</span>
+            <DollarSign className="w-4 h-4 text-primary" />
           </div>
-          <div className="text-2xl font-black text-[#171717] dark:text-[#F5F5F5]">{grandTotalBatches}</div>
-          <p className="text-[11px] text-[#737373] dark:text-[#A3A3A3]">Restocking trips</p>
-        </div>
+          <div className="text-2xl font-black text-foreground">
+            <Money amount={totalCapitalDisbursed} />
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">Total procurement volume</div>
+        </Card>
 
-        <div className="rounded-3xl border border-[#E5E2D8] dark:border-[#2A2A2A] shadow-xl shadow-gold-500/5 p-6 bg-white dark:bg-[#151515] space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#737373] dark:text-[#A3A3A3] uppercase">Total Procurement Spend</span>
-            <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/60">
-              <PackageCheck className="w-4 h-4" />
-            </div>
+        <Card className="p-4">
+          <div className="flex items-center justify-between text-muted-foreground mb-1">
+            <span className="text-[11px] font-semibold uppercase">Consignments Fulfilled</span>
+            <Truck className="w-4 h-4 text-primary" />
           </div>
-          <div className="text-2xl font-black text-[#171717] dark:text-[#F5F5F5]">{formatCurrency(grandTotalSpend)}</div>
-          <p className="text-[11px] text-[#737373] dark:text-[#A3A3A3]">Cumulative inventory investment</p>
-        </div>
+          <div className="text-2xl font-black text-foreground tabular-nums">
+            {totalBatchesSupplied}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">Shipment batches delivered</div>
+        </Card>
       </div>
 
-      {/* Filter & Search */}
-      <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-gold-500/5 p-4 bg-white dark:bg-slate-900 flex flex-col sm:flex-row gap-3 items-center justify-between">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
-          <input
-            type="text"
-            placeholder="Search suppliers by name, contact person, or phone..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-gold-500 dark:focus:ring-gold-500"
-          />
-        </div>
-        <button
-          onClick={openCreateModal}
-          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-gold-500 hover:bg-gold-600 text-slate-950 shadow-lg shadow-gold-500/20 transition-all font-bold text-xs whitespace-nowrap active:scale-95"
-        >
-          <Plus className="w-4 h-4" /> Add Supplier
-        </button>
-      </div>
+      {/* Search Toolbar */}
+      <Card className="p-3.5">
+        <SearchField
+          value={search}
+          onChange={setSearch}
+          placeholder="Search suppliers by company name or contact person..."
+        />
+      </Card>
 
-      {/* Supplier Directory Cards Grid */}
-      <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-gold-500/5 p-6 bg-white dark:bg-slate-900">
-        {loading ? (
-          <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
-            <Loader2 className="w-8 h-8 text-slate-400 dark:text-slate-500 animate-spin" />
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Loading suppliers directory...</p>
-          </div>
-        ) : error ? (
-          <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-4 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-            <span>{error}</span>
-          </div>
-        ) : suppliers.length === 0 ? (
-          <div className="text-center py-12 space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 mx-auto flex items-center justify-center">
-              <Truck className="w-6 h-6" />
-            </div>
-            <h3 className="font-bold text-slate-800 dark:text-slate-200 text-sm">No Suppliers Found</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-              {search ? "No suppliers match your search query." : "Add your wholesale suppliers to link them to restocking batches."}
-            </p>
-          </div>
-        ) : (
-          <>
-            {/* DESKTOP Table */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="text-slate-400 dark:text-slate-500 border-b border-slate-200 dark:border-slate-800 pb-2">
-                    <th className="font-semibold pb-2">Supplier Name</th>
-                    <th className="font-semibold pb-2">Contact Details</th>
-                    <th className="font-semibold pb-2">Batches Supplied</th>
-                    <th className="font-semibold pb-2">Total Spend</th>
-                    <th className="font-semibold pb-2 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                  {suppliers.map((s) => (
-                    <tr key={s.id} className="text-slate-800 dark:text-slate-200">
-                      <td className="py-3 font-bold text-slate-900 dark:text-slate-100">
-                        {s.name}
-                        {s.contactPerson && <span className="block text-[11px] text-slate-500 dark:text-slate-400 font-normal">Contact: {s.contactPerson}</span>}
-                      </td>
-                      <td className="py-3 text-slate-600 dark:text-slate-300">
-                        <div className="space-y-0.5">
-                          {s.phone && <div className="flex items-center gap-1"><Phone className="w-3 h-3 text-slate-400 dark:text-slate-500" /> {s.phone}</div>}
-                          {s.email && <div className="flex items-center gap-1 text-[11px]"><Mail className="w-3 h-3 text-slate-400 dark:text-slate-500" /> {s.email}</div>}
-                          {!s.phone && !s.email && "—"}
-                        </div>
-                      </td>
-                      <td className="py-3 font-medium">{s.totalBatches} batches</td>
-                      <td className="py-3 font-black text-slate-900 dark:text-slate-100">{formatCurrency(s.totalInvestment)}</td>
-                      <td className="py-3 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button onClick={() => setSelectedSupplier(s)} className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold text-[11px]">Procurement Details</button>
-                          <button onClick={() => openEditModal(s)} className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"><Edit className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => handleDelete(s.id)} className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/50"><Trash2 className="w-3.5 h-3.5" /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* MOBILE Cards */}
-            <div className="md:hidden space-y-3">
-              {suppliers.map((s) => (
-                <div key={s.id} className="bg-slate-50 dark:bg-slate-800/80 rounded-2xl p-4 border border-slate-200 dark:border-slate-700/60 space-y-3">
-                  <div className="flex items-start justify-between gap-2">
+      {/* Suppliers Cards Grid */}
+      {suppliers.length === 0 ? (
+        <Card className="p-12 text-center text-muted-foreground">
+          <Truck className="w-10 h-10 mx-auto mb-3 opacity-30" />
+          <p className="text-sm font-semibold">No suppliers found</p>
+          <p className="text-xs mt-1">Register a new vendor to link shipment batches</p>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {suppliers.map((s) => (
+            <Card
+              key={s.id}
+              className="p-5 flex flex-col justify-between hover:border-primary/40 transition-all group"
+            >
+              <div>
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 font-black text-xs">
+                      {s.name.slice(0, 2).toUpperCase()}
+                    </div>
                     <div>
-                      <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100">{s.name}</h4>
-                      {s.contactPerson && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Attn: {s.contactPerson}</p>}
-                    </div>
-                    <span className="font-black text-sm text-slate-900 dark:text-slate-100">{formatCurrency(s.totalInvestment)}</span>
-                  </div>
-
-                  <div className="text-xs text-slate-600 dark:text-slate-300 space-y-1 pt-1 border-t border-slate-200 dark:border-slate-700">
-                    {s.phone && <p className="flex items-center gap-1.5"><Phone className="w-3 h-3 text-slate-400 dark:text-slate-500" /> {s.phone}</p>}
-                    {s.email && <p className="flex items-center gap-1.5"><Mail className="w-3 h-3 text-slate-400 dark:text-slate-500" /> {s.email}</p>}
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700">
-                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">{s.totalBatches} batches supplied</span>
-                    <div className="flex items-center gap-1.5">
-                      <button onClick={() => setSelectedSupplier(s)} className="px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold">Details</button>
-                      <button onClick={() => openEditModal(s)} className="p-1.5 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300"><Edit className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => handleDelete(s.id)} className="p-1.5 rounded-lg bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300"><Trash2 className="w-3.5 h-3.5" /></button>
+                      <h3 className="text-sm font-bold text-foreground leading-snug line-clamp-1">
+                        {s.name}
+                      </h3>
+                      {s.contactPerson && (
+                        <div className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <User className="w-3 h-3" />
+                          <span>{s.contactPerson}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
+
+                  <IconButton
+                    aria-label={`Edit ${s.name}`}
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => openEditModal(s)}
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </IconButton>
                 </div>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
 
-      {/* Add / Edit Supplier Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">
-                  {editingSupplier ? "Edit Supplier" : "Add Wholesale Supplier"}
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Contact & procurement information</p>
-              </div>
-              <button onClick={() => setIsModalOpen(false)} className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {formError && (
-              <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                <span>{formError}</span>
-              </div>
-            )}
-
-            {formSuccess && (
-              <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                <span>Supplier saved successfully!</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Company / Supplier Name *</label>
-                <input type="text" required placeholder="e.g. Fragrance World Wholesale" value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-gold-500 dark:focus:ring-gold-500" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Contact Person</label>
-                  <input type="text" placeholder="e.g. Mr. Ibrahim" value={contactPerson}
-                    onChange={(e) => setContactPerson(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-gold-500 dark:focus:ring-gold-500" />
+                {/* Contact Details */}
+                <div className="space-y-1 text-xs text-muted-foreground my-3">
+                  {s.phone && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-3.5 h-3.5" />
+                      <span>{s.phone}</span>
+                    </div>
+                  )}
+                  {s.email && (
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-3.5 h-3.5" />
+                      <span>{s.email}</span>
+                    </div>
+                  )}
+                  {s.address && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-3.5 h-3.5" />
+                      <span className="line-clamp-1">{s.address}</span>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Phone Number</label>
-                  <input type="text" placeholder="e.g. 0244123456" value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-gold-500 dark:focus:ring-gold-500" />
+
+                {/* Volume Stats */}
+                <div className="grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-muted/40 border border-border/60 text-xs">
+                  <div>
+                    <div className="text-[10px] text-muted-foreground uppercase font-semibold">
+                      Batches
+                    </div>
+                    <div className="font-bold text-foreground mt-0.5">{s.totalBatches}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-muted-foreground uppercase font-semibold">
+                      Total Disbursed
+                    </div>
+                    <div className="font-black text-foreground mt-0.5">
+                      <Money amount={s.totalInvestment} />
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Email Address</label>
-                <input type="email" placeholder="e.g. sales@fragranceworld.com" value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-gold-500 dark:focus:ring-gold-500" />
+              {/* Detail Action */}
+              <div className="pt-3 mt-3 border-t border-border/60">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="w-full text-xs"
+                  onClick={() => setSelectedSupplier(s)}
+                >
+                  View Shipment History ({s.batches?.length || 0})
+                </Button>
               </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Physical Address / Market Location</label>
-                <input type="text" placeholder="e.g. Makola Market, Block C #14" value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-gold-500 dark:focus:ring-gold-500" />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">Cancel</button>
-                <button type="submit" disabled={submitting} className="px-5 py-2 rounded-xl bg-gold-500 hover:bg-gold-600 text-slate-950 shadow-lg shadow-gold-500/20 transition-all text-xs font-bold disabled:opacity-50 flex items-center gap-2">
-                  {submitting ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...</> : "Save Supplier"}
-                </button>
-              </div>
-            </form>
-          </div>
+            </Card>
+          ))}
         </div>
       )}
 
-      {/* Procurement History Modal */}
-      {selectedSupplier && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 max-w-lg w-full p-6 shadow-2xl space-y-5 max-h-[85vh] overflow-y-auto animate-in fade-in duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">{selectedSupplier.name}</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Procurement & restocking history modal</p>
+      {/* CREATE / EDIT SUPPLIER SHEET */}
+      <Sheet
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingSupplier ? "Edit Supplier" : "Add New Supplier"}
+        description="Vendor details for inventory procurement & batch linking"
+      >
+        <form onSubmit={handleSaveSupplier} className="space-y-4 pt-2">
+          {formError && (
+            <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-xs font-semibold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{formError}</span>
+            </div>
+          )}
+
+          <Input
+            label="Company / Vendor Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Dubai Perfume Wholesalers Ltd"
+            required
+          />
+
+          <Input
+            label="Contact Person"
+            value={contactPerson}
+            onChange={(e) => setContactPerson(e.target.value)}
+            placeholder="e.g. Tariq Al-Mansoor"
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Phone Number"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+971 50 123 4567"
+            />
+            <Input
+              label="Email Address"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="orders@vendor.com"
+            />
+          </div>
+
+          <Input
+            label="Address / Warehouse Location"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder="Deira Gold Souk, Dubai, UAE"
+          />
+
+          <Textarea
+            label="Vendor Notes / Terms"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Payment terms, minimum order quantities..."
+          />
+
+          <div className="pt-2 flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setIsModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              className="flex-1 font-black"
+              isLoading={submitting}
+            >
+              {editingSupplier ? "Update Supplier" : "Save Supplier"}
+            </Button>
+          </div>
+        </form>
+      </Sheet>
+
+      {/* SUPPLIER DETAIL SHEET */}
+      <Sheet
+        isOpen={!!selectedSupplier}
+        onClose={() => setSelectedSupplier(null)}
+        title={selectedSupplier?.name || "Supplier Consignments"}
+        description={selectedSupplier?.contactPerson || "Vendor details"}
+      >
+        {selectedSupplier && (
+          <div className="space-y-4 pt-2 text-xs">
+            <div className="p-3 rounded-2xl bg-muted/40 border border-border space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total Capital Disbursed</span>
+                <span className="font-black text-foreground">
+                  {formatCurrency(selectedSupplier.totalInvestment)}
+                </span>
               </div>
-              <button onClick={() => setSelectedSupplier(null)} className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700">
-                <X className="w-4 h-4" />
-              </button>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Consignments Delivered</span>
+                <span className="font-bold text-foreground">{selectedSupplier.totalBatches}</span>
+              </div>
             </div>
 
-            <div className="bg-slate-50 dark:bg-slate-800/70 rounded-2xl p-4 space-y-2 border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300">
-              {selectedSupplier.contactPerson && <p className="font-medium"><strong className="text-slate-900 dark:text-slate-100">Contact Person:</strong> {selectedSupplier.contactPerson}</p>}
-              {selectedSupplier.phone && <p className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" /> {selectedSupplier.phone}</p>}
-              {selectedSupplier.email && <p className="flex items-center gap-2"><Mail className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" /> {selectedSupplier.email}</p>}
-              {selectedSupplier.address && <p className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" /> {selectedSupplier.address}</p>}
-            </div>
-
-            <div className="space-y-3 pt-2">
-              <h4 className="font-bold text-xs text-slate-900 dark:text-slate-100">Procurement Batches Purchased ({selectedSupplier.batches.length})</h4>
-              {selectedSupplier.batches.length === 0 ? (
-                <p className="text-xs text-slate-400 dark:text-slate-500">No batches linked to this supplier yet.</p>
+            <div>
+              <h4 className="font-bold text-foreground mb-2">Shipment Batches Supplied</h4>
+              {(!selectedSupplier.batches || selectedSupplier.batches.length === 0) ? (
+                <p className="text-muted-foreground italic">No batches linked to this vendor yet.</p>
               ) : (
                 <div className="space-y-2">
                   {selectedSupplier.batches.map((b) => (
-                    <div key={b.id} className="bg-white dark:bg-slate-800 rounded-xl p-3 border border-slate-200 dark:border-slate-700 text-xs flex items-center justify-between">
+                    <div
+                      key={b.id}
+                      className="p-3 rounded-xl bg-card border border-border flex items-center justify-between"
+                    >
                       <div>
-                        <span className="font-bold text-slate-900 dark:text-slate-100">{b.reference}</span>
-                        <p className="text-[10px] text-slate-400 dark:text-slate-500">{new Date(b.purchaseDate).toLocaleDateString()}</p>
+                        <div className="font-bold text-foreground">{b.reference}</div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {new Date(b.purchaseDate).toLocaleDateString()}
+                        </div>
                       </div>
-                      <span className="font-black text-slate-900 dark:text-slate-100">{formatCurrency(b.totalInvestment)}</span>
+                      <div className="text-right">
+                        <div className="font-black text-foreground">
+                          {formatCurrency(b.totalInvestment)}
+                        </div>
+                        <Badge variant={b.status === "COMPLETED" ? "secondary" : "success"}>
+                          {b.status}
+                        </Badge>
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Sheet>
     </div>
   );
 }

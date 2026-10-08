@@ -1,8 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { formatCurrency } from "@/lib/utils";
-import { PageHeader } from "@/components/ui/PageHeader";
+import {
+  Button,
+  IconButton,
+  Input,
+  Select,
+  Textarea,
+  SearchField,
+  Sheet,
+  Card,
+  Badge,
+  Money,
+} from "@/components/ui";
 import {
   Boxes,
   AlertTriangle,
@@ -10,34 +21,35 @@ import {
   ArrowDownRight,
   Search,
   Filter,
-  Loader2,
   DollarSign,
   TrendingUp,
   PackageCheck,
   History,
   Plus,
-  Share2,
   CheckCircle2,
-  X,
+  SlidersHorizontal,
+  Sparkles,
 } from "lucide-react";
+
+interface InventoryProduct {
+  id: string;
+  name: string;
+  sku: string | null;
+  category: string | null;
+  lowStockThreshold: number;
+  stockUnits: number;
+  stockCostValue: number;
+  potentialRevenue: number;
+  isLowStock: boolean;
+  activeBatchesCount: number;
+}
 
 interface InventorySummary {
   totalUnitsInStock: number;
   totalStockCostValue: number;
   totalStockPotentialRevenue: number;
   lowStockCount: number;
-  products: Array<{
-    id: string;
-    name: string;
-    sku: string | null;
-    category: string | null;
-    lowStockThreshold: number;
-    stockUnits: number;
-    stockCostValue: number;
-    potentialRevenue: number;
-    isLowStock: boolean;
-    activeBatchesCount: number;
-  }>;
+  products: InventoryProduct[];
 }
 
 interface InventoryTxn {
@@ -62,33 +74,32 @@ export default function InventoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Stock Adjustment Modal
-  const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
+  // Operational Filter Tabs
+  const [activeTab, setActiveTab] = useState<"ALL" | "LOW_STOCK" | "OUT_OF_STOCK" | "LEDGER">("ALL");
+  const [search, setSearch] = useState("");
+
+  // Stock Adjustment Sheet
+  const [isAdjustOpen, setIsAdjustOpen] = useState(false);
   const [adjustProductId, setAdjustProductId] = useState("");
-  const [adjustType, setAdjustType] = useState<"DAMAGE" | "TESTER" | "LOSS" | "ADJUSTMENT_IN" | "ADJUSTMENT_OUT">("DAMAGE");
+  const [adjustType, setAdjustType] = useState<
+    "DAMAGE" | "TESTER" | "LOSS" | "ADJUSTMENT_IN" | "ADJUSTMENT_OUT"
+  >("DAMAGE");
   const [adjustQuantity, setAdjustQuantity] = useState("1");
   const [adjustNote, setAdjustNote] = useState("");
   const [adjustSubmitting, setAdjustSubmitting] = useState(false);
   const [adjustError, setAdjustError] = useState<string | null>(null);
-  const [adjustSuccess, setAdjustSuccess] = useState(false);
-
-  // Operational Filter Tabs
-  const [activeTab, setActiveTab] = useState<"ALL" | "LOW_STOCK" | "OUT_OF_STOCK" | "ADJUSTMENTS">("ALL");
-  const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState<string>("ALL");
 
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const typeParam = typeFilter !== "ALL" ? `&type=${typeFilter}` : "";
-      const searchParam = search ? `&search=${encodeURIComponent(search)}` : "";
-      const res = await fetch(`/api/inventory?${typeParam}${searchParam}`);
+      const searchParam = search ? `?search=${encodeURIComponent(search)}` : "";
+      const res = await fetch(`/api/inventory${searchParam}`);
       const json = await res.json();
 
       if (json.success) {
         setSummary(json.data.summary);
-        setLedger(json.data.ledger);
+        setLedger(json.data.ledger || []);
       } else {
         setError(json.error || "Failed to load inventory data");
       }
@@ -101,20 +112,24 @@ export default function InventoryPage() {
 
   useEffect(() => {
     fetchData();
-  }, [typeFilter, search]);
+  }, [search]);
 
-  const handleAdjustStock = async (e: React.FormEvent) => {
+  const openAdjustModal = (productId?: string) => {
+    setAdjustProductId(productId || (summary?.products[0]?.id || ""));
+    setAdjustType("DAMAGE");
+    setAdjustQuantity("1");
+    setAdjustNote("");
+    setAdjustError(null);
+    setIsAdjustOpen(true);
+  };
+
+  const handleAdjustSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAdjustError(null);
-    setAdjustSuccess(false);
 
-    if (!adjustProductId) {
-      setAdjustError("Please select a product to adjust.");
-      return;
-    }
     const qty = parseInt(adjustQuantity);
     if (isNaN(qty) || qty <= 0) {
-      setAdjustError("Please enter a valid quantity greater than 0.");
+      setAdjustError("Quantity must be a positive number.");
       return;
     }
 
@@ -127,584 +142,396 @@ export default function InventoryPage() {
           productId: adjustProductId,
           type: adjustType,
           quantity: qty,
-          note: adjustNote || undefined,
+          note: adjustNote.trim() || undefined,
         }),
       });
 
       const json = await res.json();
       if (json.success) {
-        setAdjustSuccess(true);
-        setTimeout(() => {
-          setIsAdjustModalOpen(false);
-          setAdjustSuccess(false);
-          setAdjustProductId("");
-          setAdjustQuantity("1");
-          setAdjustNote("");
-          fetchData();
-        }, 800);
+        setIsAdjustOpen(false);
+        fetchData();
       } else {
-        setAdjustError(json.error || "Failed to adjust stock");
+        setAdjustError(json.error || "Adjustment failed");
       }
     } catch (err: any) {
-      setAdjustError(err.message || "Network error adjusting stock");
+      setAdjustError(err.message || "Server error");
     } finally {
       setAdjustSubmitting(false);
     }
   };
 
-  const getWhatsAppReorderLink = (productName: string, currentStock: number) => {
-    const msg = `Hello! We would like to reorder "${productName}". Current stock: ${currentStock} unit(s). Please confirm availability and wholesale pricing.`;
-    return `https://wa.me/?text=${encodeURIComponent(msg)}`;
-  };
+  const products = summary?.products || [];
 
-  const getTypeBadgeClass = (type: string) => {
-    switch (type) {
-      case "PURCHASE":
-      case "ADJUSTMENT_IN":
-      case "RETURN":
-        return "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800";
-      case "SALE":
-      case "ADJUSTMENT_OUT":
-        return "bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800";
-      case "DAMAGE":
-      case "LOSS":
-      case "TESTER":
-        return "bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800";
-      default:
-        return "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700";
-    }
-  };
-
-  const outOfStockCount = summary?.products.filter((p) => p.stockUnits === 0).length || 0;
-
-  const filteredInventoryProducts = (summary?.products || []).filter((p) => {
-    if (activeTab === "LOW_STOCK") return p.isLowStock;
-    if (activeTab === "OUT_OF_STOCK") return p.stockUnits === 0;
-    return true;
-  });
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      if (activeTab === "LOW_STOCK") return p.isLowStock && p.stockUnits > 0;
+      if (activeTab === "OUT_OF_STOCK") return p.stockUnits <= 0;
+      return true;
+    });
+  }, [products, activeTab]);
 
   return (
-    <div className="space-y-6 font-sans">
-      {loading && !summary ? (
-        <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-12 bg-white dark:bg-slate-900 flex flex-col items-center justify-center text-center space-y-3">
-          <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
-          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Calculating inventory metrics...</p>
+    <div className="space-y-6 pb-24 md:pb-8">
+      {/* Header & Adjust Action */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black tracking-tight text-foreground">
+            Inventory & Stock Auditing
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Real-time stock valuation, tester/damage write-offs & audit trail
+          </p>
         </div>
-      ) : error ? (
-        <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-4 rounded-3xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-3">
-          <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-          <span>{error}</span>
-        </div>
-      ) : (
-        <>
-          {/* Real-time KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Total Units</span>
-                <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
-                  <Boxes className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{summary?.totalUnitsInStock || 0}</div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">Active units remaining in stock</p>
-            </div>
 
-            <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Inventory Value</span>
-                <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400">
-                  <DollarSign className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="text-2xl font-black text-slate-900 dark:text-slate-100">
-                {formatCurrency(summary?.totalStockCostValue || 0)}
-              </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">Total acquisition cost value</p>
-            </div>
+        <Button
+          onClick={() => openAdjustModal()}
+          size="md"
+          className="gap-2 font-bold self-start sm:self-auto"
+        >
+          <SlidersHorizontal className="w-4 h-4" />
+          <span>Adjust Stock</span>
+        </Button>
+      </div>
 
-            <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Low Stock</span>
-                <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400">
-                  <AlertTriangle className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="text-2xl font-black text-amber-600 dark:text-amber-400">{summary?.lowStockCount || 0}</div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">Products at or below threshold</p>
-            </div>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <Card className="p-4">
+          <div className="flex items-center justify-between text-muted-foreground mb-1">
+            <span className="text-[11px] font-semibold uppercase">Total Stock Units</span>
+            <Boxes className="w-4 h-4 text-primary" />
+          </div>
+          <div className="text-2xl font-black text-foreground tabular-nums">
+            {summary?.totalUnitsInStock || 0}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">Physical bottles on hand</div>
+        </Card>
 
-            <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-5 bg-white dark:bg-slate-900 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Out of Stock</span>
-                <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400">
-                  <X className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="text-2xl font-black text-rose-600 dark:text-rose-400">{outOfStockCount}</div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">Products with 0 units remaining</p>
-            </div>
+        <Card className="p-4">
+          <div className="flex items-center justify-between text-muted-foreground mb-1">
+            <span className="text-[11px] font-semibold uppercase">Wholesale Value</span>
+            <DollarSign className="w-4 h-4 text-primary" />
+          </div>
+          <div className="text-2xl font-black text-foreground">
+            <Money amount={summary?.totalStockCostValue || 0} />
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">Total inventory cost</div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between text-muted-foreground mb-1">
+            <span className="text-[11px] font-semibold uppercase">Potential Revenue</span>
+            <TrendingUp className="w-4 h-4 text-success" />
+          </div>
+          <div className="text-2xl font-black text-success">
+            <Money amount={summary?.totalStockPotentialRevenue || 0} />
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">At current selling prices</div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between text-muted-foreground mb-1">
+            <span className="text-[11px] font-semibold uppercase">Low Stock SKUs</span>
+            <AlertTriangle className="w-4 h-4 text-warning" />
+          </div>
+          <div className="text-2xl font-black text-warning">
+            {summary?.lowStockCount || 0}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">Below alert threshold</div>
+        </Card>
+      </div>
+
+      {/* Filter Toolbar */}
+      <Card className="p-3.5 space-y-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex-1">
+            <SearchField
+              value={search}
+              onChange={setSearch}
+              placeholder="Search inventory by product name or SKU..."
+            />
           </div>
 
-          {/* Operational Filter Tabs & Stock Adjustment Button */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5">
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-              <button
-                onClick={() => setActiveTab("ALL")}
-                className={`px-4 py-2 rounded-full text-xs font-bold transition-all focus:outline-none ${
-                  activeTab === "ALL"
-                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-                }`}
-              >
-                All Stock ({summary?.products.length || 0})
-              </button>
-              <button
-                onClick={() => setActiveTab("LOW_STOCK")}
-                className={`px-4 py-2 rounded-full text-xs font-bold transition-all focus:outline-none ${
-                  activeTab === "LOW_STOCK"
-                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-                }`}
-              >
-                Low Stock ({summary?.lowStockCount || 0})
-              </button>
-              <button
-                onClick={() => setActiveTab("OUT_OF_STOCK")}
-                className={`px-4 py-2 rounded-full text-xs font-bold transition-all focus:outline-none ${
-                  activeTab === "OUT_OF_STOCK"
-                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-                }`}
-              >
-                Out of Stock ({outOfStockCount})
-              </button>
-              <button
-                onClick={() => setActiveTab("ADJUSTMENTS")}
-                className={`px-4 py-2 rounded-full text-xs font-bold transition-all focus:outline-none ${
-                  activeTab === "ADJUSTMENTS"
-                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-                }`}
-              >
-                Adjustments & Audit Log ({ledger.length})
-              </button>
-            </div>
+          <div className="inline-flex p-1 bg-muted rounded-xl border border-border self-start sm:self-auto overflow-x-auto">
             <button
-              onClick={() => {
-                setAdjustError(null);
-                setIsAdjustModalOpen(true);
-              }}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-lg shadow-indigo-500/25 transition-all whitespace-nowrap active:scale-95"
+              type="button"
+              onClick={() => setActiveTab("ALL")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+                activeTab === "ALL"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
             >
-              <Plus className="w-4 h-4 text-amber-300" />
-              <span>Stock Adjustment</span>
+              All Stock ({products.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("LOW_STOCK")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+                activeTab === "LOW_STOCK"
+                  ? "bg-card text-warning shadow-sm font-black"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Low Stock ({summary?.lowStockCount || 0})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("OUT_OF_STOCK")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+                activeTab === "OUT_OF_STOCK"
+                  ? "bg-card text-destructive shadow-sm font-black"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Out of Stock
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("LEDGER")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+                activeTab === "LEDGER"
+                  ? "bg-card text-primary shadow-sm font-black"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Audit Trail ({ledger.length})
             </button>
           </div>
+        </div>
+      </Card>
 
-          {activeTab !== "ADJUSTMENTS" ? (
-            /* Product Stock Table & Cards */
-            <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-6 bg-white dark:bg-slate-900 space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                  <PackageCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  {activeTab === "LOW_STOCK"
-                    ? "Low Stock Alert Items"
-                    : activeTab === "OUT_OF_STOCK"
-                    ? "Out of Stock Items"
-                    : "Current Stock Levels by Product"}
-                </h3>
-                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                  {filteredInventoryProducts.length} Product{filteredInventoryProducts.length !== 1 ? "s" : ""}
-                </span>
-              </div>
+      {/* Inventory Products List (Tab: ALL, LOW_STOCK, OUT_OF_STOCK) */}
+      {activeTab !== "LEDGER" && (
+        <div className="space-y-3">
+          {filteredProducts.length === 0 ? (
+            <Card className="p-12 text-center text-muted-foreground">
+              <Boxes className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p className="text-sm font-semibold">No products match this stock filter</p>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {filteredProducts.map((p) => {
+                const isOut = p.stockUnits <= 0;
+                const isLow = p.isLowStock && !isOut;
 
-              {filteredInventoryProducts.length === 0 ? (
-                <div className="p-8 text-center space-y-2">
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">No products match this operational filter.</p>
-                </div>
-              ) : (
-                <>
-                  {/* DESKTOP table */}
-                  <div className="hidden md:block overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead>
-                        <tr className="text-slate-400 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 pb-2">
-                          <th className="font-semibold pb-2">Product Name</th>
-                          <th className="font-semibold pb-2">Category</th>
-                          <th className="font-semibold pb-2">Active Batches</th>
-                          <th className="font-semibold pb-2">Units in Stock</th>
-                          <th className="font-semibold pb-2">Stock Cost</th>
-                          <th className="font-semibold pb-2">Potential Revenue</th>
-                          <th className="font-semibold pb-2 text-right">Status / Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {filteredInventoryProducts.map((p) => (
-                          <tr key={p.id} className="text-slate-800 dark:text-slate-200 hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
-                            <td className="py-3 font-bold text-slate-900 dark:text-slate-100">
-                              {p.name}
-                              {p.sku && <span className="text-slate-400 dark:text-slate-500 font-normal ml-1">({p.sku})</span>}
-                            </td>
-                            <td className="py-3 text-slate-600 dark:text-slate-400">{p.category || "—"}</td>
-                            <td className="py-3 text-slate-600 dark:text-slate-400">{p.activeBatchesCount} batches</td>
-                            <td className={`py-3 font-extrabold ${p.isLowStock ? "text-amber-700 dark:text-amber-400" : p.stockUnits === 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-900 dark:text-slate-100"}`}>
-                              {p.stockUnits} units
-                            </td>
-                            <td className="py-3 font-semibold text-slate-700 dark:text-slate-300">{formatCurrency(p.stockCostValue)}</td>
-                            <td className="py-3 font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(p.potentialRevenue)}</td>
-                            <td className="py-3 text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                {p.isLowStock ? (
-                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                                    Low Stock
-                                  </span>
-                                ) : p.stockUnits === 0 ? (
-                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
-                                    Out of Stock
-                                  </span>
-                                ) : (
-                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                                    In Stock
-                                  </span>
-                                )}
+                return (
+                  <Card
+                    key={p.id}
+                    className="p-4 flex flex-col justify-between hover:border-primary/40 transition-all"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                          {p.category || "Perfumes"}
+                        </span>
+                        {isOut ? (
+                          <Badge variant="destructive">0 Units</Badge>
+                        ) : isLow ? (
+                          <Badge variant="warning">{p.stockUnits} Low Stock</Badge>
+                        ) : (
+                          <Badge variant="success">{p.stockUnits} In Stock</Badge>
+                        )}
+                      </div>
 
-                                {(p.isLowStock || p.stockUnits === 0) && (
-                                  <a
-                                    href={getWhatsAppReorderLink(p.name, p.stockUnits)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="px-2.5 py-1 rounded-xl bg-emerald-600 text-white font-bold text-[11px] hover:bg-emerald-700 transition-colors inline-flex items-center gap-1 shadow-sm"
-                                    title="Reorder via WhatsApp"
-                                  >
-                                    <Share2 className="w-3 h-3" /> Reorder
-                                  </a>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                      <h3 className="text-sm font-bold text-foreground line-clamp-1">{p.name}</h3>
+                      {p.sku && (
+                        <div className="text-[11px] text-muted-foreground mt-0.5">SKU: {p.sku}</div>
+                      )}
 
-                  {/* MOBILE cards */}
-                  <div className="md:hidden space-y-4 mb-4">
-                    {filteredInventoryProducts.map((p) => (
-                      <div key={p.id} className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 space-y-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="font-bold text-sm text-slate-900 dark:text-slate-100">{p.name}</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                              {p.category || "General"} • {p.activeBatchesCount} batch(es)
-                            </p>
+                      {/* Stock Valuation Breakdown */}
+                      <div className="grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-muted/40 border border-border/60 text-xs mt-3">
+                        <div>
+                          <div className="text-[10px] text-muted-foreground uppercase font-semibold">
+                            Cost Value
                           </div>
-                          <div className="flex flex-col items-end gap-1">
-                            {p.isLowStock ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                                Low Stock
-                              </span>
-                            ) : p.stockUnits === 0 ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
-                                Out of Stock
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                                In Stock
-                              </span>
-                            )}
+                          <div className="font-bold text-foreground mt-0.5">
+                            <Money amount={p.stockCostValue} />
                           </div>
                         </div>
-
-                        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200 dark:border-slate-700 text-xs">
-                          <div>
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 block">In Stock</span>
-                            <span className={`font-bold ${p.isLowStock ? "text-amber-700 dark:text-amber-400" : "text-slate-900 dark:text-slate-100"}`}>
-                              {p.stockUnits} units
-                            </span>
+                        <div>
+                          <div className="text-[10px] text-muted-foreground uppercase font-semibold">
+                            Potential Rev
                           </div>
-                          <div>
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 block">Stock Cost</span>
-                            <span className="font-bold text-slate-800 dark:text-slate-200">{formatCurrency(p.stockCostValue)}</span>
-                          </div>
-                          <div>
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 block">Potential</span>
-                            <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(p.potentialRevenue)}</span>
+                          <div className="font-bold text-success mt-0.5">
+                            <Money amount={p.potentialRevenue} />
                           </div>
                         </div>
+                      </div>
+                    </div>
 
-                        {(p.isLowStock || p.stockUnits === 0) && (
-                          <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
-                            <a
-                              href={getWhatsAppReorderLink(p.name, p.stockUnits)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="w-full py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5"
-                            >
-                              <Share2 className="w-3.5 h-3.5" /> Reorder via WhatsApp
-                            </a>
+                    <div className="pt-3 mt-3 border-t border-border/60 flex items-center justify-between">
+                      <span className="text-[11px] text-muted-foreground">
+                        {p.activeBatchesCount} active {p.activeBatchesCount === 1 ? "batch" : "batches"}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openAdjustModal(p.id)}
+                        className="text-xs"
+                      >
+                        Adjust
+                      </Button>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Audit History Ledger (Tab: LEDGER) */}
+      {activeTab === "LEDGER" && (
+        <Card className="p-4 space-y-3">
+          <div className="pb-3 border-b border-border flex items-center justify-between">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <History className="w-4 h-4 text-primary" />
+              Recent Inventory Audit Entries
+            </h3>
+            <span className="text-xs text-muted-foreground">{ledger.length} events logged</span>
+          </div>
+
+          {ledger.length === 0 ? (
+            <div className="py-12 text-center text-muted-foreground">
+              <History className="w-8 h-8 mx-auto mb-2 opacity-30" />
+              <p className="text-xs font-semibold">No ledger entries recorded yet</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {ledger.map((txn) => {
+                const isDeduction =
+                  txn.type === "SALE" ||
+                  txn.type === "DAMAGE" ||
+                  txn.type === "TESTER" ||
+                  txn.type === "LOSS" ||
+                  txn.type === "ADJUSTMENT_OUT";
+
+                return (
+                  <div
+                    key={txn.id}
+                    className="p-3 rounded-xl bg-card border border-border/80 flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+                          isDeduction
+                            ? "bg-destructive/10 text-destructive"
+                            : "bg-success/10 text-success"
+                        }`}
+                      >
+                        {isDeduction ? (
+                          <ArrowDownRight className="w-4 h-4" />
+                        ) : (
+                          <ArrowUpRight className="w-4 h-4" />
+                        )}
+                      </div>
+
+                      <div>
+                        <div className="font-bold text-foreground">{txn.product.name}</div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2">
+                          <Badge variant="outline">{txn.type}</Badge>
+                          <span>{new Date(txn.createdAt).toLocaleString()}</span>
+                          {txn.batch && <span>• Batch: {txn.batch.reference}</span>}
+                        </div>
+                        {txn.note && (
+                          <div className="text-[11px] text-muted-foreground mt-1 italic">
+                            "{txn.note}"
                           </div>
                         )}
                       </div>
-                    ))}
+                    </div>
+
+                    <div className="text-right">
+                      <div
+                        className={`text-sm font-black tabular-nums ${
+                          isDeduction ? "text-destructive" : "text-success"
+                        }`}
+                      >
+                        {isDeduction ? `-${txn.quantity}` : `+${txn.quantity}`} units
+                      </div>
+                    </div>
                   </div>
-                </>
-              )}
-            </div>
-          ) : (
-            /* Inventory Audit Ledger view */
-            <div className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 p-6 bg-white dark:bg-slate-900 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
-                <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                    <History className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                    Inventory Audit Ledger
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">History of stock movement & adjustments</p>
-                </div>
-
-                {/* Type Filter */}
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-                  {["ALL", "PURCHASE", "SALE", "ADJUSTMENT_IN", "ADJUSTMENT_OUT", "DAMAGE"].map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setTypeFilter(t)}
-                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all focus:outline-none ${
-                        typeFilter === t
-                          ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
-                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {ledger.length === 0 ? (
-                <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-8">No inventory transaction logs found.</p>
-              ) : (
-                <>
-                  {/* DESKTOP table */}
-                  <div className="hidden md:block overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead>
-                        <tr className="text-slate-400 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 pb-2">
-                          <th className="font-semibold pb-2">Timestamp</th>
-                          <th className="font-semibold pb-2">Product</th>
-                          <th className="font-semibold pb-2">Transaction Type</th>
-                          <th className="font-semibold pb-2">Qty Change</th>
-                          <th className="font-semibold pb-2">Batch / Ref</th>
-                          <th className="font-semibold pb-2 text-right">Notes</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {ledger.map((txn) => {
-                          const isAddition = ["PURCHASE", "ADJUSTMENT_IN", "RETURN"].includes(txn.type);
-
-                          return (
-                            <tr key={txn.id} className="text-slate-800 dark:text-slate-200 hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
-                              <td className="py-2.5 text-slate-500 dark:text-slate-400">
-                                {new Date(txn.createdAt).toLocaleString()}
-                              </td>
-                              <td className="py-2.5 font-bold text-slate-900 dark:text-slate-100">
-                                {txn.product.name}
-                                {txn.product.sku && (
-                                  <span className="text-slate-400 dark:text-slate-500 font-normal ml-1">({txn.product.sku})</span>
-                                )}
-                              </td>
-                              <td className="py-2.5">
-                                <span
-                                  className={`px-2 py-0.5 rounded border text-[10px] font-bold uppercase ${getTypeBadgeClass(
-                                    txn.type
-                                  )}`}
-                                >
-                                  {txn.type}
-                                </span>
-                              </td>
-                              <td
-                                className={`py-2.5 font-extrabold ${
-                                  isAddition ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
-                                }`}
-                              >
-                                {isAddition ? `+${txn.quantity}` : `-${txn.quantity}`} units
-                              </td>
-                              <td className="py-2.5 font-medium text-slate-600 dark:text-slate-400">
-                                {txn.batch?.reference || txn.referenceId || "—"}
-                              </td>
-                              <td className="py-2.5 text-right text-slate-500 dark:text-slate-400 font-medium">
-                                {txn.note || "—"}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* MOBILE cards */}
-                  <div className="md:hidden space-y-3">
-                    {ledger.map((txn) => {
-                      const isAddition = ["PURCHASE", "ADJUSTMENT_IN", "RETURN"].includes(txn.type);
-
-                      return (
-                        <div key={txn.id} className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 space-y-2">
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <p className="font-bold text-sm text-slate-900 dark:text-slate-100">{txn.product.name}</p>
-                              <span
-                                className={`inline-block mt-1 px-2 py-0.5 rounded border text-[10px] font-bold uppercase ${getTypeBadgeClass(
-                                  txn.type
-                                )}`}
-                              >
-                                {txn.type}
-                              </span>
-                            </div>
-                            <span
-                              className={`font-black text-sm flex-shrink-0 ${
-                                isAddition ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
-                              }`}
-                            >
-                              {isAddition ? `+${txn.quantity}` : `-${txn.quantity}`} units
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200 dark:border-slate-700">
-                            <span>{new Date(txn.createdAt).toLocaleDateString()}</span>
-                            <span>Ref: {txn.batch?.reference || txn.referenceId || "Direct"}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
+                );
+              })}
             </div>
           )}
-        </>
+        </Card>
       )}
 
-      {/* Stock Adjustment / Damage Logger Modal */}
-      {isAdjustModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Adjust Stock / Log Damage</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Record bottle damages, store display testers, or audit fixes</p>
-              </div>
-              <button
-                onClick={() => setIsAdjustModalOpen(false)}
-                className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-              >
-                <X className="w-4 h-4" />
-              </button>
+      {/* STOCK ADJUSTMENT SHEET */}
+      <Sheet
+        isOpen={isAdjustOpen}
+        onClose={() => setIsAdjustOpen(false)}
+        title="Stock Adjustment & Audit"
+        description="Record testers, damaged bottles, loss or inventory reconciliation"
+      >
+        <form onSubmit={handleAdjustSubmit} className="space-y-4 pt-2">
+          {adjustError && (
+            <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-xs font-semibold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{adjustError}</span>
             </div>
+          )}
 
-            {adjustError && (
-              <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                <span>{adjustError}</span>
-              </div>
-            )}
+          <Select
+            label="Product"
+            value={adjustProductId}
+            onChange={(e) => setAdjustProductId(e.target.value)}
+            options={products.map((p) => ({
+              value: p.id,
+              label: `${p.name} (${p.stockUnits} in stock)`,
+            }))}
+          />
 
-            {adjustSuccess && (
-              <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                <span>Stock adjusted successfully!</span>
-              </div>
-            )}
+          <Select
+            label="Adjustment Reason / Type"
+            value={adjustType}
+            onChange={(e) => setAdjustType(e.target.value as any)}
+            options={[
+              { value: "DAMAGE", label: "Damaged / Broken Bottle" },
+              { value: "TESTER", label: "Store Tester / Sample Use" },
+              { value: "LOSS", label: "Lost / Missing Unit" },
+              { value: "ADJUSTMENT_IN", label: "Found Stock / Count Addition (+)" },
+              { value: "ADJUSTMENT_OUT", label: "Manual Count Deduction (-)" },
+            ]}
+          />
 
-            <form onSubmit={handleAdjustStock} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Select Product *</label>
-                <select
-                  required
-                  value={adjustProductId}
-                  onChange={(e) => setAdjustProductId(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                >
-                  <option value="">-- Choose Product to Adjust --</option>
-                  {summary?.products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({p.stockUnits} in stock)
-                    </option>
-                  ))}
-                </select>
-              </div>
+          <Input
+            label="Quantity of Bottles"
+            type="number"
+            min="1"
+            value={adjustQuantity}
+            onChange={(e) => setAdjustQuantity(e.target.value)}
+            required
+          />
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Adjustment Reason / Type *</label>
-                <select
-                  value={adjustType}
-                  onChange={(e) => setAdjustType(e.target.value as any)}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                >
-                  <option value="DAMAGE">💔 DAMAGE (Broken/Cracked Bottle - Auto-logs Operational Expense)</option>
-                  <option value="TESTER">🧪 TESTER (Store Display Sample - Auto-logs Operational Expense)</option>
-                  <option value="LOSS">⚠️ LOSS (Stolen or Missing Item)</option>
-                  <option value="ADJUSTMENT_IN">📦 ADJUSTMENT_IN (Audit Addition)</option>
-                  <option value="ADJUSTMENT_OUT">📉 ADJUSTMENT_OUT (Audit Deduction)</option>
-                </select>
-              </div>
+          <Textarea
+            label="Audit Explanation / Reason"
+            value={adjustNote}
+            onChange={(e) => setAdjustNote(e.target.value)}
+            placeholder="e.g. Broken in transit, opened for shop customer sampling..."
+          />
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Quantity (Units) *</label>
-                <input
-                  type="number"
-                  required
-                  min="1"
-                  value={adjustQuantity}
-                  onChange={(e) => setAdjustQuantity(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Explanation / Notes</label>
-                <textarea
-                  rows={2}
-                  placeholder="e.g. Bottle cracked during shelf arrangement..."
-                  value={adjustNote}
-                  onChange={(e) => setAdjustNote(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                />
-              </div>
-
-              {(adjustType === "DAMAGE" || adjustType === "TESTER") && (
-                <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-3 rounded-xl text-amber-900 dark:text-amber-300 text-xs flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
-                  <span>
-                    Logging as <strong>{adjustType}</strong> will deduct stock and automatically log an operational expense equal to the bottle acquisition cost price.
-                  </span>
-                </div>
-              )}
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setIsAdjustModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={adjustSubmitting}
-                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-lg shadow-indigo-500/25 transition-all disabled:opacity-50 flex items-center gap-2"
-                >
-                  {adjustSubmitting ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...
-                    </>
-                  ) : (
-                    "Apply Adjustment ✓"
-                  )}
-                </button>
-              </div>
-            </form>
+          <div className="pt-2 flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setIsAdjustOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              className="flex-1 font-black"
+              isLoading={adjustSubmitting}
+            >
+              Apply Adjustment
+            </Button>
           </div>
-        </div>
-      )}
+        </form>
+      </Sheet>
     </div>
   );
 }
