@@ -101,15 +101,23 @@ export function useWebPush() {
         return false;
       }
 
-      // 2. Fetch server VAPID public key
-      const keyRes = await fetch("/api/push/vapid-public-key");
-      const keyJson = await keyRes.json();
-
-      if (!keyJson.success || !keyJson.publicKey) {
-        throw new Error(keyJson.error || "Failed to retrieve VAPID public key from server");
+      // 2. Fetch server VAPID public key (with fallback)
+      let publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      try {
+        const keyRes = await fetch("/api/push/vapid-public-key");
+        const keyJson = await keyRes.json();
+        if (keyJson.success && keyJson.publicKey) {
+          publicKey = keyJson.publicKey;
+        }
+      } catch (e) {
+        console.warn("Could not fetch VAPID key from /api/push/vapid-public-key", e);
       }
 
-      const applicationServerKey = urlBase64ToUint8Array(keyJson.publicKey);
+      if (!publicKey) {
+        publicKey = "BKgchy8l_oiXvoJxcgK3BbKrSaSSeqWJR1Nn3LSpvZxgGkk8FSkiVvEFOJpSavIQe-NuQv0iPc8dxEY_pMp5LDM";
+      }
+
+      const applicationServerKey = urlBase64ToUint8Array(publicKey);
 
       // 3. Register push subscription with the browser push service
       const reg = await navigator.serviceWorker.ready;
