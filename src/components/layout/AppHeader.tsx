@@ -31,7 +31,7 @@ export function AppHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-card border-b border-border px-4 sm:px-6 flex items-center justify-between select-none">
+    <header className="flex-shrink-0 z-20 h-16 bg-card border-b border-border px-4 sm:px-6 flex items-center justify-between select-none w-full">
       <div className="max-w-7xl w-full mx-auto flex items-center justify-between gap-3">
         {/* Left Side: Mobile Logo + Title / Subtitle */}
         <div className="flex items-center gap-3 min-w-0">

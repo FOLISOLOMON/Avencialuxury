@@ -77,7 +77,7 @@ export function DesktopSidebar() {
   return (
     <aside
       aria-label="Sidebar navigation"
-      className="hidden md:flex flex-col w-60 bg-card border-r border-border min-h-screen sticky top-0 h-screen z-30 select-none flex-shrink-0"
+      className="hidden md:flex flex-col w-60 bg-card border-r border-border h-full z-30 select-none flex-shrink-0"
     >
       {/* Brand Header */}
       <div className="h-16 px-4 border-b border-border flex items-center justify-between">
