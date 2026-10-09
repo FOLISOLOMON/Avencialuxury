@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useState } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
 
@@ -27,6 +28,12 @@ export function Sheet({
   className,
   hideCloseButton = false,
 }: SheetProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // ESC key handler
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -50,17 +57,17 @@ export function Sheet({
     };
   }, [isOpen, handleKeyDown]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const sizeClasses: Record<string, string> = {
-    sm: "md:max-w-md",
-    default: "md:max-w-xl",
-    lg: "md:max-w-2xl",
-    full: "md:max-w-4xl",
+    sm: "max-w-md",
+    default: "max-w-md md:max-w-xl",
+    lg: "max-w-lg md:max-w-2xl",
+    full: "max-w-4xl",
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+  const sheetContent = (
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center pointer-events-auto">
       {/* Backdrop */}
       <div
         onClick={onClose}
@@ -133,11 +140,13 @@ export function Sheet({
 
         {/* Footer */}
         {footer && (
-          <div className="px-5 py-3.5 border-t border-border/60 bg-card/60 backdrop-blur-xs flex-shrink-0 pb-safe">
+          <div className="px-5 py-3.5 border-t border-border/60 bg-card/60 backdrop-blur-xs flex-shrink-0 pb-[max(0.875rem,env(safe-area-inset-bottom))]">
             {footer}
           </div>
         )}
       </div>
     </div>
   );
+
+  return createPortal(sheetContent, document.body);
 }

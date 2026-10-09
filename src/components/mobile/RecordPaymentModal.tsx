@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, DollarSign, CreditCard, Banknote, Smartphone, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
+import { X, DollarSign, CreditCard, Banknote, Smartphone, CheckCircle2, Loader2, AlertCircle, MessageCircle } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { MobileCustomer } from "@/lib/mobile/types";
 import { putCachedCustomer, addPendingDebtPayment } from "@/lib/mobile/db";
 import { syncManager } from "@/lib/mobile/sync";
+import { getPaymentReceiptWhatsAppUrl } from "@/lib/mobile/whatsapp";
 
 interface RecordPaymentModalProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ export function RecordPaymentModal({
   const [paymentMethod, setPaymentMethod] = useState<string>("CASH");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [successData, setSuccessData] = useState<{ amount: number; remaining: number } | null>(null);
 
   if (!customer) return null;
 
@@ -91,7 +93,7 @@ export function RecordPaymentModal({
 
           syncManager.refreshCacheFromServer();
           onPaymentRecorded();
-          handleClose();
+          setSuccessData({ amount: parsedAmount, remaining: newDebt });
           return;
         } else {
           throw new Error(json.error || "Server rejected payment");
@@ -120,7 +122,7 @@ export function RecordPaymentModal({
         );
 
         onPaymentRecorded();
-        handleClose();
+        setSuccessData({ amount: parsedAmount, remaining: newDebt });
       }
     } catch (err: any) {
       console.warn("Online payment failed, falling back to offline queue:", err);
@@ -147,13 +149,14 @@ export function RecordPaymentModal({
       );
 
       onPaymentRecorded();
-      handleClose();
+      setSuccessData({ amount: parsedAmount, remaining: newDebt });
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleClose = () => {
+    setSuccessData(null);
     setAmount("");
     setNotes("");
     setPaymentMethod("CASH");
@@ -164,10 +167,63 @@ export function RecordPaymentModal({
     <Sheet
       isOpen={isOpen}
       onClose={handleClose}
-      title="Record Debt Payment"
-      description={`Add payment received from ${customer.name}`}
+      title={successData ? "Payment Complete" : "Record Debt Payment"}
+      description={successData ? undefined : `Add payment received from ${customer.name}`}
     >
-      {currentDebt <= 0 ? (
+      {successData ? (
+        <div className="py-6 px-2 text-center space-y-4">
+          <div className="w-14 h-14 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-8 h-8" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-foreground">Payment Recorded!</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Received GH₵{successData.amount.toFixed(2)} from {customer.name}
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-card border border-border text-left space-y-1.5 text-xs">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Amount Paid:</span>
+              <span className="font-bold text-emerald-500">GH₵{successData.amount.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Remaining Debt:</span>
+              <span className="font-bold text-foreground">GH₵{successData.remaining.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Payment Method:</span>
+              <span className="font-semibold text-foreground">{paymentMethod}</span>
+            </div>
+          </div>
+
+          <div className="space-y-2 pt-2">
+            <a
+              href={getPaymentReceiptWhatsAppUrl({
+                customerName: customer.name,
+                customerPhone: customer.phone,
+                amountPaid: successData.amount,
+                remainingDebt: successData.remaining,
+                paymentMethod,
+              })}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all shadow-sm"
+            >
+              <MessageCircle className="w-4 h-4" />
+              Send Receipt on WhatsApp
+            </a>
+
+            <Button
+              type="button"
+              onClick={handleClose}
+              className="w-full h-10 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl active:scale-95"
+            >
+              Done
+            </Button>
+          </div>
+        </div>
+      ) : currentDebt <= 0 ? (
         <div className="py-8 px-4 text-center space-y-3">
           <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-6 h-6" />

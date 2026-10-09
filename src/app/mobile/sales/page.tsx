@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Receipt, Search, Filter, Calendar, Clock, CheckCircle2, ChevronRight, AlertCircle, RefreshCw } from "lucide-react";
+import { Receipt, Search, Filter, Calendar, Clock, CheckCircle2, ChevronRight, AlertCircle, RefreshCw, MessageCircle } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
 import { MobileSaleSummary } from "@/lib/mobile/types";
 import { getPendingSales } from "@/lib/mobile/db";
+import { getSaleReceiptWhatsAppUrl } from "@/lib/mobile/whatsapp";
 
 export default function MobileSalesPage() {
   const [sales, setSales] = useState<MobileSaleSummary[]>([]);
@@ -238,6 +239,30 @@ export default function MobileSalesPage() {
                 <span className="font-semibold text-foreground">{selectedSale.paymentMethod}</span>
               </div>
             </div>
+
+            {/* WhatsApp Share Button */}
+            <a
+              href={getSaleReceiptWhatsAppUrl({
+                receiptNo: selectedSale.receiptNumber || selectedSale.id.slice(-6),
+                customerName: selectedSale.customer?.name,
+                customerPhone: (selectedSale.customer as any)?.phone,
+                items: (selectedSale.items || []).map((it) => ({
+                  name: it.product?.name || "Perfume Item",
+                  quantity: it.quantity,
+                  unitPrice: it.unitPrice,
+                })),
+                totalAmount: selectedSale.totalAmount,
+                amountPaid: selectedSale.amountPaid,
+                balanceDue: Math.max(0, selectedSale.totalAmount - selectedSale.amountPaid),
+                paymentMethod: selectedSale.paymentMethod,
+              })}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all shadow-sm"
+            >
+              <MessageCircle className="w-4 h-4" />
+              Send Receipt via WhatsApp
+            </a>
           </div>
         )}
       </Sheet>

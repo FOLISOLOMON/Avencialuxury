@@ -18,6 +18,7 @@ import {
   Sparkles,
   Barcode,
   ArrowLeft,
+  MessageCircle,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -27,6 +28,7 @@ import { MobileProduct, MobileCustomer } from "@/lib/mobile/types";
 import { InlineCustomerModal } from "@/components/mobile/InlineCustomerModal";
 import { addPendingSale, putCachedCustomer } from "@/lib/mobile/db";
 import { syncManager } from "@/lib/mobile/sync";
+import { getSaleReceiptWhatsAppUrl } from "@/lib/mobile/whatsapp";
 
 interface CartItem {
   product: MobileProduct;
@@ -341,6 +343,29 @@ function MobileSellContent() {
         </div>
 
         <div className="space-y-2 pt-2 max-w-xs mx-auto">
+          <a
+            href={getSaleReceiptWhatsAppUrl({
+              receiptNo: saleSuccessData.receipt,
+              customerName: selectedCustomer?.name,
+              customerPhone: selectedCustomer?.phone,
+              items: cart.map((i) => ({
+                name: i.product.name,
+                quantity: i.quantity,
+                unitPrice: i.unitPrice,
+              })),
+              totalAmount: saleSuccessData.total,
+              amountPaid: finalAmountPaid,
+              balanceDue: Math.max(0, saleSuccessData.total - finalAmountPaid),
+              paymentMethod,
+            })}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-md"
+          >
+            <MessageCircle className="w-5 h-5" />
+            Send Receipt on WhatsApp
+          </a>
+
           <Button
             onClick={handleResetForNextSale}
             className="w-full h-12 bg-primary text-primary-foreground font-bold text-sm rounded-xl active:scale-95 transition-transform"

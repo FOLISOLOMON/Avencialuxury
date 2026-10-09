@@ -7,6 +7,10 @@ import { Button } from "@/components/ui/Button";
 import { useMobileCustomers } from "@/lib/mobile/hooks";
 import { InlineCustomerModal } from "@/components/mobile/InlineCustomerModal";
 import { RecordPaymentModal } from "@/components/mobile/RecordPaymentModal";
+import {
+  getDebtReminderWhatsAppUrl,
+  getCustomerGreetingWhatsAppUrl,
+} from "@/lib/mobile/whatsapp";
 import { useSearchParams } from "next/navigation";
 import { MobileCustomer } from "@/lib/mobile/types";
 
@@ -183,7 +187,18 @@ function MobileCustomersContent() {
                   {c.phone && (
                     <>
                       <a
-                        href={`https://wa.me/${waPhone}`}
+                        href={
+                          hasDebt
+                            ? getDebtReminderWhatsAppUrl({
+                                name: c.name,
+                                phone: c.phone,
+                                totalDebt: c.totalDebt,
+                              })
+                            : getCustomerGreetingWhatsAppUrl({
+                                name: c.name,
+                                phone: c.phone,
+                              })
+                        }
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex-1 py-1.5 px-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors active:scale-95"
