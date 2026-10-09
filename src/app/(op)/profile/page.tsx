@@ -163,6 +163,7 @@ export default function ProfilePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           target: "owner",
+          ownerId: profile?.owner?.id || profile?.ownerId,
           name: ownerName.trim(),
           email: ownerEmail.trim() || undefined,
         }),

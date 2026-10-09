@@ -9,7 +9,7 @@ export interface UpdateBusinessProfileInput {
 }
 
 export interface UpdateOwnerProfileInput {
-  ownerId: string;
+  ownerId?: string;
   name?: string;
   email?: string;
 }
@@ -81,7 +81,23 @@ export async function updateBusinessProfile(input: UpdateBusinessProfileInput) {
 }
 
 export async function updateOwnerProfile(input: UpdateOwnerProfileInput) {
-  const { ownerId, name, email } = input;
+  let { ownerId, name, email } = input;
+
+  if (!ownerId) {
+    const biz = await prisma.business.findFirst({
+      select: { ownerId: true },
+    });
+    ownerId = biz?.ownerId;
+  }
+
+  if (!ownerId) {
+    const firstUser = await prisma.user.findFirst({ select: { id: true } });
+    ownerId = firstUser?.id;
+  }
+
+  if (!ownerId) {
+    throw new Error("No owner account found to update.");
+  }
 
   const data: any = {};
   if (name !== undefined) data.name = name.trim();
