@@ -1,4 +1,4 @@
-import { prisma, ensureDefaultBusiness } from "@/lib/db/prisma";
+import { prisma, ensureDefaultBusiness, DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 
 export interface UpdateBusinessProfileInput {
   businessId: string;
@@ -81,31 +81,94 @@ export async function updateBusinessProfile(input: UpdateBusinessProfileInput) {
 }
 
 export async function updateOwnerProfile(input: UpdateOwnerProfileInput) {
-  let { ownerId, name, email } = input;
+  const { ownerId, name, email } = input;
 
-  if (!ownerId) {
-    const biz = await prisma.business.findFirst({
-      select: { ownerId: true },
+  // 1. Ensure the default business and owner exist in the database
+  await ensureDefaultBusiness();
+
+  // 2. Resolve target user safely
+  let targetUser: { id: string; email: string } | null = null;
+
+  // Try via explicitly passed ownerId (if non-empty string)
+  if (ownerId && typeof ownerId === "string" && ownerId.trim().length > 0) {
+    targetUser = await prisma.user.findUnique({
+      where: { id: ownerId.trim() },
+      select: { id: true, email: true },
     });
-    ownerId = biz?.ownerId;
   }
 
-  if (!ownerId) {
-    const firstUser = await prisma.user.findFirst({ select: { id: true } });
-    ownerId = firstUser?.id;
+  // If not found, try finding by business owner relation
+  if (!targetUser) {
+    const biz = await prisma.business.findUnique({
+      where: { id: DEFAULT_BUSINESS_ID },
+      include: {
+        owner: {
+          select: { id: true, email: true },
+        },
+      },
+    });
+    if (biz?.owner) {
+      targetUser = biz.owner;
+    }
   }
 
-  if (!ownerId) {
-    throw new Error("No owner account found to update.");
+  // If not found, try finding by email if provided
+  if (!targetUser && email && typeof email === "string" && email.trim().length > 0) {
+    targetUser = await prisma.user.findUnique({
+      where: { email: email.trim() },
+      select: { id: true, email: true },
+    });
   }
 
-  const data: any = {};
-  if (name !== undefined) data.name = name.trim();
-  if (email !== undefined) data.email = email.trim();
+  // If still not found, find the first available user in the system
+  if (!targetUser) {
+    targetUser = await prisma.user.findFirst({
+      select: { id: true, email: true },
+    });
+  }
 
+  // If database somehow still has no user (e.g. freshly cleared DB), create one immediately
+  if (!targetUser) {
+    const defaultUser = await prisma.user.create({
+      data: {
+        id: "user_default_owner",
+        name: name?.trim() || "Foli Solomon",
+        email: email?.trim() || "solomonfoli19@gmail.com",
+        passwordHash: "$2a$10$defaultHashForAvenciaOwner12345",
+      },
+      select: { id: true, email: true },
+    });
+
+    targetUser = defaultUser;
+
+    // Link default business to this user
+    await prisma.business.updateMany({
+      where: { id: DEFAULT_BUSINESS_ID },
+      data: { ownerId: targetUser.id },
+    });
+  }
+
+  // Prepare data updates
+  const data: { name?: string; email?: string } = {};
+  if (name !== undefined && name !== null) data.name = name.trim();
+  if (email !== undefined && email !== null) {
+    const trimmedEmail = email.trim();
+    if (trimmedEmail !== targetUser.email) {
+      const existingWithEmail = await prisma.user.findUnique({
+        where: { email: trimmedEmail },
+        select: { id: true },
+      });
+      if (existingWithEmail && existingWithEmail.id !== targetUser.id) {
+        throw new Error(`Email "${trimmedEmail}" is already used by another account.`);
+      }
+    }
+    data.email = trimmedEmail;
+  }
+
+  // GUARANTEED: targetUser.id is a valid, non-empty string. Never undefined.
   return await prisma.user.update({
-    where: { id: ownerId },
-    data: data,
+    where: { id: targetUser.id },
+    data,
     select: {
       id: true,
       name: true,
@@ -114,3 +177,4 @@ export async function updateOwnerProfile(input: UpdateOwnerProfileInput) {
     },
   });
 }
+
