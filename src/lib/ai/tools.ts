@@ -250,19 +250,48 @@ export async function executeAITool(
 
       case "get_customer_balances": {
         const customers = await getCustomers(businessId, args.search);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         const debtors = customers
           .filter((c) => c.totalOutstandingDebt > 0)
-          .map((c) => ({
-            customerId: c.id,
-            name: c.name,
-            phone: c.phone || "No phone",
-            outstandingBalance: c.totalOutstandingDebt,
-            totalOrders: c.totalOrders,
-            totalSpend: c.totalSpend,
-            lastPurchaseDate: c.lastPurchaseDate ? c.lastPurchaseDate.toISOString().split("T")[0] : "N/A",
-          }));
+          .map((c) => {
+            const unpaidSales = (c.sales || [])
+              .filter((s: any) => s.balanceDue > 0)
+              .map((s: any) => {
+                let dueStatus = "NO_DUE_DATE";
+                if (s.dueDate) {
+                  const due = new Date(s.dueDate);
+                  due.setHours(0, 0, 0, 0);
+                  const diff = Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                  if (diff < 0) dueStatus = `OVERDUE_BY_${Math.abs(diff)}_DAYS`;
+                  else if (diff === 0) dueStatus = "DUE_TODAY";
+                  else dueStatus = `DUE_IN_${diff}_DAYS`;
+                }
+                return {
+                  saleId: s.id,
+                  totalAmount: s.totalAmount,
+                  balanceDue: s.balanceDue,
+                  dueDate: s.dueDate ? new Date(s.dueDate).toISOString().split("T")[0] : null,
+                  dueStatus,
+                };
+              });
+
+            return {
+              customerId: c.id,
+              name: c.name,
+              phone: c.phone || "No phone",
+              outstandingBalance: c.totalOutstandingDebt,
+              totalOrders: c.totalOrders,
+              totalSpend: c.totalSpend,
+              unpaidSales,
+              lastPurchaseDate: c.lastPurchaseDate ? new Date(c.lastPurchaseDate).toISOString().split("T")[0] : "N/A",
+            };
+          });
 
         const totalDebtSum = debtors.reduce((sum, d) => sum + d.outstandingBalance, 0);
+        const dueTodaySales = debtors.flatMap((d) => d.unpaidSales.filter((s: any) => s.dueStatus === "DUE_TODAY"));
+        const overdueSales = debtors.flatMap((d) => d.unpaidSales.filter((s: any) => s.dueStatus.startsWith("OVERDUE")));
 
         return {
           toolName,
@@ -270,9 +299,13 @@ export async function executeAITool(
           data: {
             debtorCount: debtors.length,
             totalOutstandingDebt: Math.round(totalDebtSum * 100) / 100,
+            dueTodayCount: dueTodaySales.length,
+            dueTodayAmount: Math.round(dueTodaySales.reduce((sum: number, s: any) => sum + s.balanceDue, 0) * 100) / 100,
+            overdueCount: overdueSales.length,
+            overdueAmount: Math.round(overdueSales.reduce((sum: number, s: any) => sum + s.balanceDue, 0) * 100) / 100,
             debtors,
           },
-          sourceContext: `Found ${debtors.length} customers with outstanding balances totalling GH₵${totalDebtSum.toFixed(2)}`,
+          sourceContext: `Found ${debtors.length} customers with outstanding balances totalling GH₵${totalDebtSum.toFixed(2)}. ${dueTodaySales.length} payments due today, ${overdueSales.length} overdue.`,
         };
       }
 

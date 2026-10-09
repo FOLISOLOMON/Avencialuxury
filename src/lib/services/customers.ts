@@ -98,13 +98,30 @@ export async function getCustomers(businessId: string, search?: string) {
     include: {
       sales: {
         where: { status: { notIn: ["VOIDED", "REFUNDED"] } },
+        orderBy: { saleDate: "desc" },
         select: {
           id: true,
           totalAmount: true,
+          amountPaid: true,
           grossProfit: true,
           balanceDue: true,
           paymentStatus: true,
+          paymentMethod: true,
           saleDate: true,
+          dueDate: true,
+          notes: true,
+          saleItems: {
+            select: {
+              id: true,
+              quantity: true,
+              unitPrice: true,
+              product: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -122,8 +139,21 @@ export async function getCustomers(businessId: string, search?: string) {
       ? c.sales.reduce((latest, s) => (s.saleDate > latest ? s.saleDate : latest), c.sales[0].saleDate)
       : null;
 
+    const formattedSales = c.sales.map((s) => ({
+      ...s,
+      totalAmount: s.totalAmount.toNumber(),
+      amountPaid: s.amountPaid.toNumber(),
+      balanceDue: s.balanceDue.toNumber(),
+      grossProfit: s.grossProfit.toNumber(),
+      saleItems: s.saleItems.map((si) => ({
+        ...si,
+        unitPrice: si.unitPrice.toNumber(),
+      })),
+    }));
+
     return {
       ...c,
+      sales: formattedSales,
       totalOrders,
       totalSpend,
       totalSpent: totalSpend,

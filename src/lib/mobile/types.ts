@@ -25,6 +25,7 @@ export interface MobileCustomer {
   totalSpent?: number;
   lastPurchaseDate?: string | null;
   updatedAt?: string;
+  sales?: any[];
 }
 
 export interface PendingDebtPayment {
@@ -71,6 +72,7 @@ export interface PendingSale {
   discount?: number;
   notes?: string;
   saleDate: string;
+  dueDate?: string;
   createdAt: string;
   status: "pending" | "syncing" | "failed";
   retryCount: number;

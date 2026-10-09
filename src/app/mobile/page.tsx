@@ -28,6 +28,13 @@ export default function MobileHomePage() {
   const [todaySalesCount, setTodaySalesCount] = useState(0);
   const [recentSales, setRecentSales] = useState<MobileSaleSummary[]>([]);
   const [loadingSales, setLoadingSales] = useState(true);
+  const [debtSummary, setDebtSummary] = useState<{
+    totalOutstandingDebt: number;
+    totalDebtorsCount: number;
+    dueToday: { amount: number; count: number };
+    upcoming: { amount: number; count: number };
+    overdue: { amount: number; count: number };
+  } | null>(null);
 
   // Fetch today's sales summary from shared backend API & local pending queue
   useEffect(() => {
@@ -73,9 +80,21 @@ export default function MobileHomePage() {
           console.warn("Could not inspect local pending sales:", dbErr);
         }
 
-        const res = await fetch("/api/sales?quickRange=today");
-        if (res.ok) {
-          const json = await res.json();
+        // Fetch sales and debt summary in parallel
+        const [salesRes, debtRes] = await Promise.all([
+          fetch("/api/sales?quickRange=today"),
+          fetch("/api/debt?view=summary"),
+        ]);
+
+        if (debtRes.ok) {
+          const debtJson = await debtRes.json();
+          if (debtJson.success && isMounted) {
+            setDebtSummary(debtJson.data);
+          }
+        }
+
+        if (salesRes.ok) {
+          const json = await salesRes.json();
           if (json.success && isMounted) {
             const serverRevenue = Number(json.summary?.totalSalesRevenue ?? json.summary?.totalRevenue ?? 0);
             const serverCollected = Number(json.summary?.totalAmountCollected ?? serverRevenue);
@@ -200,6 +219,39 @@ export default function MobileHomePage() {
           </p>
         )}
       </div>
+
+      {/* Due Date & Debt Reminder Banner */}
+      {debtSummary && (debtSummary.overdue.count > 0 || debtSummary.dueToday.count > 0 || debtSummary.totalOutstandingDebt > 0) && (
+        <Link
+          href="/mobile/customers?filter=debt"
+          className={`flex items-center justify-between p-3.5 rounded-md border transition-all ${
+            debtSummary.overdue.count > 0
+              ? "bg-red-500/10 border-red-500/25 text-red-500"
+              : debtSummary.dueToday.count > 0
+              ? "bg-amber-500/10 border-amber-500/25 text-amber-500"
+              : "bg-warning/10 border-warning/20 text-warning"
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            <Clock className="w-4 h-4 shrink-0" />
+            <div>
+              <p className="text-xs font-bold">
+                {debtSummary.overdue.count > 0
+                  ? `${debtSummary.overdue.count} overdue payment${debtSummary.overdue.count === 1 ? "" : "s"} (GH₵${debtSummary.overdue.amount.toFixed(2)})`
+                  : debtSummary.dueToday.count > 0
+                  ? `${debtSummary.dueToday.count} payment${debtSummary.dueToday.count === 1 ? "" : "s"} due today (GH₵${debtSummary.dueToday.amount.toFixed(2)})`
+                  : `GH₵${debtSummary.totalOutstandingDebt.toFixed(2)} outstanding customer credit`}
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                {debtSummary.upcoming.count > 0
+                  ? `${debtSummary.upcoming.count} upcoming in 7d • Tap to view debtors`
+                  : "Tap to inspect accounts & send reminders"}
+              </p>
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 shrink-0" />
+        </Link>
+      )}
 
       {/* Low Stock Warning Banner */}
       {(lowStockCount > 0 || outOfStockCount > 0) && (

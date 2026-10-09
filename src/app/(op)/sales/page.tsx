@@ -80,6 +80,7 @@ interface SaleItem {
 interface Sale {
   id: string;
   saleDate: string;
+  dueDate?: string | null;
   subtotal: number;
   discount: number;
   totalAmount: number;
@@ -157,9 +158,17 @@ export default function SalesPage() {
   const [discount, setDiscount] = useState("0");
   const [isPartialCredit, setIsPartialCredit] = useState(false);
   const [amountPaid, setAmountPaid] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [noAgreedDueDate, setNoAgreedDueDate] = useState(false);
   const [notes, setNotes] = useState("");
   const [submittingSale, setSubmittingSale] = useState(false);
   const [saleError, setSaleError] = useState<string | null>(null);
+
+  // Edit Due Date Modal State
+  const [editDueDateSale, setEditDueDateSale] = useState<Sale | null>(null);
+  const [newDueDate, setNewDueDate] = useState("");
+  const [editDueDateSubmitting, setEditDueDateSubmitting] = useState(false);
+  const [editDueDateError, setEditDueDateError] = useState<string | null>(null);
 
   // Modals & Sheets
   const [receiptSale, setReceiptSale] = useState<Sale | null>(null);
@@ -343,6 +352,15 @@ export default function SalesPage() {
   const balanceDue = Math.max(0, cartTotal - parsedPaid);
 
   // Complete Sale
+  const getQuickDueDate = (daysFromNow: number): string => {
+    const d = new Date();
+    d.setDate(d.getDate() + daysFromNow);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaleError(null);
@@ -357,6 +375,11 @@ export default function SalesPage() {
       return;
     }
 
+    if (balanceDue > 0 && !dueDate && !noAgreedDueDate) {
+      setSaleError("Please select a payment due date or check 'No agreed payment date' for this credit/partial sale.");
+      return;
+    }
+
     setSubmittingSale(true);
     try {
       const res = await fetch("/api/sales", {
@@ -367,6 +390,7 @@ export default function SalesPage() {
           paymentMethod,
           discount: discountVal,
           amountPaid: parsedPaid,
+          dueDate: dueDate ? dueDate : undefined,
           notes: notes.trim() || undefined,
           items: cart.map((i) => ({
             productId: i.productId,
@@ -384,6 +408,8 @@ export default function SalesPage() {
         setDiscount("0");
         setIsPartialCredit(false);
         setAmountPaid("");
+        setDueDate("");
+        setNoAgreedDueDate(false);
         setNotes("");
         setShowCheckoutSheet(false);
 
@@ -399,6 +425,38 @@ export default function SalesPage() {
       setSaleError(err.message || "Network error submitting sale.");
     } finally {
       setSubmittingSale(false);
+    }
+  };
+
+  // Update Sale Due Date
+  const handleUpdateDueDate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editDueDateSale) return;
+    setEditDueDateError(null);
+    setEditDueDateSubmitting(true);
+
+    try {
+      const res = await fetch("/api/debt", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          saleId: editDueDateSale.id,
+          dueDate: newDueDate ? newDueDate : null,
+        }),
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        setEditDueDateSale(null);
+        setNewDueDate("");
+        await fetchData();
+      } else {
+        setEditDueDateError(json.error || "Failed to update payment due date");
+      }
+    } catch (err: any) {
+      setEditDueDateError(err.message || "Network error updating due date");
+    } finally {
+      setEditDueDateSubmitting(false);
     }
   };
 
@@ -957,9 +1015,31 @@ export default function SalesPage() {
                             {isVoided ? (
                               <span className="text-destructive font-medium text-xs">Voided</span>
                             ) : isPartial ? (
-                              <span className="text-warning font-medium text-xs">
-                                Due: {formatCurrency(s.balanceDue)}
-                              </span>
+                              <div className="space-y-0.5">
+                                <span className="text-warning font-bold text-xs block">
+                                  Due: {formatCurrency(s.balanceDue)}
+                                </span>
+                                {s.dueDate ? (
+                                  <span
+                                    className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                                      new Date(s.dueDate).getTime() < new Date(new Date().toISOString().split("T")[0]).getTime()
+                                        ? "bg-destructive/15 text-destructive"
+                                        : s.dueDate.slice(0, 10) === new Date().toISOString().slice(0, 10)
+                                        ? "bg-amber-500/15 text-amber-500 font-bold"
+                                        : "bg-primary/10 text-primary"
+                                    }`}
+                                  >
+                                    <Calendar className="w-2.5 h-2.5" />
+                                    {new Date(s.dueDate).getTime() < new Date(new Date().toISOString().split("T")[0]).getTime()
+                                      ? "Overdue: " + new Date(s.dueDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+                                      : s.dueDate.slice(0, 10) === new Date().toISOString().slice(0, 10)
+                                      ? "Due Today"
+                                      : "Due: " + new Date(s.dueDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-muted-foreground block italic">No due date</span>
+                                )}
+                              </div>
                             ) : (
                               <span className="text-success font-medium text-xs">Paid</span>
                             )}
@@ -976,17 +1056,31 @@ export default function SalesPage() {
                               </Button>
 
                               {isPartial && !isVoided && (
-                                <Button
-                                  size="sm"
-                                  variant="primary"
-                                  onClick={() => {
-                                    setDebtSale(s);
-                                    setDebtAmount(s.balanceDue.toString());
-                                    setDebtNotes(`Payment for #${s.id.slice(-6)}`);
-                                  }}
-                                >
-                                  Collect
-                                </Button>
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setEditDueDateSale(s);
+                                      setNewDueDate(s.dueDate ? s.dueDate.slice(0, 10) : "");
+                                    }}
+                                    title="Edit payment due date"
+                                  >
+                                    <Calendar className="w-3.5 h-3.5 mr-1" />
+                                    Due Date
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="primary"
+                                    onClick={() => {
+                                      setDebtSale(s);
+                                      setDebtAmount(s.balanceDue.toString());
+                                      setDebtNotes(`Payment for #${s.id.slice(-6)}`);
+                                    }}
+                                  >
+                                    Collect
+                                  </Button>
+                                </>
                               )}
 
                               <Button
@@ -1049,9 +1143,31 @@ export default function SalesPage() {
                           {isVoided ? (
                             <span className="text-destructive font-medium text-[11px]">Voided</span>
                           ) : isPartial ? (
-                            <span className="text-warning font-medium text-[11px]">
-                              Due: {formatCurrency(s.balanceDue)}
-                            </span>
+                            <div className="space-y-0.5">
+                              <span className="text-warning font-medium text-[11px] block">
+                                Due: {formatCurrency(s.balanceDue)}
+                              </span>
+                              {s.dueDate ? (
+                                <span
+                                  className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                                    new Date(s.dueDate).getTime() < new Date(new Date().toISOString().split("T")[0]).getTime()
+                                      ? "bg-destructive/15 text-destructive"
+                                      : s.dueDate.slice(0, 10) === new Date().toISOString().slice(0, 10)
+                                      ? "bg-amber-500/15 text-amber-500 font-bold"
+                                      : "bg-primary/10 text-primary"
+                                  }`}
+                                >
+                                  <Calendar className="w-2.5 h-2.5" />
+                                  {new Date(s.dueDate).getTime() < new Date(new Date().toISOString().split("T")[0]).getTime()
+                                    ? "Overdue"
+                                    : s.dueDate.slice(0, 10) === new Date().toISOString().slice(0, 10)
+                                    ? "Due Today"
+                                    : "Due: " + new Date(s.dueDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground block italic">No due date</span>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-success font-medium text-[11px]">Paid • {s.paymentMethod}</span>
                           )}
@@ -1066,17 +1182,30 @@ export default function SalesPage() {
                             Receipt
                           </Button>
                           {isPartial && !isVoided && (
-                            <Button
-                              size="sm"
-                              variant="primary"
-                              onClick={() => {
-                                setDebtSale(s);
-                                setDebtAmount(s.balanceDue.toString());
-                                setDebtNotes(`Payment for #${s.id.slice(-6)}`);
-                              }}
-                            >
-                              Collect
-                            </Button>
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setEditDueDateSale(s);
+                                  setNewDueDate(s.dueDate ? s.dueDate.slice(0, 10) : "");
+                                }}
+                                title="Edit due date"
+                              >
+                                <Calendar className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                onClick={() => {
+                                  setDebtSale(s);
+                                  setDebtAmount(s.balanceDue.toString());
+                                  setDebtNotes(`Payment for #${s.id.slice(-6)}`);
+                                }}
+                              >
+                                Collect
+                              </Button>
+                            </>
                           )}
                           <Button
                             size="sm"
@@ -1213,6 +1342,90 @@ export default function SalesPage() {
             </div>
           )}
 
+          {/* Payment Due Date (Required for credit / partial sales unless explicit 'No agreed date') */}
+          {(isPartialCredit || paymentMethod === "CREDIT" || balanceDue > 0) && (
+            <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-primary" />
+                    Payment Due Date
+                  </label>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    When is the customer expected to pay the remaining balance?
+                  </p>
+                </div>
+                {dueDate && (
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-primary/10 text-primary">
+                    Due {new Date(dueDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                  </span>
+                )}
+              </div>
+
+              {!noAgreedDueDate && (
+                <div className="space-y-2.5">
+                  {/* Quick Preset Buttons */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { label: "In 3 days", days: 3 },
+                      { label: "In 7 days", days: 7 },
+                      { label: "In 14 days", days: 14 },
+                      { label: "In 30 days", days: 30 },
+                    ].map((preset) => {
+                      const targetDate = getQuickDueDate(preset.days);
+                      const isSelected = dueDate === targetDate;
+                      return (
+                        <button
+                          key={preset.days}
+                          type="button"
+                          onClick={() => {
+                            setDueDate(targetDate);
+                            setNoAgreedDueDate(false);
+                          }}
+                          className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition-all ${
+                            isSelected
+                              ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                              : "bg-card hover:bg-muted text-muted-foreground hover:text-foreground border-border"
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Calendar Date Picker */}
+                  <Input
+                    label="Or Choose Exact Date"
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => {
+                      setDueDate(e.target.value);
+                      setNoAgreedDueDate(false);
+                    }}
+                    min={new Date().toISOString().split("T")[0]}
+                  />
+                </div>
+              )}
+
+              {/* No agreed date checkbox */}
+              <div className="pt-1 border-t border-border/50">
+                <label className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={noAgreedDueDate}
+                    onChange={(e) => {
+                      setNoAgreedDueDate(e.target.checked);
+                      if (e.target.checked) setDueDate("");
+                    }}
+                    className="rounded border-border text-primary focus:ring-primary w-3.5 h-3.5"
+                  />
+                  <span>No agreed payment date (reminders will be skipped until date is set)</span>
+                </label>
+              </div>
+            </div>
+          )}
+
           {/* Notes */}
           <Textarea
             label="Internal Notes (Optional)"
@@ -1317,6 +1530,113 @@ export default function SalesPage() {
               isLoading={debtSubmitting}
             >
               Apply Payment
+            </Button>
+          </div>
+        </form>
+      </Sheet>
+
+      {/* EDIT PAYMENT DUE DATE SHEET */}
+      <Sheet
+        isOpen={!!editDueDateSale}
+        onClose={() => setEditDueDateSale(null)}
+        title="Edit Payment Due Date"
+        description={
+          editDueDateSale
+            ? `Invoice #${editDueDateSale.id.slice(-6).toUpperCase()} • ${
+                editDueDateSale.customer?.name || "Customer"
+              }`
+            : ""
+        }
+      >
+        <form onSubmit={handleUpdateDueDate} className="space-y-4 pt-2">
+          {editDueDateError && (
+            <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-xs font-semibold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{editDueDateError}</span>
+            </div>
+          )}
+
+          <div className="p-3 rounded-2xl bg-muted/40 border border-border text-xs space-y-1.5">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Original Invoice Total:</span>
+              <span className="font-bold">{editDueDateSale && formatCurrency(editDueDateSale.totalAmount)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Amount Already Paid:</span>
+              <span className="font-bold text-success">{editDueDateSale && formatCurrency(editDueDateSale.amountPaid)}</span>
+            </div>
+            <div className="flex justify-between text-sm font-black pt-1 border-t border-border">
+              <span>Outstanding Debt:</span>
+              <span className="text-warning">{editDueDateSale && formatCurrency(editDueDateSale.balanceDue)}</span>
+            </div>
+            <div className="flex justify-between pt-1">
+              <span className="text-muted-foreground">Current Due Date:</span>
+              <span className="font-semibold text-foreground">
+                {editDueDateSale?.dueDate
+                  ? new Date(editDueDateSale.dueDate).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })
+                  : "No due date set"}
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-2.5">
+            <label className="text-xs font-bold text-foreground block">
+              Choose New Payment Due Date
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { label: "In 3 days", days: 3 },
+                { label: "In 7 days", days: 7 },
+                { label: "In 14 days", days: 14 },
+                { label: "In 30 days", days: 30 },
+              ].map((preset) => {
+                const targetDate = getQuickDueDate(preset.days);
+                const isSelected = newDueDate === targetDate;
+                return (
+                  <button
+                    key={preset.days}
+                    type="button"
+                    onClick={() => setNewDueDate(targetDate)}
+                    className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition-all ${
+                      isSelected
+                        ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                        : "bg-card hover:bg-muted text-muted-foreground hover:text-foreground border-border"
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <Input
+              label="Or Exact Date"
+              type="date"
+              value={newDueDate}
+              onChange={(e) => setNewDueDate(e.target.value)}
+            />
+          </div>
+
+          <div className="pt-2 flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setEditDueDateSale(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              className="flex-1 font-black"
+              isLoading={editDueDateSubmitting}
+            >
+              Update Due Date
             </Button>
           </div>
         </form>

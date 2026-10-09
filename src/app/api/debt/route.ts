@@ -1,18 +1,26 @@
 import { NextResponse } from "next/server";
-import { recordDebtPayment, getDebtorsList } from "@/lib/services/debt";
+import { recordDebtPayment, getDebtorsList, getDebtDashboardSummary } from "@/lib/services/debt";
 import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 import { PaymentMethod } from "@prisma/client";
 import { serializePlainObject } from "@/lib/utils";
 
 const VALID_PAYMENT_METHODS = new Set(Object.values(PaymentMethod));
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const view = searchParams.get("view");
+
+    if (view === "summary") {
+      const summary = await getDebtDashboardSummary(DEFAULT_BUSINESS_ID);
+      return NextResponse.json({ success: true, data: serializePlainObject(summary) });
+    }
+
     const debtors = await getDebtorsList(DEFAULT_BUSINESS_ID);
     return NextResponse.json({ success: true, data: serializePlainObject(debtors) });
   } catch (error: any) {
     console.error("GET /api/debt error:", error);
-    return NextResponse.json({ success: false, error: error.message || "Failed to fetch debtors list" }, { status: 500 });
+    return NextResponse.json({ success: false, error: error.message || "Failed to fetch debtors data" }, { status: 500 });
   }
 }
 

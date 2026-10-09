@@ -247,3 +247,157 @@ export async function getDebtorsList(businessId: string) {
     };
   });
 }
+
+export interface DebtDashboardSummary {
+  totalOutstandingDebt: number;
+  debtorsCount: number;
+  totalUnpaidSalesCount: number;
+  dueToday: {
+    count: number;
+    amount: number;
+  };
+  upcoming: {
+    count: number;
+    amount: number;
+  };
+  overdue: {
+    count: number;
+    amount: number;
+    customerCount: number;
+  };
+  noDueDate: {
+    count: number;
+    amount: number;
+  };
+  items: Array<{
+    saleId: string;
+    saleDate: string;
+    dueDate: string | null;
+    totalAmount: number;
+    amountPaid: number;
+    balanceDue: number;
+    customerId: string | null;
+    customerName: string;
+    customerPhone: string | null;
+    status: "OVERDUE" | "DUE_TODAY" | "UPCOMING" | "NO_DUE_DATE";
+    daysDifference: number | null;
+  }>;
+}
+
+export async function getDebtDashboardSummary(businessId: string): Promise<DebtDashboardSummary> {
+  await ensureDefaultBusiness(businessId);
+
+  const activeUnpaidSales = await prisma.sale.findMany({
+    where: {
+      businessId,
+      status: { notIn: ["VOIDED", "REFUNDED"] },
+      paymentStatus: { in: [PaymentStatus.PARTIAL, PaymentStatus.UNPAID] },
+    },
+    include: {
+      customer: {
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+        },
+      },
+    },
+    orderBy: [{ dueDate: "asc" }, { saleDate: "desc" }],
+  });
+
+  const now = new Date();
+  const todayYMD = now.toISOString().slice(0, 10);
+  const nowMs = new Date(todayYMD).getTime();
+
+  let totalOutstandingDebt = 0;
+  const debtorIds = new Set<string>();
+  const overdueDebtorIds = new Set<string>();
+
+  let dueTodayCount = 0;
+  let dueTodayAmount = 0;
+
+  let upcomingCount = 0;
+  let upcomingAmount = 0;
+
+  let overdueCount = 0;
+  let overdueAmount = 0;
+
+  let noDueDateCount = 0;
+  let noDueDateAmount = 0;
+
+  const items: DebtDashboardSummary["items"] = [];
+
+  for (const s of activeUnpaidSales) {
+    const balance = s.balanceDue.toNumber();
+    if (balance <= 0) continue;
+
+    totalOutstandingDebt += balance;
+    if (s.customerId) debtorIds.add(s.customerId);
+
+    let status: "OVERDUE" | "DUE_TODAY" | "UPCOMING" | "NO_DUE_DATE" = "NO_DUE_DATE";
+    let daysDiff: number | null = null;
+
+    if (s.dueDate) {
+      const dueYMD = s.dueDate.toISOString().slice(0, 10);
+      const dueMs = new Date(dueYMD).getTime();
+      daysDiff = Math.round((dueMs - nowMs) / (1000 * 60 * 60 * 24));
+
+      if (daysDiff < 0) {
+        status = "OVERDUE";
+        overdueCount++;
+        overdueAmount += balance;
+        if (s.customerId) overdueDebtorIds.add(s.customerId);
+      } else if (daysDiff === 0) {
+        status = "DUE_TODAY";
+        dueTodayCount++;
+        dueTodayAmount += balance;
+      } else {
+        status = "UPCOMING";
+        upcomingCount++;
+        upcomingAmount += balance;
+      }
+    } else {
+      status = "NO_DUE_DATE";
+      noDueDateCount++;
+      noDueDateAmount += balance;
+    }
+
+    items.push({
+      saleId: s.id,
+      saleDate: s.saleDate.toISOString(),
+      dueDate: s.dueDate ? s.dueDate.toISOString() : null,
+      totalAmount: s.totalAmount.toNumber(),
+      amountPaid: s.amountPaid.toNumber(),
+      balanceDue: balance,
+      customerId: s.customerId,
+      customerName: s.customer?.name || "Walk-in Client",
+      customerPhone: s.customer?.phone || null,
+      status,
+      daysDifference: daysDiff,
+    });
+  }
+
+  return {
+    totalOutstandingDebt: Math.round(totalOutstandingDebt * 100) / 100,
+    debtorsCount: debtorIds.size,
+    totalUnpaidSalesCount: items.length,
+    dueToday: {
+      count: dueTodayCount,
+      amount: Math.round(dueTodayAmount * 100) / 100,
+    },
+    upcoming: {
+      count: upcomingCount,
+      amount: Math.round(upcomingAmount * 100) / 100,
+    },
+    overdue: {
+      count: overdueCount,
+      amount: Math.round(overdueAmount * 100) / 100,
+      customerCount: overdueDebtorIds.size,
+    },
+    noDueDate: {
+      count: noDueDateCount,
+      amount: Math.round(noDueDateAmount * 100) / 100,
+    },
+    items,
+  };
+}

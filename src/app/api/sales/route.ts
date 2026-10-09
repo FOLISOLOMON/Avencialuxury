@@ -100,10 +100,20 @@ export async function POST(request: Request) {
       saleDate = parsedDate;
     }
 
+    let dueDate: Date | undefined = undefined;
+    if (body.dueDate) {
+      const parsedDueDate = new Date(body.dueDate);
+      if (isNaN(parsedDueDate.getTime())) {
+        return NextResponse.json({ success: false, error: "Invalid payment due date format" }, { status: 400 });
+      }
+      dueDate = parsedDueDate;
+    }
+
     const sale = await createSale({
       businessId: DEFAULT_BUSINESS_ID,
       customerId: body.customerId ? String(body.customerId).trim() : undefined,
       saleDate,
+      dueDate,
       discount,
       paymentMethod: body.paymentMethod || "CASH",
       amountPaid,

@@ -172,6 +172,7 @@ class MobileSyncManager {
             body: JSON.stringify({
               customerId: actualCustomerId || undefined,
               saleDate: pendingSale.saleDate,
+              dueDate: pendingSale.dueDate || undefined,
               paymentMethod: pendingSale.paymentMethod,
               amountPaid: pendingSale.amountPaid,
               discount: pendingSale.discount || 0,
@@ -298,6 +299,7 @@ class MobileSyncManager {
             totalDebt: Number(c.totalDebt ?? c.totalOutstandingDebt ?? 0),
             totalSpent: Number(c.totalSpent ?? c.totalSpend ?? 0),
             lastPurchaseDate: c.lastPurchaseDate,
+            sales: c.sales || [],
           }));
           await cacheCustomers(mobileCustomers);
         }

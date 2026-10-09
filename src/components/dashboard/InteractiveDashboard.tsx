@@ -8,6 +8,8 @@ import {
   ArrowRight,
   Package,
   Users,
+  Clock,
+  Calendar,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
@@ -86,6 +88,63 @@ export function InteractiveDashboard({
       totalDebt,
     };
   }, [products, customers, settings]);
+
+  // Payment Deadlines & Debt Monitor Calculation
+  const debtSummary = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let totalOutstanding = 0;
+    let dueTodayAmount = 0;
+    let dueTodayCount = 0;
+    let overdueAmount = 0;
+    let overdueCount = 0;
+    const overdueCustomerIds = new Set<string>();
+    let upcomingAmount = 0;
+    let upcomingCount = 0;
+    let noDueDateCount = 0;
+
+    sales.forEach((s) => {
+      if (s.status === "VOIDED" || s.status === "REFUNDED") return;
+      const bal = Number(s.balanceDue || 0);
+      if (bal <= 0) return;
+
+      totalOutstanding += bal;
+
+      if (!s.dueDate) {
+        noDueDateCount++;
+        return;
+      }
+
+      const due = new Date(s.dueDate);
+      due.setHours(0, 0, 0, 0);
+      const diffDays = Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (diffDays < 0) {
+        overdueAmount += bal;
+        overdueCount++;
+        if (s.customerId) overdueCustomerIds.add(s.customerId);
+      } else if (diffDays === 0) {
+        dueTodayAmount += bal;
+        dueTodayCount++;
+      } else if (diffDays <= 7) {
+        upcomingAmount += bal;
+        upcomingCount++;
+      }
+    });
+
+    return {
+      totalOutstanding,
+      dueTodayAmount,
+      dueTodayCount,
+      overdueAmount,
+      overdueCount,
+      overdueDebtorsCount: overdueCustomerIds.size,
+      upcomingAmount,
+      upcomingCount,
+      noDueDateCount,
+    };
+  }, [sales]);
 
   // 3. 7-Day Sales Trend Bar Chart Data
   const trendData = useMemo(() => {
@@ -282,6 +341,71 @@ export function InteractiveDashboard({
           </div>
         </div>
       </div>
+
+      {/* Payment Deadlines & Debt Monitor */}
+      {debtSummary.totalOutstanding > 0 && (
+        <Card>
+          <CardHeader className="px-4 py-3 sm:px-5">
+            <div className="flex items-center justify-between w-full">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-warning" />
+                  <span>Payment Deadlines & Debt Monitor</span>
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Real-time schedule of customer receivables and upcoming collections
+                </p>
+              </div>
+              <Link href="/customers">
+                <Button variant="outline" size="sm">
+                  View All Debtors
+                </Button>
+              </Link>
+            </div>
+          </CardHeader>
+          <div className="p-4 sm:p-5 grid grid-cols-2 md:grid-cols-4 gap-3 bg-secondary/20 border-t border-border">
+            <div className="p-3 rounded-md bg-card border border-border">
+              <span className="text-[11px] text-muted-foreground font-medium block">Total Receivables</span>
+              <span className="text-base sm:text-lg font-bold text-warning tabular-nums">
+                {formatCurrency(debtSummary.totalOutstanding, currency)}
+              </span>
+              <span className="text-[10px] text-muted-foreground block mt-0.5">
+                {attentionItems.debtors.length} active debtors
+              </span>
+            </div>
+
+            <div className={`p-3 rounded-md border ${debtSummary.overdueCount > 0 ? "bg-red-500/5 border-red-500/20" : "bg-card border-border"}`}>
+              <span className="text-[11px] text-muted-foreground font-medium block">Overdue Payments</span>
+              <span className={`text-base sm:text-lg font-bold tabular-nums ${debtSummary.overdueCount > 0 ? "text-red-500" : "text-foreground"}`}>
+                {formatCurrency(debtSummary.overdueAmount, currency)}
+              </span>
+              <span className="text-[10px] text-muted-foreground block mt-0.5">
+                {debtSummary.overdueCount} {debtSummary.overdueCount === 1 ? "invoice" : "invoices"} overdue ({debtSummary.overdueDebtorsCount} clients)
+              </span>
+            </div>
+
+            <div className={`p-3 rounded-md border ${debtSummary.dueTodayCount > 0 ? "bg-amber-500/5 border-amber-500/20" : "bg-card border-border"}`}>
+              <span className="text-[11px] text-muted-foreground font-medium block">Due Today</span>
+              <span className={`text-base sm:text-lg font-bold tabular-nums ${debtSummary.dueTodayCount > 0 ? "text-amber-500" : "text-foreground"}`}>
+                {formatCurrency(debtSummary.dueTodayAmount, currency)}
+              </span>
+              <span className="text-[10px] text-muted-foreground block mt-0.5">
+                {debtSummary.dueTodayCount} {debtSummary.dueTodayCount === 1 ? "payment" : "payments"} due today
+              </span>
+            </div>
+
+            <div className="p-3 rounded-md bg-card border border-border">
+              <span className="text-[11px] text-muted-foreground font-medium block">Upcoming (Next 7 Days)</span>
+              <span className="text-base sm:text-lg font-bold text-sky-500 tabular-nums">
+                {formatCurrency(debtSummary.upcomingAmount, currency)}
+              </span>
+              <span className="text-[10px] text-muted-foreground block mt-0.5">
+                {debtSummary.upcomingCount} scheduled {debtSummary.upcomingCount === 1 ? "payment" : "payments"}
+              </span>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* 3. Operational Attention Ledger (Restrained, high-clarity table) */}
       {(attentionItems.lowStock.length > 0 || attentionItems.debtors.length > 0) && (

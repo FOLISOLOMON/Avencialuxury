@@ -19,6 +19,7 @@ import {
   Barcode,
   ArrowLeft,
   MessageCircle,
+  Calendar,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -54,6 +55,8 @@ function MobileSellContent() {
   const [paymentMethod, setPaymentMethod] = useState<string>("CASH");
   const [paymentType, setPaymentType] = useState<"FULL" | "PARTIAL" | "CREDIT">("FULL");
   const [amountPaidCustom, setAmountPaidCustom] = useState<string>("");
+  const [dueDate, setDueDate] = useState<string>("");
+  const [noAgreedDueDate, setNoAgreedDueDate] = useState<boolean>(false);
   const [saleNotes, setSaleNotes] = useState<string>("");
 
   // Modals & UI states
@@ -158,6 +161,15 @@ function MobileSellContent() {
 
   const debtRemaining = Math.max(0, totalAmount - finalAmountPaid);
 
+  const getQuickDueDate = (days: number): string => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   // Submit sale handler (Online + Offline fallback)
   const handleCompleteSale = async () => {
     if (cart.length === 0) {
@@ -167,6 +179,11 @@ function MobileSellContent() {
 
     if ((paymentType === "CREDIT" || (paymentType === "PARTIAL" && debtRemaining > 0)) && !selectedCustomer) {
       toast.error("Partial or credit payment requires selecting or adding a customer to record debt", "Customer required");
+      return;
+    }
+
+    if ((paymentType === "CREDIT" || (paymentType === "PARTIAL" && debtRemaining > 0)) && !dueDate && !noAgreedDueDate) {
+      toast.error("Please select a payment due date or choose 'No agreed payment date'", "Due Date Required");
       return;
     }
 
@@ -190,6 +207,7 @@ function MobileSellContent() {
             items: saleItemsPayload,
             paymentMethod,
             amountPaid: finalAmountPaid,
+            dueDate: dueDate || undefined,
             notes: saleNotes.trim() || undefined,
             saleDate: new Date().toISOString(),
           }),
@@ -233,6 +251,7 @@ function MobileSellContent() {
           })),
           totalAmount,
           amountPaid: finalAmountPaid,
+          dueDate: dueDate || undefined,
           paymentMethod,
           paymentStatus: finalAmountPaid >= totalAmount ? "PAID" : finalAmountPaid > 0 ? "PARTIAL" : "CREDIT",
           notes: saleNotes.trim() || undefined,
@@ -271,6 +290,7 @@ function MobileSellContent() {
         })),
         totalAmount,
         amountPaid: finalAmountPaid,
+        dueDate: dueDate || undefined,
         paymentMethod,
         paymentStatus: finalAmountPaid >= totalAmount ? "PAID" : finalAmountPaid > 0 ? "PARTIAL" : "CREDIT",
         notes: saleNotes.trim() || undefined,
@@ -685,6 +705,86 @@ function MobileSellContent() {
                 Customer debt balance will be: GH₵{debtRemaining.toFixed(2)}
               </p>
             )}
+          </div>
+        )}
+
+        {/* If Debt / Credit: Payment Due Date Picker */}
+        {(paymentType === "CREDIT" || (paymentType === "PARTIAL" && debtRemaining > 0)) && (
+          <div className="p-3.5 rounded-xl bg-card border border-border space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-primary" />
+                  Payment Due Date
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  When is the customer expected to pay?
+                </p>
+              </div>
+              {dueDate && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-primary/10 text-primary">
+                  {new Date(dueDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                </span>
+              )}
+            </div>
+
+            {!noAgreedDueDate && (
+              <div className="space-y-2">
+                {/* Quick Date Presets */}
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { label: "In 3d", days: 3 },
+                    { label: "In 7d", days: 7 },
+                    { label: "In 14d", days: 14 },
+                    { label: "In 30d", days: 30 },
+                  ].map((preset) => {
+                    const target = getQuickDueDate(preset.days);
+                    const isSelected = dueDate === target;
+                    return (
+                      <button
+                        key={preset.days}
+                        type="button"
+                        onClick={() => {
+                          setDueDate(target);
+                          setNoAgreedDueDate(false);
+                        }}
+                        className={`py-1.5 text-[11px] font-bold rounded-lg border text-center transition-all active:scale-95 ${
+                          isSelected
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-muted/50 border-border text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <Input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => {
+                    setDueDate(e.target.value);
+                    setNoAgreedDueDate(false);
+                  }}
+                  min={new Date().toISOString().split("T")[0]}
+                  className="text-xs h-10 rounded-xl bg-card"
+                />
+              </div>
+            )}
+
+            <label className="flex items-center gap-2 cursor-pointer text-[11px] text-muted-foreground hover:text-foreground pt-1 border-t border-border/60">
+              <input
+                type="checkbox"
+                checked={noAgreedDueDate}
+                onChange={(e) => {
+                  setNoAgreedDueDate(e.target.checked);
+                  if (e.target.checked) setDueDate("");
+                }}
+                className="rounded border-border text-primary focus:ring-primary w-3.5 h-3.5"
+              />
+              <span>No agreed payment date (skip reminders)</span>
+            </label>
           </div>
         )}
 

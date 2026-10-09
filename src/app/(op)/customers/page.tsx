@@ -36,6 +36,25 @@ import {
   Send,
 } from "lucide-react";
 
+interface CustomerSale {
+  id: string;
+  totalAmount: number;
+  amountPaid: number;
+  balanceDue: number;
+  grossProfit: number;
+  paymentStatus: string;
+  paymentMethod: string;
+  saleDate: string;
+  dueDate?: string | null;
+  notes?: string | null;
+  saleItems?: Array<{
+    id: string;
+    quantity: number;
+    unitPrice: number;
+    product: { name: string };
+  }>;
+}
+
 interface Customer {
   id: string;
   name: string;
@@ -48,11 +67,13 @@ interface Customer {
   totalOutstandingDebt?: number;
   avgOrderValue: number;
   lastPurchaseDate: string | null;
+  sales?: CustomerSale[];
 }
 
 function CustomersContent() {
   const searchParams = useSearchParams();
   const urlCustomerId = searchParams.get("id");
+  const urlSaleId = searchParams.get("saleId");
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,6 +82,7 @@ function CustomersContent() {
   // Search & Filter
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"ALL" | "DEBTORS">(urlCustomerId ? "DEBTORS" : "ALL");
+  const [highlightSaleId, setHighlightSaleId] = useState<string | null>(urlSaleId);
 
   // Add Customer Sheet
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -76,11 +98,61 @@ function CustomersContent() {
   const [debtAmount, setDebtAmount] = useState("");
   const [debtPaymentMethod, setDebtPaymentMethod] = useState("CASH");
   const [debtNotes, setDebtNotes] = useState("");
+  const [targetSaleId, setTargetSaleId] = useState<string | null>(null);
   const [debtSubmitting, setDebtSubmitting] = useState(false);
   const [debtError, setDebtError] = useState<string | null>(null);
 
+  // Edit Due Date Modal State
+  const [editDueDateSale, setEditDueDateSale] = useState<{
+    id: string;
+    customerName: string;
+    totalAmount: number;
+    amountPaid: number;
+    balanceDue: number;
+    dueDate?: string | null;
+  } | null>(null);
+  const [newDueDate, setNewDueDate] = useState("");
+  const [editDueDateSubmitting, setEditDueDateSubmitting] = useState(false);
+  const [editDueDateError, setEditDueDateError] = useState<string | null>(null);
+
   // Customer Detail Sheet
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+
+  const getQuickDueDate = (days: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return d.toISOString().split("T")[0];
+  };
+
+  const getDueDateStatus = (dueDateStr?: string | null) => {
+    if (!dueDateStr) return { label: "No Due Date", status: "none", color: "text-muted-foreground bg-muted border-border" };
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(dueDateStr);
+    due.setHours(0, 0, 0, 0);
+    const diffTime = due.getTime() - today.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) {
+      return {
+        label: `Overdue by ${Math.abs(diffDays)}d`,
+        status: "overdue",
+        color: "text-red-500 bg-red-500/10 border-red-500/30",
+      };
+    }
+    if (diffDays === 0) {
+      return {
+        label: "Due Today",
+        status: "today",
+        color: "text-amber-500 bg-amber-500/10 border-amber-500/30",
+      };
+    }
+    return {
+      label: `Due in ${diffDays}d`,
+      status: "upcoming",
+      color: "text-sky-500 bg-sky-500/10 border-sky-500/30",
+    };
+  };
 
   const fetchCustomers = async () => {
     setLoading(true);
@@ -169,11 +241,12 @@ function CustomersContent() {
     }
   };
 
-  const openDebtModal = (c: Customer) => {
+  const openDebtModal = (c: Customer, saleId?: string, initialAmount?: number) => {
     setDebtCustomer(c);
-    setDebtAmount(c.totalOutstandingDebt ? c.totalOutstandingDebt.toString() : "");
+    setTargetSaleId(saleId || null);
+    setDebtAmount(initialAmount ? initialAmount.toString() : (c.totalOutstandingDebt ? c.totalOutstandingDebt.toString() : ""));
     setDebtPaymentMethod("CASH");
-    setDebtNotes(`Debt settlement for ${c.name}`);
+    setDebtNotes(saleId ? `Payment for order #${saleId.slice(0, 8).toUpperCase()}` : `Debt settlement for ${c.name}`);
     setDebtError(null);
   };
 
@@ -195,6 +268,7 @@ function CustomersContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           customerId: debtCustomer.id,
+          saleId: targetSaleId || undefined,
           amount: amt,
           paymentMethod: debtPaymentMethod,
           notes: debtNotes.trim() || undefined,
@@ -204,6 +278,7 @@ function CustomersContent() {
       const json = await res.json();
       if (json.success) {
         setDebtCustomer(null);
+        setTargetSaleId(null);
         fetchCustomers();
       } else {
         setDebtError(json.error || "Failed to record payment");
@@ -215,11 +290,51 @@ function CustomersContent() {
     }
   };
 
+  const handleUpdateDueDate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editDueDateSale) return;
+    setEditDueDateSubmitting(true);
+    setEditDueDateError(null);
+    try {
+      const res = await fetch("/api/debt", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          saleId: editDueDateSale.id,
+          dueDate: newDueDate || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to update due date");
+      }
+      setEditDueDateSale(null);
+      await fetchCustomers();
+    } catch (err: any) {
+      setEditDueDateError(err.message || "Failed to update due date");
+    } finally {
+      setEditDueDateSubmitting(false);
+    }
+  };
+
   const getWhatsAppDebtReminderUrl = (c: Customer) => {
     const debt = c.totalOutstandingDebt || 0;
     if (debt <= 0) return null;
 
     const msg = `Hello ${c.name}! 👋\n\nThis is a gentle payment reminder from *Avencia Perfumes* regarding your account balance.\n\n📌 *Account Summary*:\n• Customer: ${c.name}\n• Total Orders: ${c.totalOrders}\n• Outstanding Balance: GH₵ ${debt.toFixed(2)}\n\nPlease reply to this message or contact us to arrange payment or make a partial settlement. Thank you for your continued business! 🙏✨`;
+
+    const formattedPhone = formatGhanaPhoneNumber(c.phone);
+    const cleanPhone = formattedPhone ? formattedPhone.replace(/[^0-9]/g, "") : "";
+    if (cleanPhone) {
+      return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
+    }
+    return `https://wa.me/?text=${encodeURIComponent(msg)}`;
+  };
+
+  const getWhatsAppSingleSaleReminderUrl = (c: Customer, s: CustomerSale) => {
+    const itemsStr = (s.saleItems || []).map(i => `${i.product.name} (x${i.quantity})`).join(", ") || "perfume order";
+    const dueStr = s.dueDate ? new Date(s.dueDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "as soon as possible";
+    const msg = `Hello ${c.name}! 👋\n\nThis is a gentle payment reminder from *Avencia Perfumes* regarding your purchase on ${new Date(s.saleDate).toLocaleDateString()}.\n\n📌 *Order Details*:\n• Order Ref: #${s.id.slice(0, 8).toUpperCase()}\n• Items: ${itemsStr}\n• Total Amount: GH₵ ${s.totalAmount.toFixed(2)}\n• Amount Paid: GH₵ ${s.amountPaid.toFixed(2)}\n• *Remaining Balance*: *GH₵ ${s.balanceDue.toFixed(2)}*\n• *Payment Due Date*: *${dueStr}*\n\nPlease let us know if you need our MoMo or bank details to complete payment. Thank you for choosing Avencia! 🙏✨`;
 
     const formattedPhone = formatGhanaPhoneNumber(c.phone);
     const cleanPhone = formattedPhone ? formattedPhone.replace(/[^0-9]/g, "") : "";
@@ -738,6 +853,135 @@ function CustomersContent() {
               </div>
             )}
 
+            {/* Individual Outstanding Sales Breakdown */}
+            {selectedCustomer.sales && selectedCustomer.sales.some((s) => s.balanceDue > 0) && (
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between border-b border-border pb-1.5">
+                  <h3 className="font-bold text-foreground text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-warning" />
+                    <span>Outstanding Invoices ({selectedCustomer.sales.filter((s) => s.balanceDue > 0).length})</span>
+                  </h3>
+                  <span className="text-[11px] font-semibold text-warning">
+                    Total: {formatCurrency(selectedCustomer.totalOutstandingDebt || 0)}
+                  </span>
+                </div>
+
+                <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+                  {selectedCustomer.sales
+                    .filter((s) => s.balanceDue > 0)
+                    .map((s) => {
+                      const statusInfo = getDueDateStatus(s.dueDate);
+                      const isHighlighted = highlightSaleId === s.id;
+                      const itemsText =
+                        (s.saleItems || []).map((i) => `${i.product.name} (x${i.quantity})`).join(", ") || "Perfume order";
+                      const singleWhatsAppUrl = getWhatsAppSingleSaleReminderUrl(selectedCustomer, s);
+
+                      return (
+                        <div
+                          key={s.id}
+                          className={`p-3 rounded-lg border text-xs space-y-2 transition-all ${
+                            isHighlighted
+                              ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/30"
+                              : "border-border bg-card/60 hover:bg-card"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="font-bold text-foreground flex items-center gap-1.5">
+                                <span>#{s.id.slice(0, 8).toUpperCase()}</span>
+                                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${statusInfo.color}`}>
+                                  {statusInfo.label}
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-muted-foreground mt-0.5">
+                                {new Date(s.saleDate).toLocaleDateString(undefined, {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                })} • {itemsText}
+                              </div>
+                            </div>
+
+                            <div className="text-right">
+                              <div className="font-bold text-warning tabular-nums">
+                                {formatCurrency(s.balanceDue)} due
+                              </div>
+                              <div className="text-[10px] text-muted-foreground tabular-nums">
+                                of {formatCurrency(s.totalAmount)}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/50 text-[11px]">
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Calendar className="w-3 h-3 text-muted-foreground" />
+                              <span>Due: </span>
+                              <span className="font-medium text-foreground">
+                                {s.dueDate
+                                  ? new Date(s.dueDate).toLocaleDateString(undefined, {
+                                      month: "short",
+                                      day: "numeric",
+                                      year: "numeric",
+                                    })
+                                  : "No agreed date"}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditDueDateSale({
+                                    id: s.id,
+                                    customerName: selectedCustomer.name,
+                                    totalAmount: s.totalAmount,
+                                    amountPaid: s.amountPaid,
+                                    balanceDue: s.balanceDue,
+                                    dueDate: s.dueDate,
+                                  });
+                                  setNewDueDate(s.dueDate ? s.dueDate.split("T")[0] : "");
+                                  setEditDueDateError(null);
+                                }}
+                                className="px-2 py-1 rounded bg-secondary hover:bg-secondary/80 text-foreground text-[10px] font-medium border border-border transition-colors flex items-center gap-1"
+                              >
+                                <Calendar className="w-3 h-3" />
+                                Edit Date
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const c = selectedCustomer;
+                                  setSelectedCustomer(null);
+                                  openDebtModal(c, s.id, s.balanceDue);
+                                }}
+                                className="px-2 py-1 rounded bg-primary text-primary-foreground text-[10px] font-semibold hover:bg-primary/90 transition-colors flex items-center gap-1"
+                              >
+                                <Banknote className="w-3 h-3" />
+                                Pay
+                              </button>
+
+                              {singleWhatsAppUrl && (
+                                <a
+                                  href={singleWhatsAppUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-2 py-1 rounded bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-semibold border border-emerald-600/20 transition-colors flex items-center gap-1"
+                                  title="Send invoice reminder via WhatsApp"
+                                >
+                                  <MessageSquare className="w-3 h-3" />
+                                  WhatsApp
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+
             <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
               {(selectedCustomer.totalOutstandingDebt || 0) > 0 ? (
                 <>
@@ -751,7 +995,7 @@ function CustomersContent() {
                     }}
                   >
                     <Banknote className="w-4 h-4 mr-2" />
-                    Record Payment
+                    Settle Total Debt
                   </Button>
 
                   {selectedCustomer.phone && (
@@ -775,6 +1019,115 @@ function CustomersContent() {
             </div>
           </div>
         )}
+      </Sheet>
+
+      {/* EDIT DUE DATE SHEET */}
+      <Sheet
+        isOpen={!!editDueDateSale}
+        onClose={() => setEditDueDateSale(null)}
+        title="Update Payment Due Date"
+        description={
+          editDueDateSale
+            ? `Order #${editDueDateSale.id.slice(0, 8).toUpperCase()} • ${editDueDateSale.customerName}`
+            : ""
+        }
+      >
+        <form onSubmit={handleUpdateDueDate} className="space-y-4 pt-2">
+          {editDueDateError && (
+            <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-xs font-semibold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{editDueDateError}</span>
+            </div>
+          )}
+
+          <div className="p-3 rounded-lg bg-secondary/50 border border-border text-xs space-y-1.5">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Order Ref:</span>
+              <span className="font-mono font-bold text-foreground">
+                #{editDueDateSale?.id.slice(0, 8).toUpperCase()}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Total Sale:</span>
+              <span className="font-medium text-foreground">
+                {editDueDateSale && formatCurrency(editDueDateSale.totalAmount)}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Amount Paid:</span>
+              <span className="font-medium text-foreground">
+                {editDueDateSale && formatCurrency(editDueDateSale.amountPaid)}
+              </span>
+            </div>
+            <div className="flex justify-between border-t border-border/60 pt-1 text-sm font-bold">
+              <span>Balance Due:</span>
+              <span className="text-warning">
+                {editDueDateSale && formatCurrency(editDueDateSale.balanceDue)}
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-foreground block">
+              Payment Due Date
+            </label>
+            <p className="text-[11px] text-muted-foreground">
+              When is the customer expected to pay the remaining balance?
+            </p>
+
+            {/* Quick preset buttons */}
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {[
+                { label: "In 3 days", days: 3 },
+                { label: "In 7 days", days: 7 },
+                { label: "In 14 days", days: 14 },
+                { label: "In 30 days", days: 30 },
+              ].map((preset) => (
+                <button
+                  key={preset.days}
+                  type="button"
+                  onClick={() => setNewDueDate(getQuickDueDate(preset.days))}
+                  className="px-2.5 py-1 text-xs rounded-md bg-secondary hover:bg-secondary/80 text-foreground border border-border transition-colors font-medium"
+                >
+                  {preset.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setNewDueDate("")}
+                className="px-2.5 py-1 text-xs rounded-md bg-muted hover:bg-muted/80 text-muted-foreground border border-border transition-colors font-medium"
+              >
+                Clear Date
+              </button>
+            </div>
+
+            <Input
+              type="date"
+              value={newDueDate}
+              onChange={(e) => setNewDueDate(e.target.value)}
+              className="mt-2"
+            />
+          </div>
+
+          <div className="pt-2 flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setEditDueDateSale(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              className="flex-1 font-black"
+              isLoading={editDueDateSubmitting}
+            >
+              Save Due Date
+            </Button>
+          </div>
+        </form>
       </Sheet>
     </div>
   );

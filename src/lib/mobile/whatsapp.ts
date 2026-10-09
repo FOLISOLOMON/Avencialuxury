@@ -162,3 +162,37 @@ export function getPaymentReceiptWhatsAppUrl(params: {
     ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
     : `https://wa.me/?text=${encodeURIComponent(text)}`;
 }
+
+/**
+ * Builds an invoice-specific payment reminder message
+ */
+export function getInvoiceDebtReminderWhatsAppUrl(params: {
+  customerName: string;
+  customerPhone?: string | null;
+  saleId: string;
+  totalAmount: number;
+  amountPaid: number;
+  balanceDue: number;
+  dueDate?: string | null;
+}): string {
+  const phone = cleanPhoneForWhatsApp(params.customerPhone);
+  const name = params.customerName.trim();
+  const dueStr = params.dueDate
+    ? new Date(params.dueDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+    : "as agreed";
+
+  let text = `Hello ${name}! 👋\n\n`;
+  text += `This is a friendly payment reminder from *Avencia Luxury Perfumes* regarding your purchase.\n\n`;
+  text += `📌 *Invoice Details*:\n`;
+  text += `• Invoice Ref: #${params.saleId.slice(0, 8).toUpperCase()}\n`;
+  text += `• Total Amount: GH₵ ${params.totalAmount.toFixed(2)}\n`;
+  text += `• Amount Paid: GH₵ ${params.amountPaid.toFixed(2)}\n`;
+  text += `• *Remaining Balance*: *GH₵ ${params.balanceDue.toFixed(2)}*\n`;
+  text += `• *Payment Due Date*: *${dueStr}*\n\n`;
+  text += `Kindly arrange payment or let us know if you need our MoMo details. Thank you! 🙏✨`;
+
+  return phone
+    ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
+    : `https://wa.me/?text=${encodeURIComponent(text)}`;
+}
+

@@ -91,7 +91,13 @@ function classifyIntentAndSelectTool(userQuery: string): ToolIntent {
     q.includes("pending payment") ||
     q.includes("haven't paid") ||
     q.includes("havent paid") ||
-    q.includes("still owe")
+    q.includes("still owe") ||
+    q.includes("due today") ||
+    q.includes("due date") ||
+    q.includes("overdue") ||
+    q.includes("expecting to collect") ||
+    q.includes("collect this week") ||
+    q.includes("upcoming payment")
   ) {
     // Check if asking about a specific customer name (e.g. "Does Kwame owe me?", "Check John's debt")
     const specificMatch = userQuery.match(/(?:does|is|how much does|how much is|check)\s+([a-zA-Z0-9\s]+?)\s+(?:owe|owing|have debt|have a balance|balance|debt)/i);
@@ -334,11 +340,35 @@ function formatFallbackResponse(
       }
 
       const debtorList = data.debtors
-        .map((d: any) => `- **${d.name}** — GH₵${d.outstandingBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}`)
+        .map((d: any) => {
+          let line = `- **${d.name}** — GH₵${d.outstandingBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+          if (d.unpaidSales && d.unpaidSales.length > 0) {
+            const saleDetails = d.unpaidSales
+              .map((s: any) => {
+                const datePart = s.dueDate ? `Due: ${s.dueDate}` : "No agreed due date";
+                let statusPart = "";
+                if (s.dueStatus === "DUE_TODAY") statusPart = " (⚠️ DUE TODAY)";
+                else if (s.dueStatus.startsWith("OVERDUE")) statusPart = " (🚨 OVERDUE)";
+                else if (s.dueStatus.startsWith("DUE_IN")) statusPart = " (Upcoming)";
+                return `${datePart}${statusPart}`;
+              })
+              .join(", ");
+            line += ` • _${saleDetails}_`;
+          }
+          return line;
+        })
         .join("\n");
 
+      let summaryExtras = "";
+      if (data.dueTodayCount > 0) {
+        summaryExtras += `\n- ⚠️ **Payments Due Today**: ${data.dueTodayCount} (GH₵${data.dueTodayAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })})`;
+      }
+      if (data.overdueCount > 0) {
+        summaryExtras += `\n- 🚨 **Overdue Payments**: ${data.overdueCount} (GH₵${data.overdueAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })})`;
+      }
+
       return {
-        text: `### Customers With Outstanding Balances\n\n${debtorList}\n\n**Total Outstanding Debt**:\nGH₵${data.totalOutstandingDebt.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
+        text: `### Customers With Outstanding Balances\n\n${debtorList}\n${summaryExtras}\n\n**Total Outstanding Debt**:\nGH₵${data.totalOutstandingDebt.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
         payload: { type: "customer_balances", data },
       };
     }
