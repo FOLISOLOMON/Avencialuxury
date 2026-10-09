@@ -4,96 +4,96 @@
 
 @layer base {
   :root {
-    /* Avencia Cool Stone Light Mode Palette */
-    --background: 40 10% 95%; /* #F3F2EF - Cool clean stone */
-    --foreground: 40 20% 7%; /* #16140F - Deep ink */
+    /* Avencia Clean Stone Light Mode Palette */
+    --background: 40 8% 97%; /* #F7F6F3 - Calm, clean stone canvas */
+    --foreground: 40 18% 9%; /* #171613 - Deep rich charcoal ink */
 
-    --card: 0 0% 100%; /* #FFFFFF - Pure white surface */
-    --card-foreground: 40 20% 7%;
-    --card-elevated: 0 0% 100%;
+    --card: 0 0% 100%; /* #FFFFFF - Pure white architectural surface */
+    --card-foreground: 40 18% 9%;
+    --card-elevated: 40 8% 99%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 40 20% 7%;
+    --popover-foreground: 40 18% 9%;
 
-    /* Brand Gold Token */
-    --primary: 45 68% 47%; /* #C9A227 - Primary Avencia Gold */
-    --primary-foreground: 40 20% 7%; /* Dark ink on Gold: 6.8:1 Contrast Ratio (PASSES WCAG AA) */
-    --gold-ink: 42 79% 27%; /* #7A5F0E - Dark gold text on light surfaces */
+    /* Brand Gold Token - Restrained luxury gold */
+    --primary: 43 68% 44%; /* #BFA028 - Deliberate Avencia Gold */
+    --primary-foreground: 40 20% 7%; /* 6.8:1 WCAG AA compliant */
+    --gold-ink: 42 75% 26%; /* #755A0D */
 
-    --secondary: 40 8% 91%; /* #EBE9E4 */
-    --secondary-foreground: 40 20% 7%;
+    --secondary: 40 8% 93%; /* #ECE9E3 */
+    --secondary-foreground: 40 18% 9%;
 
-    --muted: 40 8% 91%;
-    --muted-foreground: 40 7% 40%; /* #6B675E - Accessible Muted text */
+    --muted: 40 8% 93%;
+    --muted-foreground: 40 6% 40%; /* #69665F - 5.5:1 WCAG AA */
 
-    --accent: 45 50% 94%;
-    --accent-foreground: 42 79% 27%;
+    --accent: 40 8% 94%;
+    --accent-foreground: 40 18% 9%;
 
-    /* Semantic Status Tokens */
-    --destructive: 4 77% 41%; /* #B42318 - Error */
+    /* Semantic Status Tokens - Muted, mature, not fluorescent */
+    --destructive: 4 65% 38%; /* #A0271F */
     --destructive-foreground: 0 0% 100%;
 
-    --success: 151 59% 30%; /* #1F7A4D - Positive/Paid */
+    --success: 152 50% 28%; /* #236B45 - Deep forest emerald */
     --success-foreground: 0 0% 100%;
 
-    --warning: 36 100% 35%; /* #B26A00 - Attention/Debt */
+    --warning: 36 85% 32%; /* #975700 - Deep warm amber */
     --warning-foreground: 0 0% 100%;
 
-    --info: 210 50% 36%; /* #2E5E8C - Information */
+    --info: 212 40% 36%;
     --info-foreground: 0 0% 100%;
 
-    --border: 40 10% 88%; /* #E4E2DC - Subtle hairline border */
-    --input: 40 10% 88%;
-    --ring: 45 68% 47%;
+    --border: 40 8% 88%; /* #E3E0D8 - Delicate hairline divider */
+    --input: 40 8% 88%;
+    --ring: 43 68% 44%;
 
-    --radius-sm: 0.375rem; /* 6px */
-    --radius-md: 0.5rem;   /* 8px - controls & buttons */
-    --radius-lg: 0.875rem; /* 14px - cards */
-    --radius-xl: 1.375rem; /* 22px - bottom sheets & dialogs */
+    --radius-sm: 0.25rem;  /* 4px - tags, micro-badges */
+    --radius-md: 0.375rem; /* 6px - buttons, inputs, controls */
+    --radius-lg: 0.5rem;   /* 8px - containers, cards, tables */
+    --radius-xl: 0.75rem;  /* 12px - modals, bottom sheets */
   }
 
   .dark {
     /* Avencia Sophisticated Graphite Dark Mode Palette */
-    --background: 30 6% 7%; /* #121110 - Warm dark graphite */
-    --foreground: 40 16% 93%; /* #F2EFE8 - Soft warm ivory */
+    --background: 30 5% 7%; /* #131211 - Dark obsidian graphite */
+    --foreground: 40 12% 93%; /* #EDEAE4 - Soft warm ivory */
 
-    --card: 36 7% 10%; /* #1B1A17 - Distinct dark surface */
-    --card-foreground: 40 16% 93%;
-    --card-elevated: 36 8% 13%; /* #24221E - Elevated surface */
+    --card: 30 5% 10%; /* #1A1918 - Distinct dark surface */
+    --card-foreground: 40 12% 93%;
+    --card-elevated: 30 5% 12%; /* #201F1E */
 
-    --popover: 36 7% 10%;
-    --popover-foreground: 40 16% 93%;
+    --popover: 30 5% 10%;
+    --popover-foreground: 40 12% 93%;
 
-    /* Brand Gold Token (Lifted for dark environment vibrancy) */
-    --primary: 44 63% 56%; /* #D4B04A - Radiant gold */
-    --primary-foreground: 40 20% 7%;
-    --gold-ink: 44 71% 68%; /* #E6C873 - Luminous gold text */
+    /* Brand Gold Token */
+    --primary: 43 60% 50%; /* #CAA534 */
+    --primary-foreground: 30 5% 7%;
+    --gold-ink: 43 65% 65%; /* #DFBE60 */
 
-    --secondary: 36 7% 14%;
-    --secondary-foreground: 40 16% 93%;
+    --secondary: 30 5% 14%; /* #242321 */
+    --secondary-foreground: 40 12% 93%;
 
-    --muted: 36 7% 14%;
-    --muted-foreground: 40 7% 61%; /* #A39E93 - High legibility muted */
+    --muted: 30 5% 14%;
+    --muted-foreground: 40 5% 60%; /* #9E9B95 */
 
-    --accent: 44 40% 17%;
-    --accent-foreground: 44 71% 68%;
+    --accent: 30 5% 15%;
+    --accent-foreground: 40 12% 93%;
 
     /* Semantic Status Tokens (Dark mode adjusted) */
-    --destructive: 4 82% 63%; /* #F04438 */
+    --destructive: 4 65% 55%; /* #DE4E45 */
     --destructive-foreground: 0 0% 100%;
 
-    --success: 151 55% 48%; /* #32D583 */
-    --success-foreground: 30 6% 7%;
+    --success: 152 45% 45%; /* #3FA66F */
+    --success-foreground: 30 5% 7%;
 
-    --warning: 38 92% 50%; /* #F79009 */
-    --warning-foreground: 30 6% 7%;
+    --warning: 36 75% 46%; /* #CC7A1F */
+    --warning-foreground: 30 5% 7%;
 
-    --info: 210 65% 58%; /* #53B1FD */
-    --info-foreground: 30 6% 7%;
+    --info: 212 55% 55%;
+    --info-foreground: 30 5% 7%;
 
-    --border: 36 7% 16%; /* #2C2A26 - Clean dark hairline border */
-    --input: 36 7% 16%;
-    --ring: 44 63% 56%;
+    --border: 30 5% 17%; /* #2C2A28 - Clean hairline border */
+    --input: 30 5% 17%;
+    --ring: 43 60% 50%;
   }
 }
 

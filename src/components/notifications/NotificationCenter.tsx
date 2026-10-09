@@ -167,22 +167,22 @@ export function NotificationCenter({
   return (
     <div
       ref={panelRef}
-      className="fixed top-16 right-4 sm:right-8 z-50 w-full sm:w-[390px] max-w-[calc(100vw-2rem)] bg-white dark:bg-[#151515] rounded-3xl border border-[#E5E2D8] dark:border-[#2A2A2A] shadow-2xl overflow-hidden font-sans animate-in fade-in slide-in-from-top-3 duration-200 flex flex-col max-h-[80vh] text-[#171717] dark:text-[#F5F5F5]"
+      className="fixed top-16 right-4 sm:right-8 z-50 w-full sm:w-[390px] max-w-[calc(100vw-2rem)] bg-card rounded-lg border border-border shadow-xl overflow-hidden font-sans animate-in fade-in slide-in-from-top-3 duration-200 flex flex-col max-h-[80vh] text-foreground"
     >
       {/* Header */}
-      <div className="p-4 border-b border-[#E5E2D8] dark:border-[#2A2A2A] flex items-center justify-between bg-[#F8F7F3] dark:bg-[#181818] flex-shrink-0">
+      <div className="p-3.5 border-b border-border flex items-center justify-between bg-muted/30 flex-shrink-0">
         <div className="flex items-center gap-2">
-          <h3 className="font-extrabold text-sm text-[#171717] dark:text-[#F5F5F5]">Notifications</h3>
+          <h3 className="font-semibold text-sm text-foreground">Notifications</h3>
           {notifications.filter((n) => !n.isRead).length > 0 && (
-            <span className="px-2 py-0.5 rounded-full bg-gold-500/15 text-gold-600 dark:text-gold-400 text-[10px] font-extrabold border border-gold-500/30">
+            <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-semibold border border-primary/20">
               {notifications.filter((n) => !n.isRead).length} new
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <button
             onClick={handleMarkAllAsRead}
-            className="text-[11px] font-bold text-gold-600 dark:text-gold-400 hover:text-gold-700 transition-colors flex items-center gap-1 px-1.5 py-1 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+            className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 px-1.5 py-1 rounded cursor-pointer"
             title="Mark all as read"
           >
             <CheckCheck className="w-3.5 h-3.5" />
@@ -190,7 +190,7 @@ export function NotificationCenter({
           </button>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full bg-white dark:bg-[#2A2A2A] text-[#737373] dark:text-[#A3A3A3] hover:text-[#171717] dark:hover:text-[#F5F5F5] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+            className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -198,15 +198,15 @@ export function NotificationCenter({
       </div>
 
       {/* Category Filter Pills */}
-      <div className="p-3 border-b border-[#E5E2D8] dark:border-[#2A2A2A] flex items-center gap-1.5 overflow-x-auto scrollbar-none flex-shrink-0 bg-white dark:bg-[#151515]">
+      <div className="p-2.5 border-b border-border flex items-center gap-1 overflow-x-auto scrollbar-none flex-shrink-0 bg-card">
         {(["ALL", "UNREAD", "INVENTORY", "SALES", "FINANCE", "SECURITY"] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-3 py-1 rounded-full text-[11px] font-bold whitespace-nowrap transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 ${
+            className={`px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
               filter === f
-                ? "bg-gold-500 text-white font-black shadow-md shadow-gold-500/20"
-                : "bg-[#F8F7F3] dark:bg-[#181818] text-[#525252] dark:text-[#D4D4D4] hover:bg-gold-500/10"
+                ? "bg-primary text-primary-foreground font-semibold"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted"
             }`}
           >
             {f === "ALL" ? "All" : f === "UNREAD" ? "Unread" : f.charAt(0) + f.slice(1).toLowerCase()}
@@ -215,32 +215,32 @@ export function NotificationCenter({
       </div>
 
       {/* Notifications Scroll Area */}
-      <div className="flex-1 overflow-y-auto divide-y divide-[#E5E2D8] dark:divide-[#2A2A2A] p-2 space-y-1">
+      <div className="flex-1 overflow-y-auto divide-y divide-border p-2 space-y-1">
         {loading ? (
           <div className="p-8 text-center space-y-2">
-            <Loader2 className="w-6 h-6 text-gold-500 animate-spin mx-auto" />
-            <p className="text-xs font-semibold text-[#737373] dark:text-[#A3A3A3]">Loading notifications...</p>
+            <Loader2 className="w-5 h-5 text-primary animate-spin mx-auto" />
+            <p className="text-xs text-muted-foreground">Loading notifications...</p>
           </div>
         ) : notifications.length === 0 ? (
           <div className="p-8 text-center space-y-2">
-            <div className="w-10 h-10 rounded-2xl bg-gold-500/15 text-gold-600 dark:text-gold-400 flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+            <div className="w-9 h-9 rounded-md bg-muted text-foreground flex items-center justify-center mx-auto">
+              <CheckCircle2 className="w-4 h-4 text-success" />
             </div>
-            <h4 className="font-extrabold text-xs text-[#171717] dark:text-[#F5F5F5]">You're all caught up!</h4>
-            <p className="text-[11px] text-[#737373] dark:text-[#A3A3A3]">No new notifications in this category.</p>
+            <h4 className="font-semibold text-xs text-foreground">You're all caught up!</h4>
+            <p className="text-[11px] text-muted-foreground">No new notifications in this category.</p>
           </div>
         ) : (
           notifications.map((n) => (
             <div
               key={n.id}
               onClick={() => handleNotificationClick(n)}
-              className={`p-3 rounded-2xl cursor-pointer transition-all flex items-start gap-3 relative group ${
+              className={`p-2.5 rounded-md cursor-pointer transition-colors flex items-start gap-2.5 relative border ${
                 !n.isRead
-                  ? "bg-gold-500/10 dark:bg-gold-500/15 border border-gold-500/30"
-                  : "hover:bg-[#F8F7F3] dark:hover:bg-[#181818]"
+                  ? "bg-primary/5 border-primary/20"
+                  : "border-transparent hover:bg-muted/50"
               }`}
             >
-              <div className="p-2 rounded-xl bg-[#F8F7F3] dark:bg-[#181818] flex-shrink-0 mt-0.5 border border-[#E5E2D8] dark:border-[#2A2A2A]">
+              <div className="p-1.5 rounded-md bg-muted/60 flex-shrink-0 mt-0.5 border border-border">
                 {getCategoryIcon(n.category)}
               </div>
 

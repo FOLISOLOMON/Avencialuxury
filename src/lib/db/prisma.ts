@@ -11,7 +11,7 @@ export const prisma =
   });
 
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+globalForPrisma.prisma = prisma;
 
 export const DEFAULT_BUSINESS_ID = "biz_default_avencia";
 

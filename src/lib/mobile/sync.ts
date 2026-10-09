@@ -4,6 +4,9 @@ import {
   getPendingSales,
   updatePendingSale,
   removePendingSale,
+  getPendingDebtPayments,
+  updatePendingDebtPayment,
+  removePendingDebtPayment,
   cacheProducts,
   cacheCustomers,
   putCachedCustomer,
@@ -62,7 +65,8 @@ class MobileSyncManager {
   private async notify(message?: string) {
     const pendingSales = await getPendingSales();
     const pendingCusts = await getPendingCustomers();
-    const pendingCount = pendingSales.length + pendingCusts.length;
+    const pendingDebts = await getPendingDebtPayments();
+    const pendingCount = pendingSales.length + pendingCusts.length + pendingDebts.length;
 
     let state: SyncStatus = this.currentState;
     if (!navigator.onLine) {
@@ -198,7 +202,45 @@ class MobileSyncManager {
         }
       }
 
-      // 3. Refresh Catalog & Customer Caches from Server
+      // 3. Process Pending Debt Payments
+      const pendingDebts = await getPendingDebtPayments();
+      for (const pendingDebt of pendingDebts) {
+        try {
+          let actualCustomerId = pendingDebt.customerId;
+          if (actualCustomerId && customerIdMapping[actualCustomerId]) {
+            actualCustomerId = customerIdMapping[actualCustomerId];
+          }
+
+          const res = await fetch("/api/debt", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              customerId: actualCustomerId,
+              amount: pendingDebt.amount,
+              paymentMethod: pendingDebt.paymentMethod,
+              notes: pendingDebt.notes ? `${pendingDebt.notes} (Synced from Mobile PWA)` : "Recorded via Mobile PWA",
+            }),
+          });
+
+          const json = await res.json();
+          if (json.success) {
+            await removePendingDebtPayment(pendingDebt.offlineId);
+          } else {
+            console.error("Debt payment sync rejected:", json.error);
+            pendingDebt.status = "failed";
+            pendingDebt.retryCount = (pendingDebt.retryCount || 0) + 1;
+            pendingDebt.errorMessage = json.error || "Server rejected debt payment";
+            await updatePendingDebtPayment(pendingDebt);
+          }
+        } catch (debtErr: any) {
+          console.error("Debt payment sync failure:", debtErr);
+          pendingDebt.status = "failed";
+          pendingDebt.errorMessage = debtErr.message || "Network error";
+          await updatePendingDebtPayment(pendingDebt);
+        }
+      }
+
+      // 4. Refresh Catalog & Customer Caches from Server
       await this.refreshCacheFromServer();
 
       this.lastSyncedAt = new Date().toISOString();
@@ -253,8 +295,8 @@ class MobileSyncManager {
             phone: c.phone,
             email: c.email,
             notes: c.notes,
-            totalDebt: Number(c.totalDebt || 0),
-            totalSpent: Number(c.totalSpent || 0),
+            totalDebt: Number(c.totalDebt ?? c.totalOutstandingDebt ?? 0),
+            totalSpent: Number(c.totalSpent ?? c.totalSpend ?? 0),
             lastPurchaseDate: c.lastPurchaseDate,
           }));
           await cacheCustomers(mobileCustomers);

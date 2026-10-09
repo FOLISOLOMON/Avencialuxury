@@ -4,6 +4,7 @@ import React from "react";
 import { cn } from "@/lib/utils";
 
 export type BadgeVariant =
+  | "default"
   | "gold"
   | "success"
   | "warning"
@@ -25,16 +26,18 @@ export function Badge({
   ...props
 }: BadgeProps) {
   const variantStyles: Record<BadgeVariant, string> = {
-    gold: "bg-gold-500/15 text-gold-ink border-gold-500/30",
-    success: "bg-success/15 text-success border-success/30",
-    warning: "bg-warning/15 text-warning border-warning/30",
-    destructive: "bg-destructive/15 text-destructive border-destructive/30",
-    info: "bg-info/15 text-info border-info/30",
-    secondary: "bg-secondary text-secondary-foreground border-transparent",
-    outline: "bg-transparent text-foreground border-border",
+    default: "bg-secondary text-secondary-foreground border-border/80",
+    gold: "bg-primary/10 text-gold-ink border-primary/20",
+    success: "bg-success/10 text-success border-success/20",
+    warning: "bg-warning/10 text-warning border-warning/20",
+    destructive: "bg-destructive/10 text-destructive border-destructive/20",
+    info: "bg-info/10 text-info border-info/20",
+    secondary: "bg-secondary text-muted-foreground border-border/80",
+    outline: "bg-transparent text-muted-foreground border-border",
   };
 
   const dotColors: Record<BadgeVariant, string> = {
+    default: "bg-primary",
     gold: "bg-primary",
     success: "bg-success",
     warning: "bg-warning",
@@ -47,7 +50,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border select-none leading-normal",
+        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium border select-none leading-normal",
         variantStyles[variant],
         className
       )}

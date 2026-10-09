@@ -56,23 +56,23 @@ export function QuickPinLock({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-[#0D0D0D]/80 backdrop-blur-xl flex items-center justify-center p-4 font-sans animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-[#151515] rounded-3xl border border-[#E5E2D8] dark:border-[#2A2A2A] shadow-2xl shadow-gold-500/10 p-8 max-w-sm w-full text-center space-y-6">
+      <div className="bg-card rounded-lg border border-border shadow-lg p-8 max-w-sm w-full text-center space-y-6">
         {/* Header with Logo */}
         <div className="space-y-3">
-          <div className="w-20 h-20 rounded-2xl bg-[#0D0D0D] p-2 border border-gold-500/40 flex items-center justify-center mx-auto shadow-lg shadow-gold-500/20 overflow-hidden">
+          <div className="w-16 h-16 rounded-md bg-[#0D0D0D] p-2 border border-border flex items-center justify-center mx-auto overflow-hidden">
             <Image
               src="/logo/Avencia gold logo.png"
               alt="Avencia Logo"
-              width={72}
-              height={72}
+              width={56}
+              height={56}
               className="w-full h-full object-contain"
             />
           </div>
           <div>
-            <h2 className="text-xl font-black text-[#171717] dark:text-[#F5F5F5] tracking-tight flex items-center justify-center gap-1.5">
-              <Lock className="w-4 h-4 text-gold-600 dark:text-gold-400" /> Avencia Quick PIN
+            <h2 className="text-lg font-semibold text-foreground tracking-tight flex items-center justify-center gap-1.5">
+              <Lock className="w-4 h-4 text-primary" /> Avencia Quick PIN
             </h2>
-            <p className="text-xs text-[#737373] dark:text-[#A3A3A3] font-medium mt-1">
+            <p className="text-xs text-muted-foreground font-medium mt-1">
               Enter your 4-digit security PIN to access
             </p>
           </div>
@@ -83,10 +83,10 @@ export function QuickPinLock({ children }: { children: React.ReactNode }) {
           {[0, 1, 2, 3].map((idx) => (
             <div
               key={idx}
-              className={`w-4 h-4 rounded-full border-2 transition-all duration-150 ${
+              className={`w-3.5 h-3.5 rounded-full border transition-colors ${
                 idx < pinInput.length
-                  ? "bg-gold-500 border-gold-500 scale-110 shadow-md shadow-gold-500/40"
-                  : "border-[#E5E2D8] dark:border-[#2A2A2A] bg-[#F8F7F3] dark:bg-[#181818]"
+                  ? "bg-primary border-primary"
+                  : "border-border bg-muted/40"
               }`}
             />
           ))}
@@ -94,7 +94,7 @@ export function QuickPinLock({ children }: { children: React.ReactNode }) {
 
         {/* Error message */}
         {pinError ? (
-          <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 animate-in shake duration-150">
+          <div className="bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium py-2 px-3 rounded-md flex items-center justify-center gap-1.5 animate-in fade-in duration-150">
             <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
             <span>{pinError}</span>
           </div>
@@ -103,39 +103,39 @@ export function QuickPinLock({ children }: { children: React.ReactNode }) {
         )}
 
         {/* Keypad Grid */}
-        <div className="grid grid-cols-3 gap-3 max-w-[240px] mx-auto">
+        <div className="grid grid-cols-3 gap-2.5 max-w-[240px] mx-auto">
           {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
             <button
               key={num}
               onClick={() => handleKeyPress(num)}
-              className="w-16 h-16 rounded-2xl bg-[#F8F7F3] dark:bg-[#181818] border border-[#E5E2D8] dark:border-[#2A2A2A] text-[#171717] dark:text-[#F5F5F5] font-extrabold text-xl hover:bg-gold-500/15 hover:border-gold-500/40 hover:text-gold-600 dark:hover:text-gold-400 active:scale-95 transition-all shadow-xs flex items-center justify-center"
+              className="w-16 h-14 rounded-md bg-muted/40 border border-border text-foreground font-semibold text-lg hover:bg-muted hover:border-primary/40 hover:text-primary transition-colors flex items-center justify-center"
             >
               {num}
             </button>
           ))}
           <button
             onClick={() => setPinInput("")}
-            className="w-16 h-16 rounded-2xl bg-[#F8F7F3] dark:bg-[#181818] border border-[#E5E2D8] dark:border-[#2A2A2A] text-[#737373] dark:text-[#A3A3A3] font-bold text-xs hover:bg-gold-500/10 hover:text-[#171717] dark:hover:text-[#F5F5F5] active:scale-95 transition-all flex items-center justify-center"
+            className="w-16 h-14 rounded-md bg-muted/40 border border-border text-muted-foreground font-medium text-xs hover:bg-muted hover:text-foreground transition-colors flex items-center justify-center"
           >
             Clear
           </button>
           <button
             onClick={() => handleKeyPress("0")}
-            className="w-16 h-16 rounded-2xl bg-[#F8F7F3] dark:bg-[#181818] border border-[#E5E2D8] dark:border-[#2A2A2A] text-[#171717] dark:text-[#F5F5F5] font-extrabold text-xl hover:bg-gold-500/15 hover:border-gold-500/40 hover:text-gold-600 dark:hover:text-gold-400 active:scale-95 transition-all shadow-xs flex items-center justify-center"
+            className="w-16 h-14 rounded-md bg-muted/40 border border-border text-foreground font-semibold text-lg hover:bg-muted hover:border-primary/40 hover:text-primary transition-colors flex items-center justify-center"
           >
             0
           </button>
           <button
             onClick={handleBackspace}
-            className="w-16 h-16 rounded-2xl bg-[#F8F7F3] dark:bg-[#181818] border border-[#E5E2D8] dark:border-[#2A2A2A] text-[#737373] dark:text-[#A3A3A3] font-bold text-base hover:bg-gold-500/10 hover:text-[#171717] dark:hover:text-[#F5F5F5] active:scale-95 transition-all flex items-center justify-center"
+            className="w-16 h-14 rounded-md bg-muted/40 border border-border text-muted-foreground font-medium text-base hover:bg-muted hover:text-foreground transition-colors flex items-center justify-center"
           >
             ⌫
           </button>
         </div>
 
         {/* Security badge footer */}
-        <div className="pt-3 border-t border-[#E5E2D8] dark:border-[#2A2A2A] flex items-center justify-center gap-1.5 text-[11px] text-[#737373] dark:text-[#A3A3A3] font-medium">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Protected by Avencia OS Session Lock
+        <div className="pt-3 border-t border-border flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground font-medium">
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Protected by Avencia OS Session Lock
         </div>
       </div>
     </div>

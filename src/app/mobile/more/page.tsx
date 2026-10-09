@@ -128,7 +128,30 @@ export default function MobileMorePage() {
         </div>
       </div>
 
-      {/* 4. SWITCH TO DESKTOP AVENCIA OP */}
+      {/* 4. PERFUMES & INVENTORY */}
+      <div className="p-4 rounded-2xl bg-card border border-border shadow-xs space-y-2">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+            <Database className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-foreground">Perfume Catalog & Stock</h3>
+            <p className="text-[11px] text-muted-foreground">
+              View prices, fragrance notes & remaining bottles
+            </p>
+          </div>
+        </div>
+
+        <Link
+          href="/mobile/products"
+          className="w-full mt-2 py-2 px-3 rounded-xl bg-muted/60 hover:bg-muted text-xs font-bold text-primary flex items-center justify-center gap-1.5 transition-colors"
+        >
+          <span>Open Perfume Catalog</span>
+          <ExternalLink className="w-3.5 h-3.5" />
+        </Link>
+      </div>
+
+      {/* 5. SWITCH TO DESKTOP AVENCIA OP */}
       <div className="p-4 rounded-2xl bg-card border border-border shadow-xs space-y-2">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">

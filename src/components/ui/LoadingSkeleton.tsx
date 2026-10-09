@@ -19,18 +19,18 @@ export function MetricCardSkeleton({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-3 font-sans shadow-xs",
+        "rounded-lg border border-border bg-card p-4 space-y-3 font-sans shadow-xs",
         className
       )}
     >
       <div className="flex items-center justify-between gap-3">
-        <Skeleton className="h-3 w-24 rounded-md" />
-        <Skeleton className="h-9 w-9 rounded-xl" />
+        <Skeleton className="h-3 w-24 rounded-sm" />
+        <Skeleton className="h-8 w-8 rounded-md" />
       </div>
-      <Skeleton className="h-8 w-36 rounded-lg" />
+      <Skeleton className="h-6 w-32 rounded-md" />
       <div className="flex items-center gap-2 pt-1">
-        <Skeleton className="h-4 w-16 rounded-full" />
-        <Skeleton className="h-3 w-20 rounded-md" />
+        <Skeleton className="h-4 w-16 rounded" />
+        <Skeleton className="h-3 w-20 rounded-sm" />
       </div>
     </div>
   );
@@ -53,7 +53,7 @@ export function StatGridSkeleton({
   };
 
   return (
-    <div className={cn("grid gap-4 sm:gap-5 mb-6 sm:mb-8", columnClasses[columns], className)}>
+    <div className={cn("grid gap-4 mb-6", columnClasses[columns], className)}>
       {Array.from({ length: count }).map((_, i) => (
         <MetricCardSkeleton key={i} />
       ))}
@@ -73,22 +73,22 @@ export function TableSkeleton({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs p-4 space-y-4 font-sans",
+        "rounded-lg border border-border bg-card overflow-hidden p-4 space-y-3 font-sans",
         className
       )}
     >
-      <div className="flex items-center justify-between gap-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+      <div className="flex items-center justify-between gap-4 pb-2 border-b border-border">
         {Array.from({ length: cols }).map((_, i) => (
-          <Skeleton key={i} className="h-4 flex-1 rounded-md" />
+          <Skeleton key={i} className="h-3.5 flex-1 rounded-sm" />
         ))}
       </div>
       {Array.from({ length: rows }).map((_, r) => (
-        <div key={r} className="flex items-center justify-between gap-4 py-2">
+        <div key={r} className="flex items-center justify-between gap-4 py-1.5">
           {Array.from({ length: cols }).map((_, c) => (
             <Skeleton
               key={c}
               className={cn(
-                "h-4 rounded-md",
+                "h-3.5 rounded-sm",
                 c === 0 ? "w-1/3" : "flex-1"
               )}
             />
@@ -103,15 +103,15 @@ export function CardSkeleton({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4 font-sans shadow-xs",
+        "rounded-lg border border-border bg-card p-5 space-y-3 font-sans",
         className
       )}
     >
-      <Skeleton className="h-5 w-1/3 rounded-md" />
-      <Skeleton className="h-4 w-2/3 rounded-md" />
+      <Skeleton className="h-4 w-1/3 rounded-sm" />
+      <Skeleton className="h-3 w-2/3 rounded-sm" />
       <div className="space-y-2 pt-2">
-        <Skeleton className="h-12 w-full rounded-xl" />
-        <Skeleton className="h-12 w-full rounded-xl" />
+        <Skeleton className="h-10 w-full rounded-md" />
+        <Skeleton className="h-10 w-full rounded-md" />
       </div>
     </div>
   );

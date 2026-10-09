@@ -216,50 +216,51 @@ export default function ProfilePage() {
   return (
     <div className="space-y-6 max-w-4xl pb-24 md:pb-8">
       {/* Brand Header Card */}
-      <Card className="p-6 bg-gradient-to-br from-card via-card to-primary/5 border-primary/30">
+      <Card className="p-6">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 text-center sm:text-left">
-          <div className="w-16 h-16 rounded-2xl bg-card border-2 border-primary/40 p-2 shadow-lg flex items-center justify-center shrink-0">
+          <div className="w-14 h-14 rounded-md bg-card border border-border p-2 flex items-center justify-center shrink-0">
             <Image
               src="/logo/Avencia gold icon logo.png"
               alt="Avencia Logo"
-              width={48}
-              height={48}
+              width={40}
+              height={40}
               className="object-contain"
             />
           </div>
 
           <div className="flex-1 space-y-1">
             <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
-              <h1 className="text-xl font-black text-foreground">{profile?.name || "Avencia Luxury"}</h1>
-              <Badge variant="gold">Retail Enterprise</Badge>
+              <h1 className="text-xl font-bold text-foreground">{profile?.name || "Avencia Luxury"}</h1>
+              <Badge variant="outline">Retail Enterprise</Badge>
             </div>
             <p className="text-xs text-muted-foreground">
               {profile?.description || "Luxury fragrances, bespoke perfume oils & scent consulting."}
             </p>
             <div className="text-xs text-muted-foreground pt-1 flex items-center justify-center sm:justify-start gap-3 flex-wrap">
-              {profile?.phone && <span>📞 {profile.phone}</span>}
-              {profile?.address && <span>📍 {profile.address}</span>}
+              {profile?.phone && <span>{profile.phone}</span>}
+              {profile?.phone && profile?.address && <span>•</span>}
+              {profile?.address && <span>{profile.address}</span>}
             </div>
           </div>
         </div>
 
         {/* Quick Enterprise Metrics */}
-        <div className="grid grid-cols-3 gap-3 pt-5 mt-5 border-t border-border/60 text-center">
+        <div className="grid grid-cols-3 divide-x divide-border pt-4 mt-5 border-t border-border text-center">
           <div>
             <div className="text-[10px] text-muted-foreground uppercase font-semibold">Catalog SKUs</div>
-            <div className="text-lg font-black text-foreground mt-0.5">
+            <div className="text-lg font-bold text-foreground mt-0.5 tabular-nums">
               {profile?.metrics.productCount || 0}
             </div>
           </div>
           <div>
             <div className="text-[10px] text-muted-foreground uppercase font-semibold">Active Consignments</div>
-            <div className="text-lg font-black text-primary mt-0.5">
+            <div className="text-lg font-bold text-primary mt-0.5 tabular-nums">
               {profile?.metrics.activeBatchCount || 0}
             </div>
           </div>
           <div>
             <div className="text-[10px] text-muted-foreground uppercase font-semibold">Client Accounts</div>
-            <div className="text-lg font-black text-foreground mt-0.5">
+            <div className="text-lg font-bold text-foreground mt-0.5 tabular-nums">
               {profile?.metrics.customerCount || 0}
             </div>
           </div>
@@ -267,11 +268,11 @@ export default function ProfilePage() {
       </Card>
 
       {/* Segmented Control */}
-      <div className="inline-flex p-1 bg-muted rounded-xl border border-border">
+      <div className="inline-flex p-0.5 bg-muted rounded-md border border-border">
         <button
           type="button"
           onClick={() => setActiveTab("BUSINESS")}
-          className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+          className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${
             activeTab === "BUSINESS"
               ? "bg-card text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
@@ -282,7 +283,7 @@ export default function ProfilePage() {
         <button
           type="button"
           onClick={() => setActiveTab("OWNER")}
-          className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+          className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${
             activeTab === "OWNER"
               ? "bg-card text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
@@ -293,7 +294,7 @@ export default function ProfilePage() {
         <button
           type="button"
           onClick={() => setActiveTab("SECURITY")}
-          className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+          className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${
             activeTab === "SECURITY"
               ? "bg-card text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
@@ -312,14 +313,14 @@ export default function ProfilePage() {
           </div>
 
           {busError && (
-            <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-xs font-semibold flex items-center gap-2">
+            <div className="p-3 rounded-md bg-destructive/10 text-destructive text-xs font-semibold flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0" />
               <span>{busError}</span>
             </div>
           )}
 
           {busSuccess && (
-            <div className="p-3 rounded-xl bg-success/10 text-success text-xs font-semibold flex items-center gap-2">
+            <div className="p-3 rounded-md bg-success/10 text-success text-xs font-semibold flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
               <span>Business profile updated successfully!</span>
             </div>
@@ -373,14 +374,14 @@ export default function ProfilePage() {
           </div>
 
           {ownerError && (
-            <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-xs font-semibold flex items-center gap-2">
+            <div className="p-3 rounded-md bg-destructive/10 text-destructive text-xs font-semibold flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0" />
               <span>{ownerError}</span>
             </div>
           )}
 
           {ownerSuccess && (
-            <div className="p-3 rounded-xl bg-success/10 text-success text-xs font-semibold flex items-center gap-2">
+            <div className="p-3 rounded-md bg-success/10 text-success text-xs font-semibold flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
               <span>Owner credentials updated successfully!</span>
             </div>
@@ -425,14 +426,14 @@ export default function ProfilePage() {
           </div>
 
           {pinSuccess && (
-            <div className="p-3 rounded-xl bg-success/10 text-success text-xs font-semibold flex items-center gap-2">
+            <div className="p-3 rounded-md bg-success/10 text-success text-xs font-semibold flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
               <span>PIN security updated!</span>
             </div>
           )}
 
           {pinError && (
-            <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-xs font-semibold flex items-center gap-2">
+            <div className="p-3 rounded-md bg-destructive/10 text-destructive text-xs font-semibold flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0" />
               <span>{pinError}</span>
             </div>
@@ -465,7 +466,7 @@ export default function ProfilePage() {
               )}
             </div>
           ) : (
-            <div className="space-y-3 p-4 rounded-2xl bg-muted/30 border border-border max-w-sm">
+            <div className="space-y-3 p-4 rounded-md bg-muted/20 border border-border max-w-sm">
               <Input
                 label="Enter 4-Digit PIN"
                 type="password"

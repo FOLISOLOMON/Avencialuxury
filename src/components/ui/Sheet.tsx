@@ -76,7 +76,7 @@ export function Sheet({
         className={cn(
           // Mobile: slide up bottom sheet
           "relative w-full max-h-[92vh] max-h-[92dvh] bg-card text-foreground",
-          "rounded-t-2xl md:rounded-2xl border-t md:border border-border shadow-floating",
+          "rounded-t-lg md:rounded-lg border-t md:border border-border shadow-lg",
           "flex flex-col overflow-hidden animate-slide-up z-10",
           // Desktop: centered floating dialog
           sizeClasses[size],
@@ -90,15 +90,15 @@ export function Sheet({
           className="flex md:hidden justify-center items-center pt-3 pb-2 w-full cursor-pointer touch-none bg-transparent border-0 focus:outline-hidden"
           aria-label="Close sheet"
         >
-          <div className="w-12 h-1.5 rounded-full bg-muted-foreground/40 hover:bg-muted-foreground/60 transition-colors" />
+          <div className="w-10 h-1 rounded-full bg-muted-foreground/30 hover:bg-muted-foreground/50 transition-colors" />
         </button>
 
         {/* Header */}
         {(title || !hideCloseButton) && (
-          <div className="flex items-start justify-between px-5 pt-3 pb-3 border-b border-border/60 flex-shrink-0">
+          <div className="flex items-start justify-between px-5 pt-3 pb-3 border-b border-border flex-shrink-0">
             <div className="space-y-0.5 pr-6">
               {typeof title === "string" ? (
-                <h3 className="font-display text-lg font-bold tracking-tight text-foreground">
+                <h3 className="font-semibold text-base tracking-tight text-foreground">
                   {title}
                 </h3>
               ) : (
@@ -117,10 +117,10 @@ export function Sheet({
                   e.stopPropagation();
                   onClose();
                 }}
-                className="p-2 -mr-1 text-muted-foreground hover:text-foreground active:text-foreground rounded-full hover:bg-muted/80 active:bg-muted transition-colors flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer z-20"
+                className="p-1.5 -mr-1 text-muted-foreground hover:text-foreground active:text-foreground rounded hover:bg-muted transition-colors flex-shrink-0 flex items-center justify-center cursor-pointer z-20"
                 aria-label="Close dialog"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             )}
           </div>

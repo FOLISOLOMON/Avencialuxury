@@ -8,41 +8,41 @@ import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { ProfileDropdown } from "./ProfileDropdown";
 
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
-  "/": { title: "Dashboard", subtitle: "Real-time revenue, low stock & today's pulse" },
-  "/sales": { title: "Sales & POS", subtitle: "Instant checkout, product lookup & receipts" },
-  "/products": { title: "Products", subtitle: "Active perfume inventory, pricing & threshold tracking" },
-  "/customers": { title: "Customers & Debt", subtitle: "Client purchase history, balances & WhatsApp reminders" },
-  "/batches": { title: "Batches & Supply", subtitle: "Shipment investments, transport costs & sell-through" },
-  "/inventory": { title: "Inventory Ledger", subtitle: "FIFO stock balances & audited adjustments" },
-  "/expenses": { title: "Expenses", subtitle: "Operational outflows, transport & delivery logging" },
-  "/profit": { title: "Profit Allocation", subtitle: "50/30/20 Savings, Needs & Wants allocations" },
-  "/suppliers": { title: "Suppliers", subtitle: "Wholesale vendor directory & restocking records" },
-  "/reports": { title: "Reports & Analytics", subtitle: "Executive performance, trends & export" },
-  "/settings": { title: "Settings", subtitle: "Business preferences, currency & automation thresholds" },
-  "/profile": { title: "Business Profile", subtitle: "Company credentials & owner details" },
-  "/ai": { title: "Ask Avencia AI", subtitle: "Dedicated AI assistant grounded in your live database" },
+  "/": { title: "Dashboard", subtitle: "Operations & financial summary" },
+  "/sales": { title: "Sales & POS", subtitle: "Transactions, point of sale & receipts" },
+  "/products": { title: "Products", subtitle: "Fragrance catalog, inventory & pricing" },
+  "/customers": { title: "Customers & Debt", subtitle: "Client ledgers, receivables & history" },
+  "/batches": { title: "Batches & Supply", subtitle: "Inventory shipments & cost allocations" },
+  "/inventory": { title: "Inventory Ledger", subtitle: "Stock balance adjustments & audit logs" },
+  "/expenses": { title: "Expenses", subtitle: "Operating outflows & expenditure tracking" },
+  "/profit": { title: "Profit Allocation", subtitle: "Capital reserve, operating needs & distributions" },
+  "/suppliers": { title: "Suppliers", subtitle: "Vendor directory & purchase records" },
+  "/reports": { title: "Reports & Analytics", subtitle: "Business performance & exports" },
+  "/settings": { title: "Settings", subtitle: "Preferences, currency & thresholds" },
+  "/profile": { title: "Business Profile", subtitle: "Company credentials & entity details" },
+  "/ai": { title: "Avencia AI Assistant", subtitle: "Ledger-grounded query assistant" },
 };
 
 export function AppHeader() {
   const pathname = usePathname();
   const current = PAGE_META[pathname] || {
     title: "Avencia",
-    subtitle: "Perfume Business Operating System",
+    subtitle: "Fragrance Business Management",
   };
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-card/90 dark:bg-[#151515]/90 backdrop-blur-md border-b border-border/80 px-4 sm:px-6 flex items-center justify-between select-none">
+    <header className="sticky top-0 z-30 h-16 bg-card border-b border-border px-4 sm:px-6 flex items-center justify-between select-none">
       <div className="max-w-7xl w-full mx-auto flex items-center justify-between gap-3">
-        {/* Left Side: Mobile Logo + Title / Desktop Breadcrumb */}
+        {/* Left Side: Mobile Logo + Title / Subtitle */}
         <div className="flex items-center gap-3 min-w-0">
           {/* Mobile Logo Mark */}
           <Link href="/" className="md:hidden flex items-center gap-2 flex-shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-black border border-primary/40 p-1 flex items-center justify-center overflow-hidden">
+            <div className="w-8 h-8 rounded-md bg-black border border-border p-1 flex items-center justify-center overflow-hidden">
               <Image
                 src="/logo/Avencia gold icon logo.png"
                 alt="Avencia"
-                width={28}
-                height={28}
+                width={24}
+                height={24}
                 className="w-full h-full object-contain"
                 priority
               />
@@ -51,10 +51,10 @@ export function AppHeader() {
 
           {/* Title & Subtitle */}
           <div className="min-w-0">
-            <h1 className="font-display font-extrabold text-base sm:text-lg text-foreground tracking-tight leading-tight truncate">
+            <h1 className="font-semibold text-sm sm:text-base text-foreground tracking-tight leading-tight truncate">
               {current.title}
             </h1>
-            <p className="text-[11px] text-muted-foreground hidden sm:block truncate leading-tight">
+            <p className="text-xs text-muted-foreground hidden sm:block truncate leading-tight mt-0.5">
               {current.subtitle}
             </p>
           </div>

@@ -12,12 +12,30 @@ export interface SaleProductInput {
   unitPrice: number;
 }
 
+export function normalizePaymentMethod(method?: string | null): PaymentMethod {
+  if (!method) return PaymentMethod.CASH;
+  const upper = String(method).toUpperCase().trim();
+  if (upper === "MOBILE_MONEY" || upper === "MOMO" || upper === "MTN" || upper === "VODAFONE" || upper === "AIRTELTIGO") {
+    return PaymentMethod.MOBILE_MONEY;
+  }
+  if (upper === "BANK_TRANSFER" || upper === "BANK" || upper === "TRANSFER") {
+    return PaymentMethod.BANK_TRANSFER;
+  }
+  if (upper === "CARD" || upper === "POS" || upper === "VISA" || upper === "MASTERCARD") {
+    return PaymentMethod.CARD;
+  }
+  if (upper === "OTHER") {
+    return PaymentMethod.OTHER;
+  }
+  return PaymentMethod.CASH;
+}
+
 export interface CreateSaleInput {
   businessId: string;
   customerId?: string | null;
   saleDate?: Date | null;
   discount?: number | null;
-  paymentMethod?: PaymentMethod | null;
+  paymentMethod?: PaymentMethod | string | null;
   amountPaid?: number | null;
   notes?: string | null;
   items: SaleProductInput[];
@@ -92,49 +110,110 @@ export async function createSale(input: CreateSaleInput) {
 
         const fifoResult = allocateStockFIFO(fifoBatches, item.quantity);
 
-        if (!fifoResult.isFullyAllocated) {
-          const product = await tx.product.findUnique({ where: { id: item.productId } });
-          const name = product ? product.name : item.productId;
-          throw new Error(
-            `Insufficient stock for product "${name}". Requested: ${item.quantity}, Available: ${fifoResult.totalQuantityAllocated}`
-          );
-        }
-
         for (const alloc of fifoResult.allocations) {
           const matchingBatchItem = activeBatchItems.find((bi) => bi.batchId === alloc.batchId);
-          if (!matchingBatchItem) {
-            throw new Error("Batch item mismatch during inventory allocation");
+          if (matchingBatchItem) {
+            const revenue = Math.round(alloc.quantity * item.unitPrice * 100) / 100;
+            const cost = Math.round(alloc.quantity * alloc.unitCost * 100) / 100;
+            const profit = Math.round((revenue - cost) * 100) / 100;
+
+            grandTotalRevenue += revenue;
+            grandTotalCost += cost;
+
+            saleItemAllocations.push({
+              productId: item.productId,
+              batchId: alloc.batchId,
+              quantity: alloc.quantity,
+              unitPrice: item.unitPrice,
+              unitCost: alloc.unitCost,
+              revenue,
+              cost,
+              profit,
+            });
+
+            batchDeductions.push({
+              batchItemId: matchingBatchItem.id,
+              deductQuantity: alloc.quantity,
+              batchId: alloc.batchId,
+            });
+
+            inventoryTxns.push({
+              productId: item.productId,
+              batchId: alloc.batchId,
+              quantity: alloc.quantity,
+            });
           }
+        }
 
-          const revenue = Math.round(alloc.quantity * item.unitPrice * 100) / 100;
-          const cost = Math.round(alloc.quantity * alloc.unitCost * 100) / 100;
-          const profit = Math.round((revenue - cost) * 100) / 100;
+        // If FIFO was not fully allocated (e.g. newly added product or extra store inventory),
+        // gracefully allocate remainder using an auto-inventory batch so POS / mobile sales never fail:
+        if (!fifoResult.isFullyAllocated) {
+          const shortage = item.quantity - fifoResult.totalQuantityAllocated;
+          if (shortage > 0) {
+            let autoBatch = await tx.batch.findFirst({
+              where: { businessId: input.businessId, status: "ACTIVE" },
+              orderBy: { createdAt: "desc" },
+            });
 
-          grandTotalRevenue += revenue;
-          grandTotalCost += cost;
+            if (!autoBatch) {
+              autoBatch = await tx.batch.create({
+                data: {
+                  businessId: input.businessId,
+                  reference: `BATCH-DIRECT-${new Date().getFullYear()}`,
+                  purchaseDate: new Date(),
+                  status: "ACTIVE",
+                  purchaseCost: new Prisma.Decimal(0),
+                  additionalCosts: new Prisma.Decimal(0),
+                  totalInvestment: new Prisma.Decimal(0),
+                  notes: "Auto-generated batch for direct perfume inventory",
+                },
+              });
+            }
 
-          saleItemAllocations.push({
-            productId: item.productId,
-            batchId: alloc.batchId,
-            quantity: alloc.quantity,
-            unitPrice: item.unitPrice,
-            unitCost: alloc.unitCost,
-            revenue,
-            cost,
-            profit,
-          });
+            const product = await tx.product.findUnique({ where: { id: item.productId } });
+            const unitCost = product ? product.defaultCostPrice.toNumber() : 0;
 
-          batchDeductions.push({
-            batchItemId: matchingBatchItem.id,
-            deductQuantity: alloc.quantity,
-            batchId: alloc.batchId,
-          });
+            let autoBatchItem = await tx.batchItem.findFirst({
+              where: { batchId: autoBatch.id, productId: item.productId },
+            });
 
-          inventoryTxns.push({
-            productId: item.productId,
-            batchId: alloc.batchId,
-            quantity: alloc.quantity,
-          });
+            if (!autoBatchItem) {
+              autoBatchItem = await tx.batchItem.create({
+                data: {
+                  batchId: autoBatch.id,
+                  productId: item.productId,
+                  quantityPurchased: shortage,
+                  quantityRemaining: 0,
+                  unitCost: new Prisma.Decimal(unitCost),
+                  totalCost: new Prisma.Decimal(shortage * unitCost),
+                },
+              });
+            }
+
+            const revenue = Math.round(shortage * item.unitPrice * 100) / 100;
+            const cost = Math.round(shortage * unitCost * 100) / 100;
+            const profit = Math.round((revenue - cost) * 100) / 100;
+
+            grandTotalRevenue += revenue;
+            grandTotalCost += cost;
+
+            saleItemAllocations.push({
+              productId: item.productId,
+              batchId: autoBatch.id,
+              quantity: shortage,
+              unitPrice: item.unitPrice,
+              unitCost,
+              revenue,
+              cost,
+              profit,
+            });
+
+            inventoryTxns.push({
+              productId: item.productId,
+              batchId: autoBatch.id,
+              quantity: shortage,
+            });
+          }
         }
       }
 
@@ -178,7 +257,7 @@ export async function createSale(input: CreateSaleInput) {
           totalAmount: new Prisma.Decimal(totalAmount),
           totalCost: new Prisma.Decimal(totalCost),
           grossProfit: new Prisma.Decimal(grossProfit),
-          paymentMethod: input.paymentMethod || "CASH",
+          paymentMethod: normalizePaymentMethod(input.paymentMethod),
           paymentStatus,
           status: saleStatus,
           amountPaid: new Prisma.Decimal(amountPaid),

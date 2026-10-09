@@ -234,50 +234,41 @@ export default function ExpensesPage() {
         </Button>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-[11px] font-semibold uppercase">Total Expenses</span>
-            <TrendingDown className="w-4 h-4 text-destructive" />
-          </div>
-          <div className="text-2xl font-black text-foreground">
+      {/* KPI Metrics Bar */}
+      <div className="rounded-lg border border-border bg-card grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border">
+        <div className="p-4">
+          <div className="text-xs font-medium text-muted-foreground mb-1">Total Expenses</div>
+          <div className="text-2xl font-bold text-foreground tabular-nums">
             <Money amount={totalAmount} />
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5">
-            {expenses.length} expense transactions
+            {expenses.length} recorded transactions
           </div>
-        </Card>
+        </div>
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-[11px] font-semibold uppercase">Shipment / Batch Costs</span>
-            <Layers className="w-4 h-4 text-primary" />
-          </div>
-          <div className="text-2xl font-black text-foreground">
+        <div className="p-4">
+          <div className="text-xs font-medium text-muted-foreground mb-1">Shipment & Restock Costs</div>
+          <div className="text-2xl font-bold text-foreground tabular-nums">
             <Money amount={batchLinkedAmount} />
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5">
-            Tied to inventory purchases
+            Tied directly to inventory purchases
           </div>
-        </Card>
+        </div>
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-[11px] font-semibold uppercase">General Overhead</span>
-            <Receipt className="w-4 h-4 text-warning" />
-          </div>
-          <div className="text-2xl font-black text-foreground">
+        <div className="p-4">
+          <div className="text-xs font-medium text-muted-foreground mb-1">General Operating Overhead</div>
+          <div className="text-2xl font-bold text-foreground tabular-nums">
             <Money amount={overheadAmount} />
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5">
-            Operations, marketing & delivery
+            Logistics, packaging & marketing
           </div>
-        </Card>
+        </div>
       </div>
 
       {/* Filter Chips & Search Bar */}
-      <Card className="p-3.5 space-y-3">
+      <div className="rounded-lg border border-border bg-card p-3.5 space-y-3">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
             <SearchField
@@ -302,74 +293,112 @@ export default function ExpensesPage() {
             onChange={setSelectedCategory}
           />
         </div>
-      </Card>
+      </div>
 
-      {/* Expense List */}
+      {/* Expenses Table */}
       {filteredExpenses.length === 0 ? (
-        <Card className="p-12 text-center text-muted-foreground">
-          <Receipt className="w-10 h-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm font-semibold">No expenses recorded for this filter</p>
-          <p className="text-xs mt-1">Click "Log Expense" to record a new business expense</p>
-        </Card>
+        <div className="rounded-lg border border-border bg-card p-12 text-center text-muted-foreground">
+          <p className="text-sm font-medium">No expenses recorded for this filter</p>
+          <p className="text-xs mt-1 text-muted-foreground/80">Click "Log Expense" above to record a new business expense</p>
+        </div>
       ) : (
-        <div className="space-y-3">
-          {filteredExpenses.map((exp) => {
-            const dateStr = new Date(exp.expenseDate).toLocaleDateString(undefined, {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            });
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-secondary/60 text-muted-foreground border-b border-border select-none">
+                <tr>
+                  <th className="py-3 px-4 font-medium">Date</th>
+                  <th className="py-3 px-4 font-medium">Description</th>
+                  <th className="py-3 px-4 font-medium">Category</th>
+                  <th className="py-3 px-4 font-medium">Linked Batch</th>
+                  <th className="py-3 px-4 font-medium text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filteredExpenses.map((exp) => {
+                  const dateStr = new Date(exp.expenseDate).toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  });
 
-            return (
-              <Card
-                key={exp.id}
-                className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-primary/40 transition-all"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center shrink-0 mt-0.5">
-                    <Receipt className="w-5 h-5" />
-                  </div>
+                  return (
+                    <tr
+                      key={exp.id}
+                      className="hover:bg-secondary/40 transition-colors"
+                    >
+                      <td className="py-3 px-4 text-muted-foreground tabular-nums whitespace-nowrap">
+                        {dateStr}
+                      </td>
 
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-sm font-bold text-foreground leading-snug">
-                        {exp.description}
-                      </h3>
-                      <Badge variant={getCategoryBadgeVariant(exp.category) as any}>
-                        {exp.category}
-                      </Badge>
-                      {exp.batch && (
-                        <Badge variant="outline" className="gap-1">
-                          <LinkIcon className="w-3 h-3" />
-                          <span>{exp.batch.reference}</span>
-                        </Badge>
-                      )}
-                    </div>
+                      <td className="py-3 px-4">
+                        <span className="font-semibold text-foreground block">{exp.description}</span>
+                        {exp.notes && (
+                          <span className="text-[11px] text-muted-foreground italic block mt-0.5">
+                            {exp.notes}
+                          </span>
+                        )}
+                      </td>
 
-                    <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
-                      <Calendar className="w-3.5 h-3.5" />
+                      <td className="py-3 px-4">
+                        <span className="text-xs text-muted-foreground font-medium">
+                          {exp.category}
+                        </span>
+                      </td>
+
+                      <td className="py-3 px-4 text-muted-foreground">
+                        {exp.batch ? (
+                          <span className="font-mono text-xs">{exp.batch.reference}</span>
+                        ) : (
+                          <span className="italic text-muted-foreground/60">—</span>
+                        )}
+                      </td>
+
+                      <td className="py-3 px-4 text-right tabular-nums font-semibold text-foreground">
+                        <Money amount={exp.amount} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Expense Rows */}
+          <div className="md:hidden divide-y divide-border">
+            {filteredExpenses.map((exp) => {
+              const dateStr = new Date(exp.expenseDate).toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+              });
+
+              return (
+                <div key={exp.id} className="p-3.5 flex items-start justify-between gap-3 text-xs">
+                  <div className="min-w-0">
+                    <span className="font-semibold text-foreground block truncate">
+                      {exp.description}
+                    </span>
+                    <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2">
                       <span>{dateStr}</span>
-                      {exp.notes && (
+                      <span>•</span>
+                      <span>{exp.category}</span>
+                      {exp.batch && (
                         <>
                           <span>•</span>
-                          <span className="italic line-clamp-1">{exp.notes}</span>
+                          <span className="font-mono">{exp.batch.reference}</span>
                         </>
                       )}
                     </div>
                   </div>
-                </div>
 
-                <div className="sm:text-right pt-2 sm:pt-0 border-t sm:border-t-0 border-border/60">
-                  <div className="text-base font-black text-foreground">
+                  <div className="text-right flex-shrink-0 font-semibold text-foreground tabular-nums">
                     <Money amount={exp.amount} />
                   </div>
-                  <div className="text-[10px] text-muted-foreground uppercase font-semibold">
-                    Settled
-                  </div>
                 </div>
-              </Card>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
 

@@ -37,25 +37,25 @@ export function FloatingActionButton() {
         isAIPage ? "translate-x-[calc(100%+3rem)] opacity-30 pointer-events-none" : "translate-x-0 opacity-100"
       }`}
     >
-      {/* 1. TOP: Icon-only Ask Avencia AI FAB (WhatsApp-style top position) */}
+      {/* 1. TOP: Icon-only Ask Avencia AI FAB */}
       <Link
         href="/ai"
-        className="w-11 h-11 rounded-2xl bg-slate-900/95 dark:bg-slate-800/95 border border-gold-500/40 shadow-lg shadow-gold-500/15 flex items-center justify-center hover:scale-105 active:scale-95 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+        className="w-10 h-10 rounded-md bg-card border border-border shadow-md flex items-center justify-center text-primary hover:bg-muted transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         aria-label="Ask Avencia AI Assistant"
         title="Ask Avencia AI Assistant"
       >
-        <Sparkles className="w-5 h-5 text-gold-400 animate-pulse" />
+        <Sparkles className="w-4 h-4" />
       </Link>
 
-      {/* 2. BOTTOM: Page Quick Action FAB (+) (WhatsApp-style bottom position) */}
+      {/* 2. BOTTOM: Page Quick Action FAB (+) */}
       {actionConfig && !isAIPage && (
         <button
           onClick={handleActionClick}
-          className="w-12 h-12 rounded-2xl bg-gold-500 hover:bg-gold-600 text-slate-950 shadow-xl shadow-gold-500/25 border border-gold-400/40 flex items-center justify-center hover:scale-105 active:scale-95 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+          className="w-10 h-10 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground shadow-md border border-primary flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           aria-label={actionConfig.label}
           title={actionConfig.label}
         >
-          <Plus className="w-6 h-6 text-slate-950" />
+          <Plus className="w-5 h-5" />
         </button>
       )}
     </div>

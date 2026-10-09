@@ -199,42 +199,43 @@ export default function SuppliersPage() {
         </Button>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-[11px] font-semibold uppercase">Total Vendors</span>
-            <Building2 className="w-4 h-4 text-primary" />
+      {/* Summary Metrics Bar */}
+      <Card className="p-0 overflow-hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border">
+          <div className="p-4 sm:p-5">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+              Total Vendors
+            </span>
+            <div className="text-xl sm:text-2xl font-bold text-foreground mt-1 tabular-nums tracking-tight">
+              {totalVendors}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">Active wholesale partners</div>
           </div>
-          <div className="text-2xl font-black text-foreground">{totalVendors}</div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">Active wholesale partners</div>
-        </Card>
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-[11px] font-semibold uppercase">Capital Disbursed</span>
-            <DollarSign className="w-4 h-4 text-primary" />
+          <div className="p-4 sm:p-5">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+              Capital Disbursed
+            </span>
+            <div className="text-xl sm:text-2xl font-bold text-foreground mt-1 tracking-tight">
+              <Money amount={totalCapitalDisbursed} />
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">Total procurement volume</div>
           </div>
-          <div className="text-2xl font-black text-foreground">
-            <Money amount={totalCapitalDisbursed} />
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">Total procurement volume</div>
-        </Card>
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-[11px] font-semibold uppercase">Consignments Fulfilled</span>
-            <Truck className="w-4 h-4 text-primary" />
+          <div className="p-4 sm:p-5 bg-muted/20">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+              Consignments Fulfilled
+            </span>
+            <div className="text-xl sm:text-2xl font-bold text-foreground mt-1 tabular-nums tracking-tight">
+              {totalBatchesSupplied}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">Shipment batches delivered</div>
           </div>
-          <div className="text-2xl font-black text-foreground tabular-nums">
-            {totalBatchesSupplied}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">Shipment batches delivered</div>
-        </Card>
-      </div>
+        </div>
+      </Card>
 
       {/* Search Toolbar */}
-      <Card className="p-3.5">
+      <Card className="p-3">
         <SearchField
           value={search}
           onChange={setSearch}
@@ -242,104 +243,122 @@ export default function SuppliersPage() {
         />
       </Card>
 
-      {/* Suppliers Cards Grid */}
+      {/* Suppliers Table & Directory */}
       {suppliers.length === 0 ? (
         <Card className="p-12 text-center text-muted-foreground">
-          <Truck className="w-10 h-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm font-semibold">No suppliers found</p>
+          <p className="text-sm font-medium">No suppliers found</p>
           <p className="text-xs mt-1">Register a new vendor to link shipment batches</p>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {suppliers.map((s) => (
-            <Card
-              key={s.id}
-              className="p-5 flex flex-col justify-between hover:border-primary/40 transition-all group"
-            >
-              <div>
-                <div className="flex items-start justify-between gap-3 mb-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 font-black text-xs">
-                      {s.name.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-foreground leading-snug line-clamp-1">
-                        {s.name}
-                      </h3>
-                      {s.contactPerson && (
-                        <div className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                          <User className="w-3 h-3" />
-                          <span>{s.contactPerson}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+        <Card className="p-0 overflow-hidden">
+          {/* Desktop Table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-muted/40 text-xs font-semibold text-muted-foreground border-b border-border">
+                <tr>
+                  <th className="py-3 px-4">Supplier / Vendor</th>
+                  <th className="py-3 px-4">Contact Person</th>
+                  <th className="py-3 px-4">Contact Info</th>
+                  <th className="py-3 px-4">Location</th>
+                  <th className="py-3 px-4 text-center">Batches</th>
+                  <th className="py-3 px-4 text-right">Total Disbursed</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {suppliers.map((s) => (
+                  <tr key={s.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="py-3 px-4 font-semibold text-foreground whitespace-nowrap">
+                      {s.name}
+                    </td>
+                    <td className="py-3 px-4 text-xs text-muted-foreground">
+                      {s.contactPerson || "—"}
+                    </td>
+                    <td className="py-3 px-4 text-xs text-muted-foreground">
+                      <div>{s.phone || "—"}</div>
+                      {s.email && <div className="text-[11px] text-muted-foreground/80">{s.email}</div>}
+                    </td>
+                    <td className="py-3 px-4 text-xs text-muted-foreground max-w-[200px] truncate">
+                      {s.address || "—"}
+                    </td>
+                    <td className="py-3 px-4 text-center text-xs text-foreground tabular-nums font-medium">
+                      {s.totalBatches}
+                    </td>
+                    <td className="py-3 px-4 text-right text-xs font-bold text-foreground tabular-nums whitespace-nowrap">
+                      <Money amount={s.totalInvestment} />
+                    </td>
+                    <td className="py-3 px-4 text-right whitespace-nowrap">
+                      <div className="inline-flex items-center gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setSelectedSupplier(s)}
+                          className="text-xs h-7 px-2"
+                        >
+                          History
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openEditModal(s)}
+                          className="text-xs h-7 px-2"
+                        >
+                          Edit
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-                  <IconButton
-                    aria-label={`Edit ${s.name}`}
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => openEditModal(s)}
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </IconButton>
-                </div>
-
-                {/* Contact Details */}
-                <div className="space-y-1 text-xs text-muted-foreground my-3">
-                  {s.phone && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-3.5 h-3.5" />
-                      <span>{s.phone}</span>
-                    </div>
-                  )}
-                  {s.email && (
-                    <div className="flex items-center gap-2">
-                      <Mail className="w-3.5 h-3.5" />
-                      <span>{s.email}</span>
-                    </div>
-                  )}
-                  {s.address && (
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-3.5 h-3.5" />
-                      <span className="line-clamp-1">{s.address}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Volume Stats */}
-                <div className="grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-muted/40 border border-border/60 text-xs">
+          {/* Mobile Row View */}
+          <div className="md:hidden divide-y divide-border">
+            {suppliers.map((s) => (
+              <div key={s.id} className="p-4 space-y-2">
+                <div className="flex items-start justify-between gap-2">
                   <div>
-                    <div className="text-[10px] text-muted-foreground uppercase font-semibold">
-                      Batches
-                    </div>
-                    <div className="font-bold text-foreground mt-0.5">{s.totalBatches}</div>
+                    <div className="text-sm font-semibold text-foreground">{s.name}</div>
+                    {s.contactPerson && (
+                      <div className="text-xs text-muted-foreground mt-0.5">{s.contactPerson}</div>
+                    )}
                   </div>
-                  <div>
-                    <div className="text-[10px] text-muted-foreground uppercase font-semibold">
-                      Total Disbursed
-                    </div>
-                    <div className="font-black text-foreground mt-0.5">
+                  <div className="text-right">
+                    <div className="text-sm font-bold text-foreground tabular-nums">
                       <Money amount={s.totalInvestment} />
                     </div>
+                    <div className="text-[11px] text-muted-foreground">{s.totalBatches} batches</div>
                   </div>
                 </div>
-              </div>
 
-              {/* Detail Action */}
-              <div className="pt-3 mt-3 border-t border-border/60">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="w-full text-xs"
-                  onClick={() => setSelectedSupplier(s)}
-                >
-                  View Shipment History ({s.batches?.length || 0})
-                </Button>
+                <div className="text-xs text-muted-foreground space-y-0.5">
+                  {s.phone && <div>📞 {s.phone}</div>}
+                  {s.email && <div>✉️ {s.email}</div>}
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setSelectedSupplier(s)}
+                    className="text-xs h-7 px-2"
+                  >
+                    History
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openEditModal(s)}
+                    className="text-xs h-7 px-2"
+                  >
+                    Edit
+                  </Button>
+                </div>
               </div>
-            </Card>
-          ))}
-        </div>
+            ))}
+          </div>
+        </Card>
       )}
 
       {/* CREATE / EDIT SUPPLIER SHEET */}

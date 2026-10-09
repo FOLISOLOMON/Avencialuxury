@@ -11,6 +11,7 @@ import {
   Grid,
 } from "lucide-react";
 import { MoreSheet } from "./MoreSheet";
+import { cn } from "@/lib/utils";
 
 export function MobileBottomNav() {
   const pathname = usePathname();
@@ -27,7 +28,7 @@ export function MobileBottomNav() {
     <>
       <nav
         aria-label="Mobile navigation"
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-card/95 dark:bg-[#151515]/95 backdrop-blur-md border-t border-border px-2 pt-1 pb-[max(0.35rem,env(safe-area-inset-bottom))] shadow-lg select-none"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border px-2 pt-1 pb-[max(0.35rem,env(safe-area-inset-bottom))] select-none"
       >
         <div className="grid grid-cols-5 items-center max-w-md mx-auto h-14">
           {navItems.map((item) => {
@@ -38,18 +39,15 @@ export function MobileBottomNav() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`relative flex flex-col items-center justify-center h-full min-h-[44px] rounded-lg transition-all duration-150 active:scale-95 ${
+                className={cn(
+                  "flex flex-col items-center justify-center h-full min-h-[44px] rounded-md transition-colors",
                   isActive
-                    ? "text-primary font-bold"
+                    ? "text-primary font-semibold"
                     : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {/* Logo-inspired geometric 60-degree wedge marker */}
-                {isActive && (
-                  <span className="absolute top-0.5 w-6 h-1 rounded-full bg-primary shadow-xs" />
                 )}
-                <Icon className={`w-5 h-5 transition-transform ${isActive ? "scale-110" : ""}`} />
-                <span className="text-[10px] tracking-tight mt-0.5 font-medium leading-none">
+              >
+                <Icon className="w-5 h-5" />
+                <span className="text-[11px] tracking-tight mt-0.5 leading-none">
                   {item.label}
                 </span>
               </Link>
@@ -61,17 +59,15 @@ export function MobileBottomNav() {
             type="button"
             onClick={() => setIsMoreOpen(true)}
             aria-label="More navigation options"
-            className={`relative flex flex-col items-center justify-center h-full min-h-[44px] rounded-lg transition-all duration-150 active:scale-95 ${
+            className={cn(
+              "flex flex-col items-center justify-center h-full min-h-[44px] rounded-md transition-colors",
               isMoreOpen
-                ? "text-primary font-bold"
+                ? "text-primary font-semibold"
                 : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {isMoreOpen && (
-              <span className="absolute top-0.5 w-6 h-1 rounded-full bg-primary shadow-xs" />
             )}
+          >
             <Grid className="w-5 h-5" />
-            <span className="text-[10px] tracking-tight mt-0.5 font-medium leading-none">
+            <span className="text-[11px] tracking-tight mt-0.5 leading-none">
               More
             </span>
           </button>

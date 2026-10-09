@@ -63,6 +63,14 @@ export async function recordDebtPayment(input: RecordDebtPaymentInput) {
     activeSalesBefore.reduce((sum, s) => sum + s.balanceDue.toNumber(), 0) * 100
   ) / 100;
 
+  if (previousBalance <= 0) {
+    throw new Error(`${customer.name} has no outstanding debt to settle.`);
+  }
+
+  if (amount > previousBalance) {
+    throw new Error(`Payment amount (GH₵${amount.toFixed(2)}) cannot exceed the outstanding debt of GH₵${previousBalance.toFixed(2)}.`);
+  }
+
   const result = await prisma.$transaction(async (tx) => {
     // Log DebtPayment transaction
     const debtPayment = await tx.debtPayment.create({

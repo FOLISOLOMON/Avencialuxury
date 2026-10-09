@@ -50,58 +50,58 @@ export function ProfileDropdown() {
 
       {/* Popover Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-60 bg-white dark:bg-[#151515] rounded-2xl border border-[#E5E2D8] dark:border-[#2A2A2A] shadow-2xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150 space-y-1 text-[#171717] dark:text-[#F5F5F5]">
+        <div className="absolute right-0 mt-2 w-60 bg-card rounded-md border border-border shadow-lg py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150 space-y-1 text-foreground">
           {/* Header Info */}
-          <div className="px-3.5 py-2 border-b border-[#E5E2D8] dark:border-[#2A2A2A]">
-            <p className="text-xs font-black text-[#171717] dark:text-[#F5F5F5] truncate">Avencia Perfumes</p>
-            <p className="text-[11px] text-[#737373] dark:text-[#A3A3A3] font-medium truncate">owner@avencialuxury.com</p>
+          <div className="px-3.5 py-2 border-b border-border">
+            <p className="text-xs font-semibold text-foreground truncate">Avencia Perfumes</p>
+            <p className="text-[11px] text-muted-foreground font-normal truncate">owner@avencialuxury.com</p>
           </div>
 
           {/* Compact Theme Selector Sub-Menu */}
-          <div className="px-3 py-1.5 border-b border-[#E5E2D8] dark:border-[#2A2A2A] space-y-1">
-            <p className="text-[10px] font-extrabold text-[#737373] dark:text-[#A3A3A3] uppercase tracking-wider">
+          <div className="px-3 py-1.5 border-b border-border space-y-1">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
               Theme Mode
             </p>
-            <div className="p-1 bg-[#F8F7F3] dark:bg-[#181818] rounded-xl grid grid-cols-3 gap-1 border border-[#E5E2D8] dark:border-[#2A2A2A]">
+            <div className="p-0.5 bg-muted rounded-md grid grid-cols-3 gap-1 border border-border">
               <button
                 type="button"
                 onClick={() => setTheme("light")}
-                className={`flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-bold transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-gold-500 ${
+                className={`flex items-center justify-center gap-1 py-1 rounded text-[11px] font-medium transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary ${
                   theme === "light"
-                    ? "bg-white dark:bg-[#2A2A2A] text-gold-600 dark:text-gold-400 shadow-xs font-black"
-                    : "text-[#525252] dark:text-[#D4D4D4] hover:text-[#171717] dark:hover:text-[#F5F5F5]"
+                    ? "bg-card text-foreground shadow-xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
                 title="Light Mode"
               >
-                <Sun className="w-3.5 h-3.5" />
+                <Sun className="w-3 h-3" />
                 <span>Light</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setTheme("dark")}
-                className={`flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-bold transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-gold-500 ${
+                className={`flex items-center justify-center gap-1 py-1 rounded text-[11px] font-medium transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary ${
                   theme === "dark"
-                    ? "bg-white dark:bg-[#2A2A2A] text-gold-600 dark:text-gold-400 shadow-xs font-black"
-                    : "text-[#525252] dark:text-[#D4D4D4] hover:text-[#171717] dark:hover:text-[#F5F5F5]"
+                    ? "bg-card text-foreground shadow-xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
                 title="Dark Mode"
               >
-                <Moon className="w-3.5 h-3.5" />
+                <Moon className="w-3 h-3" />
                 <span>Dark</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setTheme("system")}
-                className={`flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-bold transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-gold-500 ${
+                className={`flex items-center justify-center gap-1 py-1 rounded text-[11px] font-medium transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary ${
                   theme === "system"
-                    ? "bg-white dark:bg-[#2A2A2A] text-gold-600 dark:text-gold-400 shadow-xs font-black"
-                    : "text-[#525252] dark:text-[#D4D4D4] hover:text-[#171717] dark:hover:text-[#F5F5F5]"
+                    ? "bg-card text-foreground shadow-xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
                 title="System Mode"
               >
-                <Monitor className="w-3.5 h-3.5" />
+                <Monitor className="w-3 h-3" />
                 <span>System</span>
               </button>
             </div>
@@ -112,26 +112,26 @@ export function ProfileDropdown() {
             <Link
               href="/profile"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-[#525252] dark:text-[#D4D4D4] hover:bg-gold-500/10 dark:hover:bg-gold-500/15 hover:text-[#171717] dark:hover:text-[#F5F5F5] transition-colors"
+              className="flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             >
-              <User className="w-4 h-4 text-gold-600 dark:text-gold-400" />
+              <User className="w-4 h-4 text-primary" />
               <span>Business Profile</span>
             </Link>
 
             <Link
               href="/settings"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-[#525252] dark:text-[#D4D4D4] hover:bg-gold-500/10 dark:hover:bg-gold-500/15 hover:text-[#171717] dark:hover:text-[#F5F5F5] transition-colors"
+              className="flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             >
-              <Settings className="w-4 h-4 text-gold-600 dark:text-gold-400" />
+              <Settings className="w-4 h-4 text-primary" />
               <span>Business Settings</span>
             </Link>
 
             <button
               onClick={handleLockPin}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-[#525252] dark:text-[#D4D4D4] hover:bg-gold-500/10 dark:hover:bg-gold-500/15 hover:text-[#171717] dark:hover:text-[#F5F5F5] transition-colors text-left"
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors text-left"
             >
-              <Lock className="w-4 h-4 text-[#737373] dark:text-[#A3A3A3]" />
+              <Lock className="w-4 h-4 text-muted-foreground" />
               <span>Lock Session PIN</span>
             </button>
           </div>

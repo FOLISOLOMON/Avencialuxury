@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { Sparkles, X, Send, Bot, User as UserIcon, Loader2, ArrowUpRight } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
 import { Input } from "@/components/ui/Input";
@@ -19,6 +20,7 @@ const QUICK_PROMPTS = [
 ];
 
 export function MobileAiOrb() {
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -62,8 +64,9 @@ export function MobileAiOrb() {
       });
 
       const json = await res.json();
-      if (json.reply) {
-        setMessages((prev) => [...prev, { role: "assistant", content: json.reply }]);
+      const answer = json.message || json.reply;
+      if (json.success !== false && answer) {
+        setMessages((prev) => [...prev, { role: "assistant", content: answer }]);
       } else {
         setMessages((prev) => [
           ...prev,
@@ -83,17 +86,21 @@ export function MobileAiOrb() {
     }
   };
 
+  if (pathname === "/mobile/sell") {
+    return null;
+  }
+
   return (
     <>
-      {/* Floating Action Orb Button */}
+      {/* Floating Action Button */}
       <div className="fixed bottom-20 right-4 z-20 pointer-events-auto">
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="w-12 h-12 rounded-full bg-gradient-to-tr from-primary to-amber-400 text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center border-2 border-background/80 hover:scale-105 active:scale-95 transition-all"
+          className="w-10 h-10 rounded-full bg-primary text-primary-foreground shadow-md border border-border flex items-center justify-center hover:opacity-90 active:opacity-80 transition-opacity"
           aria-label="Ask Avencia AI"
         >
-          <Sparkles className="w-5 h-5 text-zinc-950 animate-pulse" />
+          <Sparkles className="w-4 h-4 text-primary-foreground" />
         </button>
       </div>
 
@@ -121,10 +128,10 @@ export function MobileAiOrb() {
                 )}
 
                 <div
-                  className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${
+                  className={`max-w-[85%] rounded-md px-3 py-2 text-xs leading-relaxed ${
                     m.role === "user"
-                      ? "bg-primary text-primary-foreground rounded-br-xs font-medium"
-                      : "bg-card border border-border text-foreground rounded-bl-xs"
+                      ? "bg-primary text-primary-foreground font-medium"
+                      : "bg-card border border-border text-foreground"
                   }`}
                 >
                   <p className="whitespace-pre-wrap">{m.content}</p>

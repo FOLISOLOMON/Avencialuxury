@@ -1,4 +1,4 @@
-const CACHE_NAME = "avencia-mobile-v1";
+const CACHE_NAME = "avencia-mobile-v2";
 const SHELL_ASSETS = [
   "/mobile",
   "/mobile/sell",
@@ -41,8 +41,7 @@ self.addEventListener("activate", (event) => {
 });
 
 // 3. Fetch Strategy:
-// For API calls: Network first
-// For Static assets / Pages: Stale-While-Revalidate with offline fallback
+// Only intercept same-origin requests to prevent intercepting external Cloudflare/S3/CDN resources
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
@@ -51,38 +50,70 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // API calls: Network first
+  // Skip browser extensions, schemes other than http/https
+  if (!url.protocol.startsWith("http")) {
+    return;
+  }
+
+  // Skip cross-origin requests (e.g. Cloudflare R2, AWS S3, Google Fonts, external CDNs)
+  // Let the browser handle external requests natively without service worker interception
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  // API calls: Network first with safe offline JSON response
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(
-      fetch(event.request).catch(() => {
-        return caches.match(event.request);
-      })
+      fetch(event.request)
+        .catch(async () => {
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
+          return new Response(
+            JSON.stringify({ success: false, error: "Network request failed. Offline mode.", offline: true }),
+            {
+              status: 503,
+              statusText: "Service Unavailable",
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+        })
     );
     return;
   }
 
-  // Shell assets & navigations: Stale-While-Revalidate
+  // Shell assets & navigations: Stale-While-Revalidate with safe fallback Response
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const responseClone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseClone);
-            });
-          }
-          return networkResponse;
-        })
-        .catch(() => {
-          // If network fails and no cached response, fallback to /mobile
-          if (event.request.mode === "navigate") {
-            return caches.match("/mobile");
-          }
-          return cachedResponse;
-        });
+    (async () => {
+      const cachedResponse = await caches.match(event.request);
 
-      return cachedResponse || fetchPromise;
-    })
+      try {
+        const networkResponse = await fetch(event.request);
+        if (networkResponse && networkResponse.status === 200) {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+        }
+        return networkResponse;
+      } catch (err) {
+        // Network failed - return cached response if present
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+
+        // Navigation fallback to /mobile
+        if (event.request.mode === "navigate") {
+          const fallback = await caches.match("/mobile");
+          if (fallback) return fallback;
+        }
+
+        // Return a valid Response object so Service Worker never rejects with
+        // "TypeError: Failed to convert value to 'Response'"
+        return new Response(null, {
+          status: 504,
+          statusText: "Gateway Timeout",
+        });
+      }
+    })()
   );
 });

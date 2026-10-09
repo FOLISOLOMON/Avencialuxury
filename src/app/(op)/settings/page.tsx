@@ -186,278 +186,273 @@ export default function SettingsPage() {
     <div className="space-y-6 max-w-4xl pb-24 md:pb-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-black tracking-tight text-foreground">
-          Settings & Preferences
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+          System Preferences & Configuration
         </h1>
-        <p className="text-sm text-muted-foreground">
-          System configurations, theme appearance, security PIN & alert automation
+        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+          Operating rules, theme appearance, security PIN and notification thresholds
         </p>
       </div>
 
-      {/* SECTION 1: APPEARANCE & THEME */}
-      <Card className="p-5 space-y-4">
-        <div className="flex items-center gap-2 pb-3 border-b border-border">
-          <Sun className="w-4 h-4 text-primary" />
-          <h3 className="font-bold text-sm text-foreground">Appearance & Theme</h3>
-        </div>
-
-        <p className="text-xs text-muted-foreground">
-          Choose your interface appearance. Avencia adapts smoothly across light stone and graphite dark modes.
-        </p>
-
-        <div className="grid grid-cols-3 gap-3 max-w-md">
-          <button
-            type="button"
-            onClick={() => setTheme("light")}
-            className={`flex items-center justify-center gap-2 p-3 rounded-2xl border text-xs font-bold transition-all ${
-              theme === "light"
-                ? "border-primary bg-primary/10 text-primary shadow-sm"
-                : "border-border text-foreground hover:bg-muted/40"
-            }`}
-          >
-            <Sun className="w-4 h-4" />
-            <span>Light</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setTheme("dark")}
-            className={`flex items-center justify-center gap-2 p-3 rounded-2xl border text-xs font-bold transition-all ${
-              theme === "dark"
-                ? "border-primary bg-primary/10 text-primary shadow-sm"
-                : "border-border text-foreground hover:bg-muted/40"
-            }`}
-          >
-            <Moon className="w-4 h-4" />
-            <span>Dark</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setTheme("system")}
-            className={`flex items-center justify-center gap-2 p-3 rounded-2xl border text-xs font-bold transition-all ${
-              theme === "system"
-                ? "border-primary bg-primary/10 text-primary shadow-sm"
-                : "border-border text-foreground hover:bg-muted/40"
-            }`}
-          >
-            <Monitor className="w-4 h-4" />
-            <span>System</span>
-          </button>
-        </div>
-      </Card>
-
-      {/* SECTION 2: BUSINESS PROFILE LINK */}
-      <Card className="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-            <Building2 className="w-5 h-5" />
-          </div>
+      {/* Unified Settings Form Container */}
+      <div className="rounded-lg border border-border bg-card divide-y divide-border">
+        {/* SECTION 1: THEME & DISPLAY */}
+        <div className="p-5 space-y-3">
           <div>
-            <h3 className="text-sm font-bold text-foreground">Business Profile & Credentials</h3>
-            <p className="text-xs text-muted-foreground">
-              Store legal trade name, phone contacts, address & owner email
+            <h3 className="text-sm font-semibold text-foreground">Interface Appearance</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Choose your interface color scheme. Adapts seamlessly across light stone and graphite dark.
             </p>
           </div>
-        </div>
 
-        <Link href="/profile">
-          <Button variant="outline" size="sm" className="gap-1 font-bold">
-            <span>Manage Profile</span>
-            <ArrowRight className="w-3.5 h-3.5 ml-1" />
-          </Button>
-        </Link>
-      </Card>
-
-      {/* SECTION 3: OPERATING THRESHOLDS & PREFERENCES */}
-      <Card className="p-5 space-y-4">
-        <div className="flex items-center gap-2 pb-3 border-b border-border">
-          <Sliders className="w-4 h-4 text-primary" />
-          <h3 className="font-bold text-sm text-foreground">Operating Rules & Thresholds</h3>
-        </div>
-
-        {saveError && (
-          <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-xs font-semibold flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span>{saveError}</span>
-          </div>
-        )}
-
-        {saveSuccess && (
-          <div className="p-3 rounded-xl bg-success/10 text-success text-xs font-semibold flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-            <span>Business preferences saved successfully!</span>
-          </div>
-        )}
-
-        <form onSubmit={handleSaveSettings} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Input
-              label="Low Stock Alert Threshold"
-              type="number"
-              min="1"
-              value={lowStockThreshold}
-              onChange={(e) => setLowStockThreshold(e.target.value)}
-              hint="Alert when bottles fall to this count"
-            />
-
-            <Select
-              label="Operating Currency"
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
-              options={[
-                { value: "GHS", label: "Ghanaian Cedi (GH₵)" },
-                { value: "USD", label: "US Dollar ($)" },
-                { value: "NGN", label: "Nigerian Naira (₦)" },
-              ]}
-            />
-
-            <Select
-              label="Default POS Tender"
-              value={defaultPaymentMethod}
-              onChange={(e) => setDefaultPaymentMethod(e.target.value)}
-              options={[
-                { value: "CASH", label: "Cash" },
-                { value: "BANK_TRANSFER", label: "Bank Transfer" },
-                { value: "MOMO", label: "Mobile Money (MoMo)" },
-                { value: "CARD", label: "POS Card Payment" },
-              ]}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-border/60">
-            <Input
-              label="Large Expense Alert (GH₵)"
-              type="number"
-              min="0"
-              value={largeExpenseThreshold}
-              onChange={(e) => setLargeExpenseThreshold(e.target.value)}
-              hint="Flags expenses above this amount"
-            />
-
-            <Input
-              label="Batch Sell-Out Alert (%)"
-              type="number"
-              min="1"
-              max="100"
-              value={batchNearCompletionThreshold}
-              onChange={(e) => setBatchNearCompletionThreshold(e.target.value)}
-              hint="Warns when remaining stock is <= %"
-            />
-
-            <Input
-              label="Dormant Client Days"
-              type="number"
-              min="1"
-              value={dormantCustomerDays}
-              onChange={(e) => setDormantCustomerDays(e.target.value)}
-              hint="Days before client is marked dormant"
-            />
-          </div>
-
-          <div className="pt-2 flex justify-end">
-            <Button type="submit" variant="primary" className="font-black" isLoading={saving}>
-              Save Preferences
-            </Button>
-          </div>
-        </form>
-      </Card>
-
-      {/* SECTION 4: SECURITY & QUICK PIN LOCK */}
-      <Card className="p-5 space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-border">
-          <div className="flex items-center gap-2">
-            <Lock className="w-4 h-4 text-primary" />
-            <h3 className="font-bold text-sm text-foreground">Screen Lock & Quick PIN</h3>
-          </div>
-          <Badge variant={storedPin ? "success" : "outline"}>
-            {storedPin ? "PIN Active" : "No PIN Set"}
-          </Badge>
-        </div>
-
-        <p className="text-xs text-muted-foreground">
-          Set a 4-digit numeric code to lock and secure your Avencia register on shared shop devices.
-        </p>
-
-        {pinSuccess && (
-          <div className="p-3 rounded-xl bg-success/10 text-success text-xs font-semibold flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-            <span>PIN security settings updated!</span>
-          </div>
-        )}
-
-        {pinError && (
-          <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-xs font-semibold flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span>{pinError}</span>
-          </div>
-        )}
-
-        {pinMode === "view" ? (
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setNewPin("");
-                setConfirmPin("");
-                setPinMode("set");
-              }}
+          <div className="grid grid-cols-3 gap-2.5 max-w-xs pt-1">
+            <button
+              type="button"
+              onClick={() => setTheme("light")}
+              className={`flex items-center justify-center gap-2 p-2.5 rounded-md border text-xs font-medium transition-colors ${
+                theme === "light"
+                  ? "border-primary bg-primary/10 text-gold-ink font-semibold"
+                  : "border-border text-foreground hover:bg-secondary"
+              }`}
             >
-              <KeyRound className="w-3.5 h-3.5 mr-1.5 text-primary" />
-              <span>{storedPin ? "Change 4-Digit PIN" : "Setup 4-Digit PIN"}</span>
-            </Button>
+              <Sun className="w-4 h-4" />
+              <span>Light</span>
+            </button>
 
-            {storedPin && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleRemovePin}
-                className="text-xs text-muted-foreground hover:text-destructive"
-              >
-                Disable PIN
-              </Button>
-            )}
+            <button
+              type="button"
+              onClick={() => setTheme("dark")}
+              className={`flex items-center justify-center gap-2 p-2.5 rounded-md border text-xs font-medium transition-colors ${
+                theme === "dark"
+                  ? "border-primary bg-primary/10 text-gold-ink font-semibold"
+                  : "border-border text-foreground hover:bg-secondary"
+              }`}
+            >
+              <Moon className="w-4 h-4" />
+              <span>Dark</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTheme("system")}
+              className={`flex items-center justify-center gap-2 p-2.5 rounded-md border text-xs font-medium transition-colors ${
+                theme === "system"
+                  ? "border-primary bg-primary/10 text-gold-ink font-semibold"
+                  : "border-border text-foreground hover:bg-secondary"
+              }`}
+            >
+              <Monitor className="w-4 h-4" />
+              <span>System</span>
+            </button>
           </div>
-        ) : (
-          <div className="space-y-3 p-4 rounded-2xl bg-muted/30 border border-border max-w-sm">
-            <Input
-              label="Enter 4-Digit PIN"
-              type="password"
-              maxLength={4}
-              value={newPin}
-              onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
-              placeholder="••••"
-            />
-            <Input
-              label="Confirm 4-Digit PIN"
-              type="password"
-              maxLength={4}
-              value={confirmPin}
-              onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
-              placeholder="••••"
-            />
-            <div className="flex gap-2 pt-1">
+        </div>
+
+        {/* SECTION 2: BUSINESS ENTITY REFERENCE */}
+        <div className="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Business Entity & Credentials</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Store legal trade name, contact phone, physical location and owner credentials
+            </p>
+          </div>
+
+          <Link href="/profile">
+            <Button variant="outline" size="sm" className="gap-1 font-medium">
+              <span>Manage Profile</span>
+              <ArrowRight className="w-3.5 h-3.5 ml-1" />
+            </Button>
+          </Link>
+        </div>
+
+        {/* SECTION 3: OPERATING THRESHOLDS & PREFERENCES */}
+        <div className="p-5 space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Operating Rules & Thresholds</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Parameters governing POS payment options, stock alert levels, and expenditure warnings
+            </p>
+          </div>
+
+          {saveError && (
+            <div className="p-3 rounded-md bg-destructive/10 text-destructive text-xs font-medium flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{saveError}</span>
+            </div>
+          )}
+
+          {saveSuccess && (
+            <div className="p-3 rounded-md bg-success/10 text-success text-xs font-medium flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>Business preferences saved successfully.</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSaveSettings} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Input
+                label="Low Stock Alert Threshold"
+                type="number"
+                min="1"
+                value={lowStockThreshold}
+                onChange={(e) => setLowStockThreshold(e.target.value)}
+                hint="Triggers warning when bottles fall to this count"
+              />
+
+              <Select
+                label="Operating Currency"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                options={[
+                  { value: "GHS", label: "Ghanaian Cedi (GH₵)" },
+                  { value: "USD", label: "US Dollar ($)" },
+                  { value: "NGN", label: "Nigerian Naira (₦)" },
+                ]}
+              />
+
+              <Select
+                label="Default POS Tender"
+                value={defaultPaymentMethod}
+                onChange={(e) => setDefaultPaymentMethod(e.target.value)}
+                options={[
+                  { value: "CASH", label: "Cash" },
+                  { value: "BANK_TRANSFER", label: "Bank Transfer" },
+                  { value: "MOMO", label: "Mobile Money (MoMo)" },
+                  { value: "CARD", label: "POS Card Payment" },
+                ]}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-border">
+              <Input
+                label="Large Expense Alert (GH₵)"
+                type="number"
+                min="0"
+                value={largeExpenseThreshold}
+                onChange={(e) => setLargeExpenseThreshold(e.target.value)}
+                hint="Flags expenditure above this sum"
+              />
+
+              <Input
+                label="Batch Sell-Out Alert (%)"
+                type="number"
+                min="1"
+                max="100"
+                value={batchNearCompletionThreshold}
+                onChange={(e) => setBatchNearCompletionThreshold(e.target.value)}
+                hint="Warns when remaining stock is <= %"
+              />
+
+              <Input
+                label="Dormant Client Days"
+                type="number"
+                min="1"
+                value={dormantCustomerDays}
+                onChange={(e) => setDormantCustomerDays(e.target.value)}
+                hint="Days before client is flagged dormant"
+              />
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <Button type="submit" variant="primary" isLoading={saving}>
+                Save Preferences
+              </Button>
+            </div>
+          </form>
+        </div>
+
+        {/* SECTION 4: SECURITY & PIN LOCK */}
+        <div className="p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Register Security & Screen Lock</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Set a 4-digit code to protect your business ledger on shared counters or tablets
+              </p>
+            </div>
+            <span className="text-xs text-muted-foreground font-medium">
+              {storedPin ? "PIN Active" : "No PIN Set"}
+            </span>
+          </div>
+
+          {pinSuccess && (
+            <div className="p-3 rounded-md bg-success/10 text-success text-xs font-medium flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>PIN security settings updated.</span>
+            </div>
+          )}
+
+          {pinError && (
+            <div className="p-3 rounded-md bg-destructive/10 text-destructive text-xs font-medium flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{pinError}</span>
+            </div>
+          )}
+
+          {pinMode === "view" ? (
+            <div className="flex items-center gap-3 pt-1">
               <Button
                 variant="outline"
                 size="sm"
-                className="flex-1"
-                onClick={() => setPinMode("view")}
+                onClick={() => {
+                  setNewPin("");
+                  setConfirmPin("");
+                  setPinMode("set");
+                }}
               >
-                Cancel
+                <span>{storedPin ? "Change 4-Digit PIN" : "Configure 4-Digit PIN"}</span>
               </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                className="flex-1 font-black"
-                onClick={handleSavePin}
-              >
-                Save PIN
-              </Button>
+
+              {storedPin && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRemovePin}
+                  className="text-xs text-muted-foreground hover:text-destructive"
+                >
+                  Disable PIN
+                </Button>
+              )}
             </div>
-          </div>
-        )}
-      </Card>
+          ) : (
+            <div className="space-y-3 p-4 rounded-md bg-secondary/50 border border-border max-w-sm pt-2">
+              <Input
+                label="Enter 4-Digit PIN"
+                type="password"
+                maxLength={4}
+                value={newPin}
+                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
+                placeholder="••••"
+              />
+              <Input
+                label="Confirm 4-Digit PIN"
+                type="password"
+                maxLength={4}
+                value={confirmPin}
+                onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
+                placeholder="••••"
+              />
+              <div className="flex gap-2 pt-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setPinMode("view")}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="flex-1"
+                  onClick={handleSavePin}
+                >
+                  Save PIN
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

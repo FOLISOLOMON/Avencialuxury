@@ -260,56 +260,58 @@ export default function ReportsPage() {
         />
       </Card>
 
-      {/* Period Executive Financial Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="p-4">
-          <span className="text-[11px] font-semibold text-muted-foreground uppercase">
-            Turnover (Revenue)
-          </span>
-          <div className="text-2xl font-black text-foreground mt-1">
-            <Money amount={totalRevenue} />
+      {/* Period Executive Financial Ledger Bar */}
+      <Card className="p-0 overflow-hidden">
+        <div className="grid grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
+          <div className="p-4 sm:p-5">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+              Turnover (Revenue)
+            </span>
+            <div className="text-xl sm:text-2xl font-bold text-foreground mt-1 tracking-tight">
+              <Money amount={totalRevenue} />
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {validSalesCount} completed orders
+            </div>
           </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">
-            {validSalesCount} completed orders
-          </div>
-        </Card>
 
-        <Card className="p-4">
-          <span className="text-[11px] font-semibold text-muted-foreground uppercase">
-            Gross Profit
-          </span>
-          <div className="text-2xl font-black text-primary mt-1">
-            <Money amount={totalGrossProfit} />
+          <div className="p-4 sm:p-5">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+              Gross Profit
+            </span>
+            <div className="text-xl sm:text-2xl font-bold text-primary mt-1 tracking-tight">
+              <Money amount={totalGrossProfit} />
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {profitMarginPercent}% gross margin
+            </div>
           </div>
-          <div className="text-[11px] text-primary font-bold mt-0.5">
-            {profitMarginPercent}% gross margin
-          </div>
-        </Card>
 
-        <Card className="p-4">
-          <span className="text-[11px] font-semibold text-muted-foreground uppercase">
-            Operating Expenses
-          </span>
-          <div className="text-2xl font-black text-destructive mt-1">
-            <Money amount={totalExpensesAmt} />
+          <div className="p-4 sm:p-5">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+              Operating Expenses
+            </span>
+            <div className="text-xl sm:text-2xl font-bold text-destructive mt-1 tracking-tight">
+              <Money amount={totalExpensesAmt} />
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {filteredExpenses.length} expense vouchers
+            </div>
           </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">
-            {filteredExpenses.length} expense vouchers
-          </div>
-        </Card>
 
-        <Card className="p-4 bg-primary/5 border-primary/30">
-          <span className="text-[11px] font-bold text-primary uppercase">
-            Net Realized Profit
-          </span>
-          <div className="text-2xl font-black text-foreground mt-1">
-            <Money amount={netEstimatedProfit} />
+          <div className="p-4 sm:p-5 bg-muted/20">
+            <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider block">
+              Net Realized Profit
+            </span>
+            <div className="text-xl sm:text-2xl font-bold text-foreground mt-1 tracking-tight">
+              <Money amount={netEstimatedProfit} />
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              Gross profit minus overhead
+            </div>
           </div>
-          <div className="text-[11px] text-success font-semibold mt-0.5">
-            Gross profit minus overhead
-          </div>
-        </Card>
-      </div>
+        </div>
+      </Card>
 
       {/* Charts Section: 7-Day Trend + Expense Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -317,10 +319,10 @@ export default function ReportsPage() {
         <Card className="lg:col-span-7 p-5 space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-border">
             <div>
-              <h3 className="text-sm font-bold text-foreground">7-Day Sales Trend</h3>
+              <h3 className="text-sm font-semibold text-foreground">7-Day Sales Trend</h3>
               <p className="text-xs text-muted-foreground">Daily turnover pattern</p>
             </div>
-            <Badge variant="gold">Last 7 Days</Badge>
+            <Badge variant="outline">Last 7 Days</Badge>
           </div>
 
           <div className="py-2">
@@ -332,7 +334,7 @@ export default function ReportsPage() {
         <Card className="lg:col-span-5 p-5 space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-border">
             <div>
-              <h3 className="text-sm font-bold text-foreground">Expense Distribution</h3>
+              <h3 className="text-sm font-semibold text-foreground">Expense Distribution</h3>
               <p className="text-xs text-muted-foreground">Category share</p>
             </div>
             <Badge variant="outline">
@@ -342,8 +344,7 @@ export default function ReportsPage() {
 
           {expenseDonutSlices.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground">
-              <Receipt className="w-8 h-8 mx-auto mb-2 opacity-30" />
-              <p className="text-xs font-semibold">No expenses recorded for this period</p>
+              <p className="text-xs">No expenses recorded for this period</p>
             </div>
           ) : (
             <div className="py-2">
@@ -357,29 +358,29 @@ export default function ReportsPage() {
       <Card className="p-5 space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-border">
           <div>
-            <h3 className="text-base font-bold text-foreground">Asset Valuation & Stock Health</h3>
+            <h3 className="text-sm font-semibold text-foreground">Asset Valuation & Stock Health</h3>
             <p className="text-xs text-muted-foreground">
               {totalStockUnits} bottles across {products.length} perfume lines
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 rounded-2xl bg-muted/30 border border-border">
-          <div>
-            <div className="text-xs text-muted-foreground font-semibold">Total Physical Units</div>
-            <div className="text-xl font-black text-foreground mt-0.5 tabular-nums">
+        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border rounded-md border border-border bg-muted/20">
+          <div className="p-4">
+            <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Total Physical Units</div>
+            <div className="text-lg font-bold text-foreground mt-1 tabular-nums">
               {totalStockUnits} bottles
             </div>
           </div>
-          <div>
-            <div className="text-xs text-muted-foreground font-semibold">Cost Valuation</div>
-            <div className="text-xl font-black text-primary mt-0.5">
+          <div className="p-4">
+            <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Cost Valuation</div>
+            <div className="text-lg font-bold text-primary mt-1">
               <Money amount={totalStockCostValuation} />
             </div>
           </div>
-          <div>
-            <div className="text-xs text-muted-foreground font-semibold">Potential Retail Value</div>
-            <div className="text-xl font-black text-success mt-0.5">
+          <div className="p-4">
+            <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Potential Retail Value</div>
+            <div className="text-lg font-bold text-foreground mt-1">
               <Money amount={totalStockPotentialRetail} />
             </div>
           </div>

@@ -405,63 +405,67 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
       </div>
 
       {/* Financial & Inventory Overview */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="p-4">
-          <span className="text-[11px] font-semibold text-muted-foreground uppercase">
-            Total Investment
-          </span>
-          <div className="text-2xl font-black text-foreground mt-1">
-            <Money amount={batch.totalInvestment} />
+      <Card className="p-0 overflow-hidden">
+        <div className="grid grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
+          <div className="p-4 sm:p-5">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+              Total Investment
+            </span>
+            <div className="text-xl sm:text-2xl font-bold text-foreground mt-1 tracking-tight">
+              <Money amount={batch.totalInvestment} />
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              Products: {formatCurrency(batch.purchaseCost)}
+            </div>
           </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">
-            Products: {formatCurrency(batch.purchaseCost)}
-          </div>
-        </Card>
 
-        <Card className="p-4">
-          <span className="text-[11px] font-semibold text-muted-foreground uppercase">
-            Extra Landed Costs
-          </span>
-          <div className="text-2xl font-black text-primary mt-1">
-            <Money amount={batch.additionalCosts} />
+          <div className="p-4 sm:p-5">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+              Extra Landed Costs
+            </span>
+            <div className="text-xl sm:text-2xl font-bold text-foreground mt-1 tracking-tight">
+              <Money amount={batch.additionalCosts} />
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              Shipping & customs duties
+            </div>
           </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">
-            Shipping & import duties
-          </div>
-        </Card>
 
-        <Card className="p-4">
-          <span className="text-[11px] font-semibold text-muted-foreground uppercase">
-            Units Remaining
-          </span>
-          <div className="text-2xl font-black text-foreground tabular-nums mt-1">
-            {totalRemaining} / {totalPurchased}
+          <div className="p-4 sm:p-5">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+              Units Remaining
+            </span>
+            <div className="text-xl sm:text-2xl font-bold text-foreground mt-1 tabular-nums tracking-tight">
+              {totalRemaining} / {totalPurchased}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {totalSold} units sold
+            </div>
           </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">
-            {totalSold} units sold
-          </div>
-        </Card>
 
-        <Card className="p-4">
-          <span className="text-[11px] font-semibold text-muted-foreground uppercase">
-            Sell-Through
-          </span>
-          <div className="text-2xl font-black text-success mt-1">{sellThroughRate}%</div>
-          <div className="w-full h-1.5 rounded-full bg-muted mt-2 overflow-hidden">
-            <div
-              className="h-full bg-success rounded-full"
-              style={{ width: `${sellThroughRate}%` }}
-            />
+          <div className="p-4 sm:p-5 bg-muted/20">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+              Sell-Through
+            </span>
+            <div className="text-xl sm:text-2xl font-bold text-foreground mt-1 tracking-tight">
+              {sellThroughRate}%
+            </div>
+            <div className="w-full h-1.5 bg-muted rounded overflow-hidden mt-2">
+              <div
+                className="h-full bg-primary"
+                style={{ width: `${sellThroughRate}%` }}
+              />
+            </div>
           </div>
-        </Card>
-      </div>
+        </div>
+      </Card>
 
       {/* Shipment Manifest / Items Table */}
-      <Card className="p-5 space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-border">
+      <Card className="p-0 overflow-hidden">
+        <div className="p-4 border-b border-border flex items-center justify-between">
           <div>
-            <h3 className="text-base font-bold text-foreground">Shipment Manifest</h3>
-            <p className="text-xs text-muted-foreground">
+            <h3 className="text-sm font-semibold text-foreground">Shipment Manifest</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
               {items.length} unique perfume lines in this consignment
             </p>
           </div>
@@ -469,64 +473,107 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
 
         {items.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground">
-            <Package className="w-10 h-10 mx-auto mb-2 opacity-30" />
-            <p className="text-sm font-semibold">No products added yet</p>
+            <p className="text-sm font-medium">No products added yet</p>
             <p className="text-xs mt-1">Click "Add Items" to log perfume bottles into this batch</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {items.map((item) => {
-              const itemProgress =
-                item.quantityPurchased > 0
-                  ? Math.round(
-                      ((item.quantityPurchased - item.quantityRemaining) / item.quantityPurchased) *
-                        100
-                    )
-                  : 0;
+          <div>
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-muted/40 text-xs font-semibold text-muted-foreground border-b border-border">
+                  <tr>
+                    <th className="py-3 px-4">Product Line</th>
+                    <th className="py-3 px-4">SKU</th>
+                    <th className="py-3 px-4 text-right">Unit Cost</th>
+                    <th className="py-3 px-4 text-right">Remaining Stock</th>
+                    <th className="py-3 px-4">Sell-Through</th>
+                    <th className="py-3 px-4 text-right">Total Cost</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {items.map((item) => {
+                    const itemProgress =
+                      item.quantityPurchased > 0
+                        ? Math.round(
+                            ((item.quantityPurchased - item.quantityRemaining) / item.quantityPurchased) *
+                              100
+                          )
+                        : 0;
 
-              return (
-                <div
-                  key={item.id}
-                  className="p-3.5 rounded-2xl bg-card border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                      <Package className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-foreground leading-snug">
-                        {item.product.name}
-                      </h4>
-                      <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
-                        {item.product.sku && <span>SKU: {item.product.sku}</span>}
-                        <span>•</span>
-                        <span>Unit Cost: {formatCurrency(item.unitCost)}</span>
+                    return (
+                      <tr key={item.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="py-3 px-4 font-medium text-foreground">
+                          {item.product.name}
+                        </td>
+                        <td className="py-3 px-4 text-xs text-muted-foreground">
+                          {item.product.sku || "—"}
+                        </td>
+                        <td className="py-3 px-4 text-right text-xs font-medium text-foreground tabular-nums">
+                          <Money amount={item.unitCost} />
+                        </td>
+                        <td className="py-3 px-4 text-right text-xs font-semibold tabular-nums text-foreground">
+                          {item.quantityRemaining} / {item.quantityPurchased}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="w-28 space-y-1">
+                            <div className="text-[11px] text-muted-foreground tabular-nums">
+                              {itemProgress}%
+                            </div>
+                            <div className="w-full h-1.5 bg-muted rounded overflow-hidden">
+                              <div
+                                className="h-full bg-primary"
+                                style={{ width: `${itemProgress}%` }}
+                              />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-right text-sm font-bold text-foreground tabular-nums">
+                          <Money amount={item.totalCost} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Row View */}
+            <div className="md:hidden divide-y divide-border">
+              {items.map((item) => {
+                const itemProgress =
+                  item.quantityPurchased > 0
+                    ? Math.round(
+                        ((item.quantityPurchased - item.quantityRemaining) / item.quantityPurchased) *
+                          100
+                      )
+                    : 0;
+
+                return (
+                  <div key={item.id} className="p-4 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="text-sm font-medium text-foreground">{item.product.name}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {item.product.sku ? `SKU: ${item.product.sku} • ` : ""}
+                          Unit Cost: {formatCurrency(item.unitCost)}
+                        </div>
                       </div>
+                      <div className="text-right">
+                        <div className="text-sm font-bold text-foreground tabular-nums">
+                          <Money amount={item.totalCost} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border">
+                      <span>{item.quantityRemaining} of {item.quantityPurchased} left</span>
+                      <span>{itemProgress}% sold through</span>
                     </div>
                   </div>
-
-                  <div className="flex items-center justify-between sm:justify-end gap-6 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/60">
-                    <div className="text-left sm:text-right">
-                      <div className="text-xs font-bold text-foreground">
-                        {item.quantityRemaining} of {item.quantityPurchased} left
-                      </div>
-                      <div className="text-[11px] text-muted-foreground">
-                        {itemProgress}% sold through
-                      </div>
-                    </div>
-
-                    <div className="text-right">
-                      <div className="text-sm font-black text-foreground">
-                        <Money amount={item.totalCost} />
-                      </div>
-                      <div className="text-[10px] text-muted-foreground uppercase font-semibold">
-                        Total Cost
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
       </Card>

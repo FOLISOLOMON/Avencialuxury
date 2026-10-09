@@ -4,26 +4,16 @@ import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import {
   ShoppingBag,
-  Package,
-  Layers,
-  Users,
-  AlertTriangle,
-  ArrowRight,
-  TrendingUp,
-  Receipt,
-  PiggyBank,
-  Phone,
-  MessageSquare,
   Plus,
-  Clock,
-  Sparkles,
+  ArrowRight,
+  Package,
+  Users,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import { Money } from "@/components/ui/Money";
-import { TrendBarChart, MiniSparkline } from "@/components/ui/SvgCharts";
+import { TrendBarChart } from "@/components/ui/SvgCharts";
 import { Sheet } from "@/components/ui/Sheet";
 import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -49,7 +39,6 @@ export function InteractiveDashboard({
   const currency = settings?.currency || "GHS";
 
   // Quick Action Modal states
-  const [isQuickSaleOpen, setIsQuickSaleOpen] = useState(false);
   const [isQuickProductOpen, setIsQuickProductOpen] = useState(false);
 
   // Quick Product Form
@@ -78,14 +67,12 @@ export function InteractiveDashboard({
 
   // 2. Critical Needs Attention Items (Low stock + Outstanding customer debt)
   const attentionItems = useMemo(() => {
-    // Low / Out of stock
     const lowStock = products.filter((p) => {
       const stock = p.remainingStock ?? 0;
       const threshold = p.lowStockThreshold ?? settings?.lowStockThreshold ?? 3;
       return stock <= threshold;
     });
 
-    // Debtors
     const debtors = customers.filter((c) => {
       const debt = Number(c.totalOutstandingDebt || 0);
       return debt > 0;
@@ -142,12 +129,11 @@ export function InteractiveDashboard({
       });
       const data = await res.json();
       if (data.success) {
-        toast.success(`Product "${newProdName}" added successfully!`);
+        toast.success(`Product "${newProdName}" added successfully.`);
         setIsQuickProductOpen(false);
         setNewProdName("");
         setNewProdPrice("");
         setNewProdCost("");
-        // Reload page to refresh server data
         window.location.reload();
       } else {
         toast.error(data.error || "Failed to add product");
@@ -161,14 +147,13 @@ export function InteractiveDashboard({
 
   return (
     <div className="space-y-6">
-      {/* 1. Header Pulse & Quick Actions Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border/60">
+      {/* 1. Header & Primary Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
         <div>
-          <h2 className="font-display text-xl sm:text-2xl font-black text-foreground tracking-tight flex items-center gap-2">
-            Business Overview
-            <span className="w-2 h-2 rounded-full bg-success animate-pulse-subtle" />
+          <h2 className="text-lg sm:text-xl font-semibold text-foreground tracking-tight">
+            Financial & Operations Pulse
           </h2>
-          <p className="text-xs sm:text-sm text-muted-foreground font-medium">
+          <p className="text-xs text-muted-foreground mt-0.5">
             {new Date().toLocaleDateString("en-US", {
               weekday: "long",
               year: "numeric",
@@ -178,16 +163,14 @@ export function InteractiveDashboard({
           </p>
         </div>
 
-        {/* Action Buttons */}
         <div className="flex items-center gap-2 select-none">
           <Link href="/sales">
             <Button
               variant="primary"
               size="md"
               leftIcon={<ShoppingBag className="w-4 h-4" />}
-              className="w-full sm:w-auto shadow-gold"
             >
-              New Sale
+              New Transaction
             </Button>
           </Link>
           <Button
@@ -195,135 +178,142 @@ export function InteractiveDashboard({
             size="md"
             leftIcon={<Plus className="w-4 h-4" />}
             onClick={() => setIsQuickProductOpen(true)}
-            className="hidden sm:inline-flex"
           >
             Add Product
           </Button>
         </div>
       </div>
 
-      {/* 2. Hero Financials: Prioritized, readable, NOT 10 stacked cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-        {/* Hero Card 1: Today's Sales */}
-        <Card className="md:col-span-1 bg-gradient-to-br from-card to-card-elevated border-primary/30 relative overflow-hidden">
-          <div className="p-4 sm:p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Today's Sales
-              </span>
-              <Badge variant="gold">
-                {todayStats.count} {todayStats.count === 1 ? "Sale" : "Sales"}
-              </Badge>
-            </div>
-
-            <div>
-              <Money amount={todayStats.revenue} currency={currency} size="hero" />
-              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 font-medium">
-                <span className="text-success font-bold">
-                  +{formatCurrency(todayStats.profit, currency)}
-                </span>{" "}
-                estimated gross margin today
-              </p>
-            </div>
-
-            <div className="pt-2 border-t border-border/50 flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Total Revenue</span>
-              <Money amount={summary?.totalRevenue || 0} currency={currency} size="sm" />
-            </div>
+      {/* 2. Unified Financial Ledger Bar (Architecture over fragmented floating cards) */}
+      <div className="rounded-lg border border-border bg-card grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border">
+        {/* Metric 1: Today's Revenue */}
+        <div className="p-4 sm:p-5 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+            <span className="font-medium">Today's Sales</span>
+            <span className="tabular-nums">
+              {todayStats.count} {todayStats.count === 1 ? "transaction" : "transactions"}
+            </span>
           </div>
-        </Card>
 
-        {/* Hero Card 2: Net Profit & Expenses */}
-        <Card className="md:col-span-1 bg-card">
-          <div className="p-4 sm:p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Net Profit
-              </span>
-              <Badge variant={Number(summary?.totalNetProfit || 0) >= 0 ? "success" : "destructive"}>
-                All Time
-              </Badge>
+          <div>
+            <div className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground tabular-nums">
+              <Money amount={todayStats.revenue} currency={currency} size="xl" />
             </div>
+            <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5">
+              <span className="text-success font-semibold tabular-nums">
+                +{formatCurrency(todayStats.profit, currency)}
+              </span>
+              <span>estimated gross margin</span>
+            </p>
+          </div>
 
-            <div>
+          <div className="pt-3 mt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+            <span>Cumulative Revenue</span>
+            <span className="font-medium text-foreground tabular-nums">
+              {formatCurrency(summary?.totalRevenue || 0, currency)}
+            </span>
+          </div>
+        </div>
+
+        {/* Metric 2: Net Profit & Expenses */}
+        <div className="p-4 sm:p-5 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+            <span className="font-medium">Net Profit</span>
+            <span className="text-muted-foreground">All time</span>
+          </div>
+
+          <div>
+            <div className="text-2xl sm:text-3xl font-bold tracking-tight tabular-nums">
               <Money
                 amount={summary?.totalNetProfit || 0}
                 currency={currency}
                 size="xl"
                 colored
               />
-              <p className="text-xs text-muted-foreground mt-1 font-medium">
-                Gross Profit: <span className="font-bold text-foreground">{formatCurrency(summary?.totalGrossProfit || 0, currency)}</span>
-              </p>
             </div>
-
-            <div className="pt-2 border-t border-border/50 flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Total Expenses</span>
-              <Money amount={summary?.totalExpenses || 0} currency={currency} size="sm" colored />
-            </div>
-          </div>
-        </Card>
-
-        {/* Hero Card 3: Customer Debt & Active Batches */}
-        <Card className="md:col-span-1 bg-card">
-          <div className="p-4 sm:p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Owed by Customers
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Gross profit:{" "}
+              <span className="font-medium text-foreground tabular-nums">
+                {formatCurrency(summary?.totalGrossProfit || 0, currency)}
               </span>
-              <Badge variant={attentionItems.totalDebt > 0 ? "warning" : "secondary"}>
-                {attentionItems.debtors.length} {attentionItems.debtors.length === 1 ? "Debtor" : "Debtors"}
-              </Badge>
-            </div>
+            </p>
+          </div>
 
-            <div>
+          <div className="pt-3 mt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+            <span>Operating Expenses</span>
+            <span className="font-medium text-foreground tabular-nums">
+              {formatCurrency(summary?.totalExpenses || 0, currency)}
+            </span>
+          </div>
+        </div>
+
+        {/* Metric 3: Receivables & Active Inventory */}
+        <div className="p-4 sm:p-5 flex flex-col justify-between">
+          <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+            <span className="font-medium">Customer Receivables</span>
+            <span className="tabular-nums">
+              {attentionItems.debtors.length}{" "}
+              {attentionItems.debtors.length === 1 ? "debtor" : "debtors"}
+            </span>
+          </div>
+
+          <div>
+            <div className="text-2xl sm:text-3xl font-bold tracking-tight tabular-nums">
               <Money
                 amount={attentionItems.totalDebt}
                 currency={currency}
                 size="xl"
                 className={attentionItems.totalDebt > 0 ? "text-warning" : "text-foreground"}
               />
-              <p className="text-xs text-muted-foreground mt-1 font-medium">
-                Active Batches: <span className="font-bold text-foreground">{activeBatches.length} in stock</span>
-              </p>
             </div>
-
-            <div className="pt-2 border-t border-border/50 flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Savings Bucket</span>
-              <Money amount={summary?.allocations?.savings || 0} currency={currency} size="sm" />
-            </div>
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Active stock batches:{" "}
+              <span className="font-medium text-foreground tabular-nums">
+                {activeBatches.length} in warehouse
+              </span>
+            </p>
           </div>
-        </Card>
+
+          <div className="pt-3 mt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+            <span>Capital Reserve</span>
+            <span className="font-medium text-foreground tabular-nums">
+              {formatCurrency(summary?.allocations?.savings || 0, currency)}
+            </span>
+          </div>
+        </div>
       </div>
 
-      {/* 3. Attention Required (Clean prioritized mobile list, NO massive tables) */}
+      {/* 3. Operational Attention Ledger (Restrained, high-clarity table) */}
       {(attentionItems.lowStock.length > 0 || attentionItems.debtors.length > 0) && (
-        <Card className="border-warning/30 bg-card">
+        <Card>
           <CardHeader className="px-4 py-3 sm:px-5">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-md bg-warning/15 text-warning">
-                <AlertTriangle className="w-4 h-4" />
-              </div>
-              <CardTitle>Attention Required</CardTitle>
+            <div>
+              <CardTitle>Operational Priorities</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Items requiring restock or debt follow-up
+              </p>
             </div>
-            <span className="text-xs text-muted-foreground font-semibold">
+            <span className="text-xs text-muted-foreground tabular-nums">
               {attentionItems.lowStock.length + attentionItems.debtors.length} items
             </span>
           </CardHeader>
 
-          <div className="divide-y divide-border/60">
+          <div className="divide-y divide-border">
             {/* Low stock alerts */}
             {attentionItems.lowStock.slice(0, 3).map((item) => (
-              <div key={item.id} className="p-3.5 sm:px-5 flex items-center justify-between gap-3 text-xs">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="p-1.5 rounded bg-destructive/15 text-destructive flex-shrink-0">
-                    <Package className="w-4 h-4" />
-                  </div>
+              <div
+                key={item.id}
+                className="p-3 sm:px-5 flex items-center justify-between gap-3 text-xs"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <Package className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                   <div className="min-w-0">
-                    <div className="font-bold text-foreground truncate">{item.name}</div>
-                    <div className="text-[11px] text-muted-foreground">
-                      Only <span className="text-destructive font-black">{item.remainingStock}</span> left in stock
-                    </div>
+                    <span className="font-medium text-foreground truncate block">
+                      {item.name}
+                    </span>
+                    <span className="text-[11px] text-destructive font-medium tabular-nums">
+                      {item.remainingStock} units remaining (below threshold)
+                    </span>
                   </div>
                 </div>
 
@@ -337,22 +327,25 @@ export function InteractiveDashboard({
 
             {/* Debtor alerts */}
             {attentionItems.debtors.slice(0, 3).map((debtor) => (
-              <div key={debtor.id} className="p-3.5 sm:px-5 flex items-center justify-between gap-3 text-xs">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="p-1.5 rounded bg-warning/15 text-warning flex-shrink-0">
-                    <Users className="w-4 h-4" />
-                  </div>
+              <div
+                key={debtor.id}
+                className="p-3 sm:px-5 flex items-center justify-between gap-3 text-xs"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <Users className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                   <div className="min-w-0">
-                    <div className="font-bold text-foreground truncate">{debtor.name}</div>
-                    <div className="text-[11px] text-muted-foreground">
-                      Owes <span className="font-bold text-warning">{formatCurrency(debtor.totalOutstandingDebt, currency)}</span>
-                    </div>
+                    <span className="font-medium text-foreground truncate block">
+                      {debtor.name}
+                    </span>
+                    <span className="text-[11px] text-warning font-medium tabular-nums">
+                      Outstanding balance: {formatCurrency(debtor.totalOutstandingDebt, currency)}
+                    </span>
                   </div>
                 </div>
 
                 <Link href="/customers" className="flex-shrink-0">
                   <Button variant="outline" size="sm">
-                    View
+                    View Ledger
                   </Button>
                 </Link>
               </div>
@@ -361,41 +354,53 @@ export function InteractiveDashboard({
         </Card>
       )}
 
-      {/* 4. Sales Activity & Trend (Side-by-side on desktop, stacked on mobile) */}
+      {/* 4. Sales Activity & Trend (Disciplined layout) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* 7-Day Sales Trend Bar Chart */}
         <Card>
           <CardHeader className="px-4 py-3 sm:px-5">
-            <CardTitle>7-Day Sales Trend</CardTitle>
-            <span className="text-xs text-muted-foreground font-semibold">Daily Volume</span>
+            <div>
+              <CardTitle>Sales Trend</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">Past 7 days volume</p>
+            </div>
+            <span className="text-xs text-muted-foreground">Daily Revenue</span>
           </CardHeader>
           <div className="p-4 sm:p-5">
-            <TrendBarChart data={trendData} currency={currency} height={150} />
+            <TrendBarChart data={trendData} currency={currency} height={140} />
           </div>
         </Card>
 
         {/* Recent Transactions List */}
         <Card>
           <CardHeader className="px-4 py-3 sm:px-5">
-            <CardTitle>Recent Sales</CardTitle>
-            <Link href="/sales" className="text-xs font-bold text-primary hover:underline flex items-center gap-1">
-              View All <ArrowRight className="w-3.5 h-3.5" />
+            <div>
+              <CardTitle>Recent Transactions</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">Latest recorded retail sales</p>
+            </div>
+            <Link
+              href="/sales"
+              className="text-xs font-medium text-primary hover:underline flex items-center gap-1"
+            >
+              Full Ledger <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </CardHeader>
 
-          <div className="divide-y divide-border/60">
+          <div className="divide-y divide-border">
             {sales.length === 0 ? (
               <div className="p-6 text-center text-xs text-muted-foreground">
-                No sales recorded yet. Process your first sale above!
+                No transactions recorded yet.
               </div>
             ) : (
               sales.slice(0, 5).map((sale) => (
-                <div key={sale.id} className="p-3.5 sm:px-5 flex items-center justify-between gap-3 text-xs">
+                <div
+                  key={sale.id}
+                  className="p-3 sm:px-5 flex items-center justify-between gap-3 text-xs"
+                >
                   <div className="min-w-0">
-                    <div className="font-bold text-foreground truncate">
-                      {sale.customer?.name || "Walk-in Customer"}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                    <span className="font-medium text-foreground truncate block">
+                      {sale.customer?.name || "Walk-in Client"}
+                    </span>
+                    <div className="text-[11px] text-muted-foreground flex items-center gap-2 mt-0.5">
                       <span>{sale.saleItems?.length || 1} items</span>
                       <span>•</span>
                       <span>{sale.paymentMethod}</span>
@@ -410,9 +415,11 @@ export function InteractiveDashboard({
                   </div>
 
                   <div className="text-right flex-shrink-0">
-                    <Money amount={sale.totalAmount} currency={currency} size="sm" />
-                    <div className="text-[10px] text-success font-semibold mt-0.5">
-                      +{formatCurrency(sale.grossProfit, currency)} profit
+                    <div className="font-semibold text-foreground tabular-nums">
+                      <Money amount={sale.totalAmount} currency={currency} size="sm" />
+                    </div>
+                    <div className="text-[11px] text-success font-medium tabular-nums mt-0.5">
+                      +{formatCurrency(sale.grossProfit, currency)} margin
                     </div>
                   </div>
                 </div>
@@ -426,8 +433,8 @@ export function InteractiveDashboard({
       <Sheet
         isOpen={isQuickProductOpen}
         onClose={() => setIsQuickProductOpen(false)}
-        title="Add New Product"
-        description="Quickly create a product in the Avencia catalog"
+        title="New Fragrance SKU"
+        description="Quickly record a new product into Avencia catalog"
         size="sm"
       >
         <form onSubmit={handleSaveProduct} className="space-y-4 pt-2">
@@ -440,7 +447,7 @@ export function InteractiveDashboard({
           />
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Selling Price (GH₵)"
+              label={`Selling Price (${currency})`}
               type="number"
               step="0.01"
               placeholder="0.00"
@@ -449,7 +456,7 @@ export function InteractiveDashboard({
               required
             />
             <Input
-              label="Cost Price (GH₵)"
+              label={`Wholesale Cost (${currency})`}
               type="number"
               step="0.01"
               placeholder="0.00"

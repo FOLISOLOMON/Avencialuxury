@@ -147,33 +147,35 @@ export default function AskAvenciaPage() {
     const d = payload.data;
     if (!d) return null;
 
-    switch (payload.type) {
+    const normalizedType = (payload.type || "").replace(/^get_/, "");
+
+    switch (normalizedType) {
       case "sales_summary":
         return (
-          <div className="mt-3 p-3.5 rounded-2xl bg-card border border-primary/30 space-y-2.5">
-            <div className="flex items-center justify-between text-xs font-bold text-primary">
+          <div className="mt-3 p-3 rounded-md bg-card border border-primary/20 space-y-2">
+            <div className="flex items-center justify-between text-xs font-semibold text-primary">
               <span className="flex items-center gap-1.5">
-                <TrendingUp className="w-4 h-4" />
+                <TrendingUp className="w-3.5 h-3.5" />
                 <span>Sales Performance</span>
               </span>
               <Badge variant="gold">{d.timeframe || "Report"}</Badge>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-              <div className="p-2 rounded-xl bg-muted/40 border border-border">
+              <div className="p-2 rounded-md bg-muted/40 border border-border">
                 <span className="text-[10px] text-muted-foreground uppercase font-semibold">Revenue</span>
-                <div className="text-sm font-black text-foreground">{formatCurrency(d.revenue)}</div>
+                <div className="text-xs font-bold text-foreground">{formatCurrency(d.revenue ?? 0)}</div>
               </div>
-              <div className="p-2 rounded-xl bg-muted/40 border border-border">
+              <div className="p-2 rounded-md bg-muted/40 border border-border">
                 <span className="text-[10px] text-muted-foreground uppercase font-semibold">Collected</span>
-                <div className="text-sm font-black text-success">{formatCurrency(d.amountCollected)}</div>
+                <div className="text-xs font-bold text-success">{formatCurrency(d.amountCollected ?? 0)}</div>
               </div>
-              <div className="p-2 rounded-xl bg-muted/40 border border-border">
+              <div className="p-2 rounded-md bg-muted/40 border border-border">
                 <span className="text-[10px] text-muted-foreground uppercase font-semibold">Debt Due</span>
-                <div className="text-sm font-black text-warning">{formatCurrency(d.outstanding)}</div>
+                <div className="text-xs font-bold text-warning">{formatCurrency(d.outstanding ?? 0)}</div>
               </div>
-              <div className="p-2 rounded-xl bg-muted/40 border border-border">
+              <div className="p-2 rounded-md bg-muted/40 border border-border">
                 <span className="text-[10px] text-muted-foreground uppercase font-semibold">Gross Profit</span>
-                <div className="text-sm font-black text-primary">{formatCurrency(d.grossProfit)}</div>
+                <div className="text-xs font-bold text-primary">{formatCurrency(d.grossProfit ?? 0)}</div>
               </div>
             </div>
           </div>
@@ -181,29 +183,177 @@ export default function AskAvenciaPage() {
 
       case "customer_balances":
         return (
-          <div className="mt-3 p-3.5 rounded-2xl bg-card border border-warning/40 space-y-2 text-xs">
-            <div className="flex items-center justify-between font-bold text-foreground">
+          <div className="mt-3 p-3 rounded-md bg-card border border-warning/30 space-y-2 text-xs">
+            <div className="flex items-center justify-between font-semibold text-foreground">
               <span className="flex items-center gap-1.5 text-warning">
-                <Users className="w-4 h-4" />
+                <Users className="w-3.5 h-3.5" />
                 <span>Accounts Receivable</span>
               </span>
-              <span className="text-warning font-black">Total: {formatCurrency(d.totalOutstandingDebt)}</span>
+              <span className="text-warning font-bold">Total: {formatCurrency(d.totalOutstandingDebt ?? 0)}</span>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              {d.debtorCount} customer(s) with outstanding credit balances
+              {d.debtorCount ?? 0} customer(s) with outstanding credit balances
             </p>
+          </div>
+        );
+
+      case "customer_summary":
+        return (
+          <div className="mt-3 p-3 rounded-md bg-card border border-border space-y-2 text-xs">
+            <div className="flex items-center justify-between font-semibold text-foreground">
+              <span className="flex items-center gap-1.5 text-primary">
+                <Users className="w-3.5 h-3.5" />
+                <span>{d.name || "Customer Profile"}</span>
+              </span>
+              <Badge variant={d.outstandingBalance > 0 ? "warning" : "success"}>
+                {d.outstandingBalance > 0 ? "Has Debt" : "Settled"}
+              </Badge>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <div className="p-2 rounded-md bg-muted/40 border border-border">
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold">Due</span>
+                <div className="text-xs font-bold text-warning">{formatCurrency(d.outstandingBalance ?? 0)}</div>
+              </div>
+              <div className="p-2 rounded-md bg-muted/40 border border-border">
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold">Total Orders</span>
+                <div className="text-xs font-bold text-foreground">{d.totalOrders ?? 0}</div>
+              </div>
+              <div className="p-2 rounded-md bg-muted/40 border border-border">
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold">Total Spend</span>
+                <div className="text-xs font-bold text-foreground">{formatCurrency(d.totalSpend ?? 0)}</div>
+              </div>
+            </div>
           </div>
         );
 
       case "low_stock":
         return (
-          <div className="mt-3 p-3.5 rounded-2xl bg-card border border-destructive/40 space-y-2 text-xs">
-            <div className="flex items-center justify-between font-bold text-foreground">
+          <div className="mt-3 p-3 rounded-md bg-card border border-destructive/30 space-y-2 text-xs">
+            <div className="flex items-center justify-between font-semibold text-foreground">
               <span className="flex items-center gap-1.5 text-destructive">
-                <AlertTriangle className="w-4 h-4" />
+                <AlertTriangle className="w-3.5 h-3.5" />
                 <span>Inventory Stock Alert</span>
               </span>
-              <Badge variant="destructive">{d.lowStockCount + d.outOfStockCount} items</Badge>
+              <Badge variant="destructive">{(d.lowStockCount ?? 0) + (d.outOfStockCount ?? 0)} items</Badge>
+            </div>
+          </div>
+        );
+
+      case "product_performance":
+        return (
+          <div className="mt-3 p-3 rounded-md bg-card border border-border space-y-2 text-xs">
+            <div className="flex items-center justify-between font-semibold text-foreground">
+              <span className="flex items-center gap-1.5 text-primary">
+                <Package className="w-3.5 h-3.5" />
+                <span>Catalog & Stock Valuation</span>
+              </span>
+              <span className="text-xs font-bold text-foreground">
+                {formatCurrency(d.totalInventoryValue ?? 0)}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <div className="p-2 rounded-md bg-muted/40 border border-border">
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold">Catalog SKUs</span>
+                <div className="text-xs font-bold text-foreground">{d.totalProducts ?? 0}</div>
+              </div>
+              <div className="p-2 rounded-md bg-muted/40 border border-border">
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold">Bottles in Stock</span>
+                <div className="text-xs font-bold text-foreground">{d.totalStockUnits ?? 0}</div>
+              </div>
+              <div className="p-2 rounded-md bg-muted/40 border border-border">
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold">Units Sold</span>
+                <div className="text-xs font-bold text-primary">{d.totalUnitsSold ?? 0}</div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case "expense_summary":
+        return (
+          <div className="mt-3 p-3 rounded-md bg-card border border-border space-y-2 text-xs">
+            <div className="flex items-center justify-between font-semibold text-foreground">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <DollarSign className="w-3.5 h-3.5" />
+                <span>Expenses ({d.timeframe || "Period"})</span>
+              </span>
+              <span className="text-xs font-bold text-destructive">
+                {formatCurrency(d.totalExpenses ?? 0)}
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {d.expenseCount ?? 0} recorded expenditure(s)
+            </p>
+          </div>
+        );
+
+      case "sales_list":
+        return (
+          <div className="mt-3 p-3 rounded-md bg-card border border-border space-y-2 text-xs">
+            <div className="flex items-center justify-between font-semibold text-foreground">
+              <span className="flex items-center gap-1.5 text-primary">
+                <ShoppingBag className="w-3.5 h-3.5" />
+                <span>Recent Transactions</span>
+              </span>
+              <Badge variant="secondary">{d.count ?? 0} orders</Badge>
+            </div>
+          </div>
+        );
+
+      case "batch_summary":
+        return (
+          <div className="mt-3 p-3 rounded-md bg-card border border-border space-y-2 text-xs">
+            <div className="flex items-center justify-between font-semibold text-foreground">
+              <span className="flex items-center gap-1.5 text-primary">
+                <Package className="w-3.5 h-3.5" />
+                <span>Batch Consignments</span>
+              </span>
+              <Badge variant="gold">{d.activeBatches ?? 0} active</Badge>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <div className="p-2 rounded-md bg-muted/40 border border-border">
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold">Invested</span>
+                <div className="text-xs font-bold text-foreground">{formatCurrency(d.totalInvestment ?? 0)}</div>
+              </div>
+              <div className="p-2 rounded-md bg-muted/40 border border-border">
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold">Revenue</span>
+                <div className="text-xs font-bold text-foreground">{formatCurrency(d.totalRevenue ?? 0)}</div>
+              </div>
+              <div className="p-2 rounded-md bg-muted/40 border border-border">
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold">Net Profit</span>
+                <div className="text-xs font-bold text-success">{formatCurrency(d.totalNetProfit ?? 0)}</div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case "business_summary":
+      case "dashboard_summary":
+        return (
+          <div className="mt-3 p-3 rounded-md bg-card border border-primary/20 space-y-2">
+            <div className="flex items-center justify-between text-xs font-semibold text-primary">
+              <span className="flex items-center gap-1.5">
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>Business Overview</span>
+              </span>
+              <Badge variant="gold">{d.timeframe || "Report"}</Badge>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div className="p-2 rounded-md bg-muted/40 border border-border">
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold">Revenue</span>
+                <div className="text-xs font-bold text-foreground">{formatCurrency(d.revenue ?? 0)}</div>
+              </div>
+              <div className="p-2 rounded-md bg-muted/40 border border-border">
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold">Net Profit</span>
+                <div className="text-xs font-bold text-success">{formatCurrency(d.netProfit ?? 0)}</div>
+              </div>
+              <div className="p-2 rounded-md bg-muted/40 border border-border">
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold">Expenses</span>
+                <div className="text-xs font-bold text-destructive">{formatCurrency(d.totalExpenses ?? 0)}</div>
+              </div>
+              <div className="p-2 rounded-md bg-muted/40 border border-border">
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold">Debt Due</span>
+                <div className="text-xs font-bold text-warning">{formatCurrency(d.outstandingDebt ?? 0)}</div>
+              </div>
             </div>
           </div>
         );
@@ -248,15 +398,15 @@ export default function AskAvenciaPage() {
               className={`flex gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}
             >
               {m.role === "assistant" && (
-                <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
-                  <Bot className="w-4 h-4" />
+                <div className="w-7 h-7 rounded-md bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
+                  <Bot className="w-3.5 h-3.5" />
                 </div>
               )}
 
               <div
-                className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-3.5 text-xs leading-relaxed ${
+                className={`max-w-[85%] sm:max-w-[75%] rounded-md p-3 text-xs leading-relaxed ${
                   m.role === "user"
-                    ? "bg-primary text-primary-foreground font-bold shadow-sm"
+                    ? "bg-primary text-primary-foreground font-semibold"
                     : m.isError
                     ? "bg-destructive/10 border border-destructive/30 text-destructive"
                     : "bg-muted/40 border border-border text-foreground"
@@ -278,12 +428,12 @@ export default function AskAvenciaPage() {
           ))}
 
           {loading && (
-            <div className="flex gap-3 items-center text-xs text-muted-foreground">
-              <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                <Loader2 className="w-4 h-4 animate-spin" />
+            <div className="flex gap-2.5 items-center text-xs text-muted-foreground">
+              <div className="w-7 h-7 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
               </div>
-              <div className="p-3 rounded-2xl bg-muted/40 border border-border flex items-center gap-2">
-                <Sparkles className="w-3.5 h-3.5 text-primary animate-pulse" />
+              <div className="p-2.5 rounded-md bg-muted/40 border border-border flex items-center gap-2">
+                <Sparkles className="w-3.5 h-3.5 text-primary" />
                 <span>Consulting Avencia business database...</span>
               </div>
             </div>

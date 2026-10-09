@@ -36,17 +36,17 @@ export function ConfirmDialog({
       title={
         <div className="flex items-center gap-2 text-foreground">
           <div
-            className={`p-2 rounded-lg ${
+            className={`p-1.5 rounded ${
               variant === "destructive"
                 ? "bg-destructive/15 text-destructive"
                 : variant === "warning"
                 ? "bg-warning/15 text-warning"
-                : "bg-primary/15 text-gold-ink"
+                : "bg-primary/15 text-primary"
             }`}
           >
-            <AlertTriangle className="w-5 h-5" />
+            <AlertTriangle className="w-4 h-4" />
           </div>
-          <span className="font-display font-bold text-base">{title}</span>
+          <span className="font-semibold text-base">{title}</span>
         </div>
       }
       footer={

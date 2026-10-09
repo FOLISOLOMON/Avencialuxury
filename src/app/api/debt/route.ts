@@ -33,9 +33,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Payment amount must be a positive number (> 0)" }, { status: 400 });
     }
 
-    const paymentMethod = body.paymentMethod || PaymentMethod.CASH;
-    if (!VALID_PAYMENT_METHODS.has(paymentMethod)) {
-      return NextResponse.json({ success: false, error: `Invalid payment method. Must be one of: ${Array.from(VALID_PAYMENT_METHODS).join(", ")}` }, { status: 400 });
+    const rawMethod = String(body.paymentMethod || "CASH").toUpperCase().trim();
+    let paymentMethod: PaymentMethod = PaymentMethod.CASH;
+    if (rawMethod === "MOBILE_MONEY" || rawMethod === "MOMO" || rawMethod === "MTN" || rawMethod === "VODAFONE" || rawMethod === "AIRTELTIGO") {
+      paymentMethod = PaymentMethod.MOBILE_MONEY;
+    } else if (rawMethod === "BANK_TRANSFER" || rawMethod === "BANK" || rawMethod === "TRANSFER") {
+      paymentMethod = PaymentMethod.BANK_TRANSFER;
+    } else if (rawMethod === "CARD" || rawMethod === "POS" || rawMethod === "VISA" || rawMethod === "MASTERCARD") {
+      paymentMethod = PaymentMethod.CARD;
+    } else if (rawMethod === "OTHER") {
+      paymentMethod = PaymentMethod.OTHER;
+    } else if (VALID_PAYMENT_METHODS.has(body.paymentMethod as any)) {
+      paymentMethod = body.paymentMethod;
     }
 
     const payment = await recordDebtPayment({

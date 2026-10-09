@@ -1,18 +1,30 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Search, X, UserPlus, Phone, MessageCircle, AlertCircle, Users, CheckCircle2 } from "lucide-react";
+import { Search, X, UserPlus, Phone, MessageCircle, AlertCircle, Users, CheckCircle2, DollarSign } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useMobileCustomers } from "@/lib/mobile/hooks";
 import { InlineCustomerModal } from "@/components/mobile/InlineCustomerModal";
+import { RecordPaymentModal } from "@/components/mobile/RecordPaymentModal";
+import { useSearchParams } from "next/navigation";
 import { MobileCustomer } from "@/lib/mobile/types";
 
-export default function MobileCustomersPage() {
+function MobileCustomersContent() {
+  const searchParams = useSearchParams();
+  const initialDebtOnly = searchParams.get("filter") === "debt" || searchParams.get("tab") === "debt";
+
   const { customers, loading, refetch } = useMobileCustomers();
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
-  const [filterDebtOnly, setFilterDebtOnly] = useState(false);
+  const [selectedPaymentCustomer, setSelectedPaymentCustomer] = useState<MobileCustomer | null>(null);
+  const [filterDebtOnly, setFilterDebtOnly] = useState(initialDebtOnly);
+
+  React.useEffect(() => {
+    if (searchParams.get("filter") === "debt" || searchParams.get("tab") === "debt") {
+      setFilterDebtOnly(true);
+    }
+  }, [searchParams]);
 
   const filteredCustomers = useMemo(() => {
     let result = customers;
@@ -150,28 +162,46 @@ export default function MobileCustomersPage() {
                   )}
                 </div>
 
-                {/* Quick Action Contact Buttons */}
-                {c.phone && (
-                  <div className="flex gap-2 pt-1 border-t border-border/60">
-                    <a
-                      href={`https://wa.me/${waPhone}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 py-1.5 px-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors active:scale-95"
+                {/* Action Buttons: Add Payment & Contact */}
+                <div className="flex gap-2 pt-1 border-t border-border/60 items-center">
+                  {hasDebt ? (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPaymentCustomer(c)}
+                      className="flex-1 py-1.5 px-2.5 bg-destructive/15 hover:bg-destructive/25 text-destructive border border-destructive/30 text-xs font-bold rounded-lg flex items-center justify-center gap-1 active:scale-95 transition-all"
                     >
-                      <MessageCircle className="w-3.5 h-3.5" />
-                      WhatsApp
-                    </a>
+                      <DollarSign className="w-3.5 h-3.5" />
+                      Add Payment
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-lg">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>All Settled</span>
+                    </div>
+                  )}
 
-                    <a
-                      href={`tel:${c.phone}`}
-                      className="flex-1 py-1.5 px-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors active:scale-95"
-                    >
-                      <Phone className="w-3.5 h-3.5" />
-                      Call
-                    </a>
-                  </div>
-                )}
+                  {c.phone && (
+                    <>
+                      <a
+                        href={`https://wa.me/${waPhone}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 py-1.5 px-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors active:scale-95"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        WhatsApp
+                      </a>
+
+                      <a
+                        href={`tel:${c.phone}`}
+                        className="py-1.5 px-2.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors active:scale-95"
+                        aria-label="Call customer"
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                      </a>
+                    </>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -186,6 +216,24 @@ export default function MobileCustomersPage() {
           refetch();
         }}
       />
+
+      {/* Record Debt Payment Modal */}
+      <RecordPaymentModal
+        isOpen={Boolean(selectedPaymentCustomer)}
+        customer={selectedPaymentCustomer}
+        onClose={() => setSelectedPaymentCustomer(null)}
+        onPaymentRecorded={() => {
+          refetch();
+        }}
+      />
     </div>
+  );
+}
+
+export default function MobileCustomersPage() {
+  return (
+    <React.Suspense fallback={<div className="p-8 text-center text-xs text-muted-foreground">Loading customers...</div>}>
+      <MobileCustomersContent />
+    </React.Suspense>
   );
 }

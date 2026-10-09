@@ -71,21 +71,17 @@ export function getStatusCategory(status: string): "emerald" | "amber" | "rose" 
 }
 
 const badgeStyles = {
-  emerald:
-    "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-800 shadow-2xs",
-  amber:
-    "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200/80 dark:border-amber-800 shadow-2xs",
-  rose:
-    "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200/80 dark:border-rose-800 shadow-2xs",
-  slate:
-    "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 shadow-2xs",
+  emerald: "bg-success/10 text-success border-success/25",
+  amber: "bg-warning/10 text-warning border-warning/25",
+  rose: "bg-destructive/10 text-destructive border-destructive/25",
+  slate: "bg-secondary text-muted-foreground border-border/80",
 };
 
 const dotStyles = {
-  emerald: "bg-emerald-500",
-  amber: "bg-amber-500",
-  rose: "bg-rose-500",
-  slate: "bg-slate-400 dark:bg-slate-500",
+  emerald: "bg-success",
+  amber: "bg-warning",
+  rose: "bg-destructive",
+  slate: "bg-muted-foreground",
 };
 
 export function StatusBadge({
@@ -100,7 +96,7 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full text-xs font-semibold px-2.5 py-0.5 border font-sans tracking-wide capitalize",
+        "inline-flex items-center gap-1.5 rounded text-xs font-medium px-2 py-0.5 border font-sans capitalize select-none",
         badgeStyles[category],
         className
       )}

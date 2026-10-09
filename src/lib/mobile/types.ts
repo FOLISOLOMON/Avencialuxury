@@ -27,6 +27,19 @@ export interface MobileCustomer {
   updatedAt?: string;
 }
 
+export interface PendingDebtPayment {
+  offlineId: string;
+  customerId: string;
+  customerName?: string;
+  amount: number;
+  paymentMethod: string;
+  notes?: string;
+  createdAt: string;
+  status: "pending" | "syncing" | "failed";
+  retryCount: number;
+  errorMessage?: string;
+}
+
 export interface PendingCustomer {
   offlineId: string;
   name: string;

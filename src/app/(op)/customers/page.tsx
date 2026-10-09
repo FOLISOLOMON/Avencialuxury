@@ -258,50 +258,39 @@ export default function CustomersPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-[11px] font-semibold uppercase">Total Clients</span>
-            <Users className="w-4 h-4 text-primary" />
-          </div>
-          <div className="text-2xl font-black text-foreground">{totalClientsCount}</div>
+      {/* KPI Metrics Bar */}
+      <div className="rounded-lg border border-border bg-card grid grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
+        <div className="p-4">
+          <div className="text-xs font-medium text-muted-foreground mb-1">Total Clients</div>
+          <div className="text-2xl font-bold text-foreground tabular-nums">{totalClientsCount}</div>
           <div className="text-[11px] text-muted-foreground mt-0.5">Registered accounts</div>
-        </Card>
+        </div>
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-[11px] font-semibold uppercase">Active Debtors</span>
-            <AlertTriangle className="w-4 h-4 text-warning" />
-          </div>
-          <div className="text-2xl font-black text-warning">{debtorsCount}</div>
+        <div className="p-4">
+          <div className="text-xs font-medium text-muted-foreground mb-1">Active Debtors</div>
+          <div className="text-2xl font-bold text-warning tabular-nums">{debtorsCount}</div>
           <div className="text-[11px] text-muted-foreground mt-0.5">Clients with credit due</div>
-        </Card>
+        </div>
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-[11px] font-semibold uppercase">Total Debt Due</span>
-            <DollarSign className="w-4 h-4 text-warning" />
-          </div>
-          <div className="text-2xl font-black text-warning">
+        <div className="p-4">
+          <div className="text-xs font-medium text-muted-foreground mb-1">Total Receivables</div>
+          <div className="text-2xl font-bold text-warning tabular-nums">
             <Money amount={totalDebt} />
           </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">Accounts receivable</div>
-        </Card>
+          <div className="text-[11px] text-muted-foreground mt-0.5">Outstanding credit balance</div>
+        </div>
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-[11px] font-semibold uppercase">Lifetime Revenue</span>
-            <TrendingUp className="w-4 h-4 text-primary" />
-          </div>
-          <div className="text-2xl font-black text-foreground">
+        <div className="p-4">
+          <div className="text-xs font-medium text-muted-foreground mb-1">Lifetime Revenue</div>
+          <div className="text-2xl font-bold text-foreground tabular-nums">
             <Money amount={totalSpendLifetime} />
           </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">From client base</div>
-        </Card>
+          <div className="text-[11px] text-muted-foreground mt-0.5">Cumulative client spend</div>
+        </div>
       </div>
 
       {/* Search & Filter Toolbar */}
-      <Card className="p-3.5 space-y-3">
+      <div className="rounded-lg border border-border bg-card p-3.5 space-y-3">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
             <SearchField
@@ -311,13 +300,13 @@ export default function CustomersPage() {
             />
           </div>
 
-          <div className="inline-flex p-1 bg-muted rounded-xl border border-border self-start sm:self-auto">
+          <div className="inline-flex p-0.5 bg-secondary rounded-md border border-border self-start sm:self-auto">
             <button
               type="button"
               onClick={() => setActiveTab("ALL")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
                 activeTab === "ALL"
-                  ? "bg-card text-foreground shadow-sm"
+                  ? "bg-card text-foreground font-semibold shadow-subtle"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -326,9 +315,9 @@ export default function CustomersPage() {
             <button
               type="button"
               onClick={() => setActiveTab("DEBTORS")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
                 activeTab === "DEBTORS"
-                  ? "bg-card text-warning shadow-sm font-black"
+                  ? "bg-card text-warning font-semibold shadow-subtle"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -336,134 +325,202 @@ export default function CustomersPage() {
             </button>
           </div>
         </div>
-      </Card>
+      </div>
 
-      {/* Customer Directory List */}
+      {/* Customer Directory Table */}
       {filteredCustomers.length === 0 ? (
-        <Card className="p-12 text-center text-muted-foreground">
-          <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm font-semibold">No customer records found</p>
-          <p className="text-xs mt-1">Try another search term or create a new client record</p>
-        </Card>
+        <div className="rounded-lg border border-border bg-card p-12 text-center text-muted-foreground">
+          <p className="text-sm font-medium">No customer records found</p>
+          <p className="text-xs mt-1 text-muted-foreground/80">Try another search term or click "Add Customer" above</p>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {filteredCustomers.map((c) => {
-            const debt = c.totalOutstandingDebt || 0;
-            const hasDebt = debt > 0;
-            const whatsappUrl = getWhatsAppDebtReminderUrl(c);
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-secondary/60 text-muted-foreground border-b border-border select-none">
+                <tr>
+                  <th className="py-3 px-4 font-medium">Client Name</th>
+                  <th className="py-3 px-4 font-medium">Contact</th>
+                  <th className="py-3 px-4 font-medium text-right">Orders</th>
+                  <th className="py-3 px-4 font-medium text-right">Lifetime Spend</th>
+                  <th className="py-3 px-4 font-medium">Outstanding Balance</th>
+                  <th className="py-3 px-4 font-medium">Last Purchase</th>
+                  <th className="py-3 px-4 font-medium text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filteredCustomers.map((c) => {
+                  const debt = c.totalOutstandingDebt || 0;
+                  const hasDebt = debt > 0;
+                  const whatsappUrl = getWhatsAppDebtReminderUrl(c);
 
-            return (
-              <Card
-                key={c.id}
-                className={`p-4 flex flex-col justify-between hover:border-primary/40 transition-all ${
-                  hasDebt ? "border-warning/40 bg-warning/[0.02]" : ""
-                }`}
-              >
-                <div>
-                  {/* Top Header: Avatar + Name + Debt Badge */}
-                  <div className="flex items-start justify-between gap-3 mb-2.5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary font-black text-sm flex items-center justify-center shrink-0">
-                        {c.name.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-foreground leading-snug line-clamp-1">
-                          {c.name}
-                        </h3>
-                        <div className="text-[11px] text-muted-foreground flex items-center gap-2 mt-0.5">
-                          {c.phone ? (
-                            <span className="flex items-center gap-1">
-                              <Phone className="w-3 h-3" />
-                              {c.phone}
-                            </span>
-                          ) : (
-                            <span className="italic">No phone</span>
+                  return (
+                    <tr
+                      key={c.id}
+                      className={`hover:bg-secondary/40 transition-colors ${
+                        hasDebt ? "bg-warning/[0.02]" : ""
+                      }`}
+                    >
+                      <td className="py-3 px-4">
+                        <span className="font-semibold text-foreground block">{c.name}</span>
+                        {c.email && (
+                          <span className="text-[11px] text-muted-foreground block">{c.email}</span>
+                        )}
+                      </td>
+
+                      <td className="py-3 px-4 text-muted-foreground">
+                        {c.phone ? (
+                          <span className="tabular-nums">{c.phone}</span>
+                        ) : (
+                          <span className="italic text-muted-foreground/60">—</span>
+                        )}
+                      </td>
+
+                      <td className="py-3 px-4 text-right tabular-nums text-foreground font-medium">
+                        {c.totalOrders}
+                      </td>
+
+                      <td className="py-3 px-4 text-right tabular-nums font-semibold text-foreground">
+                        <Money amount={c.totalSpend} />
+                      </td>
+
+                      <td className="py-3 px-4">
+                        {hasDebt ? (
+                          <span className="text-warning font-semibold tabular-nums text-xs">
+                            {formatCurrency(debt)} due
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">Settled</span>
+                        )}
+                      </td>
+
+                      <td className="py-3 px-4 text-muted-foreground">
+                        {c.lastPurchaseDate ? (
+                          <span>
+                            {new Date(c.lastPurchaseDate).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
+                          </span>
+                        ) : (
+                          <span className="italic text-muted-foreground/60">—</span>
+                        )}
+                      </td>
+
+                      <td className="py-3 px-4 text-right">
+                        <div className="inline-flex items-center gap-1.5">
+                          {hasDebt && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                onClick={() => openDebtModal(c)}
+                              >
+                                Settle Debt
+                              </Button>
+                              {whatsappUrl && (
+                                <a
+                                  href={whatsappUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center justify-center h-8 px-2.5 rounded-md border border-border text-xs text-foreground hover:bg-secondary transition-colors"
+                                  title="Send WhatsApp payment reminder"
+                                >
+                                  WhatsApp
+                                </a>
+                              )}
+                            </>
                           )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setSelectedCustomer(c)}
+                          >
+                            Details
+                          </Button>
                         </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Customer Ledger Rows */}
+          <div className="md:hidden divide-y divide-border">
+            {filteredCustomers.map((c) => {
+              const debt = c.totalOutstandingDebt || 0;
+              const hasDebt = debt > 0;
+              const whatsappUrl = getWhatsAppDebtReminderUrl(c);
+
+              return (
+                <div
+                  key={c.id}
+                  className={`p-3.5 space-y-2.5 ${
+                    hasDebt ? "bg-warning/[0.02]" : ""
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="font-semibold text-foreground text-xs">{c.name}</div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5">
+                        {c.phone || "No phone"} • {c.totalOrders} {c.totalOrders === 1 ? "order" : "orders"}
                       </div>
                     </div>
 
-                    {hasDebt ? (
-                      <Badge variant="warning" className="shrink-0 font-black">
-                        Due: {formatCurrency(debt)}
-                      </Badge>
-                    ) : (
-                      <Badge variant="success" className="shrink-0">
-                        Paid in Full
-                      </Badge>
-                    )}
-                  </div>
-
-                  {/* Analytics Stats */}
-                  <div className="grid grid-cols-3 gap-2 py-2.5 px-3 rounded-xl bg-muted/40 border border-border/60 text-center my-2">
-                    <div>
-                      <div className="text-[10px] text-muted-foreground uppercase font-semibold">Orders</div>
-                      <div className="text-xs font-black text-foreground mt-0.5">{c.totalOrders}</div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-muted-foreground uppercase font-semibold">Total Spend</div>
-                      <div className="text-xs font-black text-foreground mt-0.5">
+                    <div className="text-right">
+                      <div className="font-semibold text-foreground text-xs tabular-nums">
                         <Money amount={c.totalSpend} />
                       </div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-muted-foreground uppercase font-semibold">Profit</div>
-                      <div className="text-xs font-black text-success mt-0.5">
-                        <Money amount={c.totalProfit} />
-                      </div>
+                      {hasDebt && (
+                        <div className="text-[11px] text-warning font-semibold tabular-nums mt-0.5">
+                          {formatCurrency(debt)} due
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {c.notes && (
-                    <p className="text-[11px] text-muted-foreground line-clamp-1 italic px-1">
-                      "{c.notes}"
-                    </p>
-                  )}
-                </div>
+                  <div className="flex items-center justify-between pt-1 border-t border-border/60 text-xs">
+                    <span className="text-[11px] text-muted-foreground">
+                      {c.lastPurchaseDate ? (
+                        new Date(c.lastPurchaseDate).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                        })
+                      ) : (
+                        "No purchases yet"
+                      )}
+                    </span>
 
-                {/* Footer Actions */}
-                <div className="pt-3 mt-2 border-t border-border/60 flex items-center justify-between gap-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setSelectedCustomer(c)}
-                    className="text-xs"
-                  >
-                    View Details
-                  </Button>
-
-                  <div className="flex items-center gap-1.5">
-                    {hasDebt && whatsappUrl && (
-                      <a
-                        href={whatsappUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-success/15 hover:bg-success/25 text-success font-bold text-xs transition-colors"
-                        title="Send WhatsApp payment reminder"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">WhatsApp</span>
-                      </a>
-                    )}
-
-                    {hasDebt && (
+                    <div className="flex items-center gap-1.5">
+                      {hasDebt && (
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          onClick={() => openDebtModal(c)}
+                        >
+                          Settle Debt
+                        </Button>
+                      )}
                       <Button
                         size="sm"
-                        variant="primary"
-                        onClick={() => openDebtModal(c)}
-                        className="text-xs gap-1"
+                        variant="outline"
+                        onClick={() => setSelectedCustomer(c)}
                       >
-                        <Banknote className="w-3.5 h-3.5" />
-                        <span>Pay Debt</span>
+                        Details
                       </Button>
-                    )}
+                    </div>
                   </div>
                 </div>
-              </Card>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
+
 
       {/* ADD CUSTOMER SHEET */}
       <Sheet
@@ -619,47 +676,47 @@ export default function CustomersPage() {
       >
         {selectedCustomer && (
           <div className="space-y-4 pt-2 text-xs">
-            <div className="p-3 rounded-2xl bg-muted/40 border border-border space-y-2">
+            <div className="p-3 rounded-md bg-muted/40 border border-border space-y-2">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Outstanding Debt</span>
-                <span className="font-black text-warning">
+                <span className="font-bold text-warning">
                   {formatCurrency(selectedCustomer.totalOutstandingDebt || 0)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Total Lifetime Orders</span>
-                <span className="font-bold text-foreground">{selectedCustomer.totalOrders}</span>
+                <span className="font-semibold text-foreground">{selectedCustomer.totalOrders}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Total Lifetime Spend</span>
-                <span className="font-bold text-foreground">
+                <span className="font-semibold text-foreground">
                   {formatCurrency(selectedCustomer.totalSpend)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Average Order Value</span>
-                <span className="font-bold text-foreground">
+                <span className="font-semibold text-foreground">
                   {formatCurrency(selectedCustomer.avgOrderValue)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Total Gross Profit Generated</span>
-                <span className="font-bold text-success">
+                <span className="font-semibold text-success">
                   {formatCurrency(selectedCustomer.totalProfit)}
                 </span>
               </div>
             </div>
 
             {selectedCustomer.email && (
-              <div className="p-2.5 rounded-xl bg-card border border-border flex items-center gap-2">
+              <div className="p-2.5 rounded-md bg-card border border-border flex items-center gap-2">
                 <Mail className="w-4 h-4 text-primary" />
                 <span className="text-foreground">{selectedCustomer.email}</span>
               </div>
             )}
 
             {selectedCustomer.notes && (
-              <div className="p-3 rounded-xl bg-card border border-border">
-                <div className="font-bold text-foreground mb-1">Notes:</div>
+              <div className="p-3 rounded-md bg-card border border-border">
+                <div className="font-semibold text-foreground mb-1">Notes:</div>
                 <p className="text-muted-foreground">{selectedCustomer.notes}</p>
               </div>
             )}

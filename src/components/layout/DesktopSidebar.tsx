@@ -17,7 +17,6 @@ import {
   Truck,
   BarChart3,
   Settings,
-  Smartphone,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -37,7 +36,7 @@ const SIDEBAR_GROUPS: SidebarGroup[] = [
     label: "Overview",
     items: [
       { name: "Dashboard", href: "/", icon: LayoutDashboard },
-      { name: "Ask Avencia AI", href: "/ai", icon: Sparkles, badge: "AI" },
+      { name: "Ask Avencia AI", href: "/ai", icon: Sparkles },
     ],
   },
   {
@@ -67,7 +66,6 @@ const SIDEBAR_GROUPS: SidebarGroup[] = [
     label: "System",
     items: [
       { name: "Reports & Analytics", href: "/reports", icon: BarChart3 },
-      { name: "Mobile PWA", href: "/mobile", icon: Smartphone, badge: "PWA" },
       { name: "Settings", href: "/settings", icon: Settings },
     ],
   },
@@ -79,33 +77,28 @@ export function DesktopSidebar() {
   return (
     <aside
       aria-label="Sidebar navigation"
-      className="hidden md:flex flex-col w-[260px] bg-card border-r border-border min-h-screen sticky top-0 h-screen z-30 select-none flex-shrink-0"
+      className="hidden md:flex flex-col w-60 bg-card border-r border-border min-h-screen sticky top-0 h-screen z-30 select-none flex-shrink-0"
     >
       {/* Brand Header */}
-      <div className="h-16 px-5 border-b border-border/80 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-9 h-9 rounded-xl bg-black border border-primary/40 p-1.5 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform overflow-hidden flex-shrink-0">
+      <div className="h-16 px-4 border-b border-border flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <div className="w-8 h-8 rounded-md bg-black border border-border p-1 flex items-center justify-center overflow-hidden flex-shrink-0">
             <Image
               src="/logo/Avencia gold icon logo.png"
               alt="Avencia"
-              width={32}
-              height={32}
+              width={26}
+              height={26}
               className="w-full h-full object-contain"
               priority
             />
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <span className="font-display font-black text-base tracking-tight text-foreground leading-none">
-                Avencia
-              </span>
-              <span className="px-1.5 py-0.2 rounded-full bg-primary/15 text-gold-ink text-[10px] font-bold border border-primary/30">
-                2.0
-              </span>
-            </div>
-            <p className="text-[11px] text-muted-foreground font-medium truncate mt-0.5">
-              Perfume Business OS
-            </p>
+            <span className="font-semibold text-sm tracking-tight text-foreground block leading-none">
+              Avencia
+            </span>
+            <span className="text-[11px] text-muted-foreground block leading-tight mt-0.5">
+              Fragrance Retail OS
+            </span>
           </div>
         </Link>
       </div>
@@ -114,7 +107,7 @@ export function DesktopSidebar() {
       <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto custom-scrollbar">
         {SIDEBAR_GROUPS.map((group) => (
           <div key={group.label} className="space-y-1">
-            <div className="px-3 text-[11px] font-bold text-muted-foreground tracking-wider uppercase">
+            <div className="px-2.5 text-[11px] font-medium text-muted-foreground/80">
               {group.label}
             </div>
             <div className="space-y-0.5">
@@ -127,31 +120,26 @@ export function DesktopSidebar() {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "relative flex items-center justify-between px-3 py-2 rounded-md text-xs font-semibold transition-all duration-150 group",
+                      "flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-colors",
                       isActive
-                        ? "bg-primary text-primary-foreground font-bold shadow-xs"
-                        : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                        ? "bg-secondary text-foreground font-semibold"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/60 font-normal"
                     )}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <Icon
                         className={cn(
-                          "w-4 h-4 flex-shrink-0 transition-colors",
-                          isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
+                          "w-4 h-4 flex-shrink-0",
+                          isActive ? "text-foreground" : "text-muted-foreground"
                         )}
                       />
                       <span className="truncate">{item.name}</span>
                     </div>
 
-                    {/* Logo-inspired geometric 60-degree slanted active wedge indicator */}
-                    {isActive ? (
-                      <span className="w-1.5 h-3.5 bg-primary-foreground/90 rounded-full skew-x-[-15deg]" />
-                    ) : (
-                      item.badge && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-primary/15 text-gold-ink border border-primary/30">
-                          {item.badge}
-                        </span>
-                      )
+                    {item.badge && (
+                      <span className="text-[10px] font-medium px-1.5 py-0.2 rounded bg-secondary text-muted-foreground border border-border">
+                        {item.badge}
+                      </span>
                     )}
                   </Link>
                 );
@@ -162,34 +150,25 @@ export function DesktopSidebar() {
       </nav>
 
       {/* Footer Profile Link */}
-      <div className="p-3 border-t border-border/80">
+      <div className="p-3 border-t border-border">
         <Link
           href="/profile"
           className={cn(
-            "flex items-center gap-3 p-2.5 rounded-lg border transition-all duration-150 group",
+            "flex items-center gap-2.5 p-2 rounded-md transition-colors",
             pathname === "/profile"
-              ? "bg-primary text-primary-foreground border-primary font-bold shadow-xs"
-              : "bg-secondary/40 border-border/60 hover:border-primary/30 hover:bg-secondary text-foreground"
+              ? "bg-secondary text-foreground font-semibold"
+              : "hover:bg-secondary/60 text-muted-foreground hover:text-foreground"
           )}
         >
-          <div className="w-8 h-8 rounded-lg bg-black border border-primary/30 p-1 flex items-center justify-center flex-shrink-0 overflow-hidden">
-            <Image
-              src="/logo/Avencia gold icon logo.png"
-              alt="Avencia Profile"
-              width={28}
-              height={28}
-              className="w-full h-full object-contain"
-            />
+          <div className="w-7 h-7 rounded-md bg-secondary border border-border flex items-center justify-center flex-shrink-0 text-xs font-semibold text-foreground">
+            A
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-xs font-bold truncate leading-tight">Avencia Perfumes</div>
-            <div
-              className={cn(
-                "text-[10px] truncate mt-0.5",
-                pathname === "/profile" ? "text-primary-foreground/80 font-medium" : "text-muted-foreground"
-              )}
-            >
-              Business Profile
+            <div className="text-xs font-medium text-foreground truncate leading-tight">
+              Avencia Perfumes
+            </div>
+            <div className="text-[10px] text-muted-foreground truncate leading-tight mt-0.5">
+              Business Account
             </div>
           </div>
         </Link>

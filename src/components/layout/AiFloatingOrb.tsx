@@ -63,8 +63,9 @@ export function AiFloatingOrb() {
       });
 
       const data = await res.json();
-      if (data.success && data.message) {
-        setMessages((prev) => [...prev, { role: "assistant", content: data.message }]);
+      const answer = data.message || data.reply;
+      if (data.success !== false && answer) {
+        setMessages((prev) => [...prev, { role: "assistant", content: answer }]);
       } else {
         setMessages((prev) => [
           ...prev,
@@ -89,17 +90,16 @@ export function AiFloatingOrb() {
 
   return (
     <>
-      {/* Floating AI Orb Button (Positioned above bottom nav on mobile, bottom-right on desktop) */}
+      {/* AI Assistant Launcher Button */}
       <aside aria-label="AI Assistant" className="fixed right-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] md:bottom-6 z-40">
         <button
           type="button"
           onClick={() => setIsOpen(true)}
           aria-label="Ask Avencia AI Assistant"
-          className="relative group w-12 h-12 md:w-13 md:h-13 rounded-full bg-primary text-primary-foreground shadow-gold hover:shadow-lg active:scale-95 transition-all duration-200 flex items-center justify-center select-none focus-visible:outline-2 focus-visible:outline-offset-2"
+          className="h-10 px-3.5 rounded-md bg-card border border-border text-foreground hover:bg-secondary active:bg-secondary transition-colors flex items-center gap-2 select-none text-xs font-medium shadow-subtle"
         >
-          <div className="absolute inset-0 rounded-full bg-primary animate-ping opacity-20 pointer-events-none" />
-          <Sparkles className="w-5 h-5 text-primary-foreground group-hover:rotate-12 transition-transform" />
-          <span className="sr-only">Ask Avencia AI</span>
+          <Sparkles className="w-3.5 h-3.5 text-primary" />
+          <span className="hidden sm:inline">Ask AI</span>
         </button>
       </aside>
 
@@ -109,27 +109,24 @@ export function AiFloatingOrb() {
           {/* Backdrop */}
           <div
             onClick={() => setIsOpen(false)}
-            className="fixed inset-0 bg-black/60 backdrop-blur-xs animate-fade-in"
+            className="fixed inset-0 bg-black/40 backdrop-blur-xs animate-fade-in"
           />
 
           {/* Modal / Sheet Container */}
           <div
             role="dialog"
             aria-modal="true"
-            className="relative w-full md:max-w-xl max-h-[88vh] max-h-[88dvh] h-[640px] bg-card text-foreground rounded-t-2xl md:rounded-2xl border-t md:border border-border shadow-floating flex flex-col overflow-hidden animate-slide-up z-10"
+            className="relative w-full md:max-w-xl max-h-[88vh] max-h-[88dvh] h-[600px] bg-card text-foreground rounded-t-lg md:rounded-lg border-t md:border border-border shadow-floating flex flex-col overflow-hidden animate-slide-up z-10"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border/70 flex-shrink-0 bg-card/80 backdrop-blur-xs">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0 bg-card">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-primary/20 text-gold-ink flex items-center justify-center">
-                  <Bot className="w-4 h-4" />
+                <div className="w-7 h-7 rounded-md bg-secondary border border-border flex items-center justify-center text-foreground">
+                  <Bot className="w-3.5 h-3.5" />
                 </div>
                 <div>
-                  <h3 className="font-display font-bold text-sm tracking-tight flex items-center gap-1.5 text-foreground">
-                    Ask Avencia AI
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-primary/15 text-gold-ink border border-primary/30">
-                      Live
-                    </span>
+                  <h3 className="font-semibold text-xs tracking-tight text-foreground">
+                    Avencia AI Assistant
                   </h3>
                   <p className="text-[11px] text-muted-foreground">Direct answers from your live ledger</p>
                 </div>

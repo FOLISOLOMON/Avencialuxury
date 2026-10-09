@@ -54,54 +54,54 @@ export function ReceiptModal({ sale, isOpen, onClose }: ReceiptModalProps) {
     : `https://wa.me/?text=${encodeURIComponent(whatsappText)}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0D0D0D]/80 backdrop-blur-sm animate-in fade-in duration-200 font-sans" role="dialog" aria-modal="true" aria-label="Customer Sales Receipt">
-      <div className="bg-white dark:bg-[#151515] rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-[#E5E2D8] dark:border-[#2A2A2A] flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200 font-sans" role="dialog" aria-modal="true" aria-label="Customer Sales Receipt">
+      <div className="bg-card text-foreground rounded-lg max-w-md w-full overflow-hidden shadow-xl border border-border flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="p-5 bg-[#0D0D0D] text-white flex items-center justify-between border-b border-gold-500/30">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-[#151515] p-1 flex items-center justify-center border border-gold-500/30 overflow-hidden">
+        <div className="p-4 bg-muted/30 flex items-center justify-between border-b border-border">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded border border-border p-1 flex items-center justify-center bg-card">
               <Image
                 src="/logo/Avencia gold icon logo.png"
                 alt="Logo"
-                width={28}
-                height={28}
+                width={20}
+                height={20}
                 className="w-full h-full object-contain"
               />
             </div>
-            <h3 className="font-extrabold text-base tracking-tight text-white">Customer Sales Receipt</h3>
+            <h3 className="font-semibold text-sm tracking-tight text-foreground">Customer Sales Receipt</h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl text-[#A3A3A3] hover:text-white hover:bg-gold-500/15 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+            className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             aria-label="Close receipt"
           >
-            <X className="w-5 h-5 text-gold-600 dark:text-gold-400" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Printable Receipt Body */}
-        <div className="p-6 overflow-y-auto space-y-4 bg-[#F8F7F3] dark:bg-[#181818] font-mono text-xs text-[#171717] dark:text-[#F5F5F5] border-b border-[#E5E2D8] dark:border-[#2A2A2A]">
+        <div className="p-5 overflow-y-auto space-y-4 bg-card font-mono text-xs text-foreground border-b border-border">
           <div className="text-center space-y-1">
-            <div className="w-36 h-10 mx-auto flex items-center justify-center mb-1 bg-white dark:bg-white rounded-xl p-1 shadow-xs border border-gold-500/20">
+            <div className="w-28 h-8 mx-auto flex items-center justify-center mb-1 bg-white rounded p-1 border border-border">
               <Image
                 src="/logo/Avencia black logo.png"
                 alt="Avencia Perfumes Logo"
-                width={140}
-                height={40}
+                width={110}
+                height={32}
                 className="h-full w-auto object-contain"
               />
             </div>
-            <p className="text-[11px] text-[#737373] dark:text-[#A3A3A3] font-sans font-semibold">Business Receipt • {saleRef}</p>
-            <p className="text-[10px] text-[#737373] dark:text-[#A3A3A3] font-sans">{dateStr}</p>
+            <p className="text-[11px] text-muted-foreground font-sans font-medium">Receipt {saleRef}</p>
+            <p className="text-[10px] text-muted-foreground font-sans">{dateStr}</p>
           </div>
 
-          <div className="border-t border-b border-[#E5E2D8] dark:border-[#2A2A2A] py-2 space-y-1 font-sans">
-            <p className="text-[#525252] dark:text-[#D4D4D4]">
-              <span className="font-semibold text-[#171717] dark:text-[#F5F5F5]">Customer:</span>{" "}
+          <div className="border-t border-b border-border py-2 space-y-1 font-sans">
+            <p className="text-muted-foreground">
+              <span className="font-medium text-foreground">Customer:</span>{" "}
               {sale.customer?.name || "Walk-in Customer"}
             </p>
             {sale.customer?.phone && (
-              <p className="text-[#737373] dark:text-[#A3A3A3] text-[11px]">Phone: {sale.customer.phone}</p>
+              <p className="text-muted-foreground text-[11px]">Phone: {sale.customer.phone}</p>
             )}
           </div>
 
@@ -110,12 +110,12 @@ export function ReceiptModal({ sale, isOpen, onClose }: ReceiptModalProps) {
             {sale.saleItems?.map((item: any, idx: number) => (
               <div key={idx} className="flex justify-between items-start">
                 <div>
-                  <p className="font-bold text-[#171717] dark:text-[#F5F5F5] font-sans">{item.product?.name || "Perfume Item"}</p>
-                  <p className="text-[#737373] dark:text-[#A3A3A3] text-[11px]">
+                  <p className="font-medium text-foreground font-sans">{item.product?.name || "Perfume Item"}</p>
+                  <p className="text-muted-foreground text-[11px]">
                     {item.quantity} × {formatCurrency(Number(item.unitPrice))}
                   </p>
                 </div>
-                <div className="font-bold text-[#171717] dark:text-[#F5F5F5] font-sans">
+                <div className="font-semibold text-foreground font-sans tabular-nums">
                   {formatCurrency(Number(item.revenue))}
                 </div>
               </div>
@@ -123,76 +123,76 @@ export function ReceiptModal({ sale, isOpen, onClose }: ReceiptModalProps) {
           </div>
 
           {/* Calculations Summary */}
-          <div className="border-t border-[#E5E2D8] dark:border-[#2A2A2A] pt-3 space-y-1 font-sans text-xs">
-            <div className="flex justify-between text-[#525252] dark:text-[#D4D4D4]">
+          <div className="border-t border-border pt-3 space-y-1 font-sans text-xs">
+            <div className="flex justify-between text-muted-foreground">
               <span>Subtotal</span>
-              <span>{formatCurrency(Number(sale.subtotal))}</span>
+              <span className="tabular-nums">{formatCurrency(Number(sale.subtotal))}</span>
             </div>
             {Number(sale.discount) > 0 && (
-              <div className="flex justify-between text-rose-600 dark:text-rose-400">
+              <div className="flex justify-between text-destructive">
                 <span>Discount</span>
-                <span>-{formatCurrency(Number(sale.discount))}</span>
+                <span className="tabular-nums">-{formatCurrency(Number(sale.discount))}</span>
               </div>
             )}
-            <div className="flex justify-between text-sm font-black text-[#171717] dark:text-[#F5F5F5] pt-1 border-t border-[#E5E2D8] dark:border-[#2A2A2A]">
+            <div className="flex justify-between text-sm font-bold text-foreground pt-1 border-t border-border">
               <span>Total Invoice Amount</span>
-              <span>{formatCurrency(Number(sale.totalAmount))}</span>
+              <span className="tabular-nums">{formatCurrency(Number(sale.totalAmount))}</span>
             </div>
             {balDue > 0 ? (
               <>
-                <div className="flex justify-between text-xs text-[#525252] dark:text-[#D4D4D4] pt-0.5">
-                  <span>Amount Paid So Far</span>
-                  <span className="font-bold text-[#171717] dark:text-[#F5F5F5]">{formatCurrency(amtPaid)}</span>
+                <div className="flex justify-between text-xs text-muted-foreground pt-0.5">
+                  <span>Amount Paid</span>
+                  <span className="font-medium text-foreground tabular-nums">{formatCurrency(amtPaid)}</span>
                 </div>
-                <div className="flex justify-between text-xs font-bold text-rose-600 dark:text-rose-400 pt-0.5 border-t border-dashed border-[#E5E2D8] dark:border-[#2A2A2A]">
+                <div className="flex justify-between text-xs font-semibold text-destructive pt-0.5 border-t border-dashed border-border">
                   <span>Balance Due</span>
-                  <span>{formatCurrency(balDue)}</span>
+                  <span className="tabular-nums">{formatCurrency(balDue)}</span>
                 </div>
-                <div className="flex justify-between text-[11px] pt-1">
-                  <span>Status</span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
-                    PARTIAL CREDIT
+                <div className="flex justify-between text-[11px] pt-1 items-center">
+                  <span className="text-muted-foreground">Status</span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase bg-amber-500/10 text-warning border border-warning/20">
+                    Partial Credit
                   </span>
                 </div>
               </>
             ) : (
               <>
-                <div className="flex justify-between text-xs text-emerald-700 dark:text-emerald-400 font-bold pt-0.5">
+                <div className="flex justify-between text-xs text-foreground font-medium pt-0.5">
                   <span>Total Paid</span>
-                  <span>{formatCurrency(amtPaid)}</span>
+                  <span className="tabular-nums">{formatCurrency(amtPaid)}</span>
                 </div>
-                <div className="flex justify-between text-[11px] pt-1">
-                  <span>Status</span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                    COMPLETED
+                <div className="flex justify-between text-[11px] pt-1 items-center">
+                  <span className="text-muted-foreground">Status</span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase bg-emerald-500/10 text-success border border-success/20">
+                    Completed
                   </span>
                 </div>
               </>
             )}
-            <div className="flex justify-between text-[11px] text-[#737373] dark:text-[#A3A3A3] pt-1">
+            <div className="flex justify-between text-[11px] text-muted-foreground pt-1">
               <span>Payment Method</span>
-              <span className="font-bold text-[#171717] dark:text-[#F5F5F5]">{sale.paymentMethod || "CASH"}</span>
+              <span className="font-medium text-foreground">{sale.paymentMethod || "CASH"}</span>
             </div>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="p-4 bg-white dark:bg-[#151515] border-t border-[#E5E2D8] dark:border-[#2A2A2A] flex items-center justify-between gap-3">
+        <div className="p-3 bg-muted/20 border-t border-border flex items-center justify-between gap-2.5">
           <button
             onClick={() => window.print()}
-            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-[#E5E2D8] dark:border-[#2A2A2A] text-[#171717] dark:text-[#F5F5F5] font-bold text-xs hover:bg-[#F8F7F3] dark:hover:bg-[#181818] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 active:scale-95"
+            className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-md border border-border bg-card text-foreground font-medium text-xs hover:bg-muted transition-colors cursor-pointer"
           >
-            <Printer className="w-4 h-4 text-gold-600 dark:text-gold-400" />
+            <Printer className="w-3.5 h-3.5" />
             Print
           </button>
           <a
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all shadow-md shadow-emerald-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 active:scale-95"
+            className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs transition-colors cursor-pointer"
           >
-            <Share2 className="w-4 h-4" />
-            Share WhatsApp
+            <Share2 className="w-3.5 h-3.5" />
+            WhatsApp
           </a>
         </div>
       </div>

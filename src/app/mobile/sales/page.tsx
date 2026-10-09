@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Receipt, Search, Filter, Calendar, Clock, CheckCircle2, ChevronRight, AlertCircle } from "lucide-react";
+import { Receipt, Search, Filter, Calendar, Clock, CheckCircle2, ChevronRight, AlertCircle, RefreshCw } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
 import { MobileSaleSummary } from "@/lib/mobile/types";
+import { getPendingSales } from "@/lib/mobile/db";
 
 export default function MobileSalesPage() {
   const [sales, setSales] = useState<MobileSaleSummary[]>([]);
@@ -15,12 +16,36 @@ export default function MobileSalesPage() {
   useEffect(() => {
     async function loadSales() {
       try {
+        const pending = await getPendingSales();
+        const pendingMapped: MobileSaleSummary[] = pending.map((p) => ({
+          id: p.offlineId,
+          receiptNumber: "OFFLINE",
+          saleDate: p.saleDate,
+          totalAmount: p.totalAmount,
+          amountPaid: p.amountPaid,
+          paymentStatus: p.paymentStatus,
+          paymentMethod: p.paymentMethod,
+          customer: p.customerId ? { id: p.customerId, name: p.customerName || "Customer" } : null,
+          items: p.items.map((it) => ({
+            id: it.productId,
+            product: { name: it.productName },
+            quantity: it.quantity,
+            unitPrice: it.unitPrice,
+            subtotal: it.quantity * it.unitPrice,
+          })),
+        }));
+
         const res = await fetch("/api/sales");
         if (res.ok) {
           const json = await res.json();
           if (json.success && Array.isArray(json.data)) {
-            setSales(json.data);
+            // Put pending items first
+            setSales([...pendingMapped, ...json.data]);
+          } else {
+            setSales(pendingMapped);
           }
+        } else {
+          setSales(pendingMapped);
         }
       } catch (e) {
         console.warn("Failed to load sales history:", e);
@@ -97,17 +122,23 @@ export default function MobileSalesPage() {
                   <span className="text-xs font-bold text-foreground">
                     {sale.customer?.name || "Walk-in Customer"}
                   </span>
-                  <span
-                    className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
-                      sale.paymentStatus === "PAID"
-                        ? "bg-emerald-500/10 text-emerald-400"
-                        : sale.paymentStatus === "PARTIAL"
-                        ? "bg-amber-500/10 text-amber-400"
-                        : "bg-red-500/10 text-red-400"
-                    }`}
-                  >
-                    {sale.paymentStatus}
-                  </span>
+                  {sale.receiptNumber === "OFFLINE" ? (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                      Offline Sync Pending
+                    </span>
+                  ) : (
+                    <span
+                      className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
+                        sale.paymentStatus === "PAID"
+                          ? "bg-emerald-500/10 text-emerald-400"
+                          : sale.paymentStatus === "PARTIAL"
+                          ? "bg-amber-500/10 text-amber-400"
+                          : "bg-red-500/10 text-red-400"
+                      }`}
+                    >
+                      {sale.paymentStatus}
+                    </span>
+                  )}
                 </div>
 
                 <p className="text-[11px] text-muted-foreground">

@@ -362,53 +362,41 @@ export default function ProductsPage() {
         </Button>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-[11px] font-semibold uppercase">Total SKUs</span>
-            <Package className="w-4 h-4 text-primary" />
-          </div>
-          <div className="text-2xl font-black text-foreground">{products.length}</div>
+      {/* KPI Metrics Bar */}
+      <div className="rounded-lg border border-border bg-card grid grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
+        <div className="p-4">
+          <div className="text-xs font-medium text-muted-foreground mb-1">Total SKUs</div>
+          <div className="text-2xl font-bold text-foreground tabular-nums">{products.length}</div>
           <div className="text-[11px] text-muted-foreground mt-0.5">Active catalog variants</div>
-        </Card>
+        </div>
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-[11px] font-semibold uppercase">Units in Stock</span>
-            <Boxes className="w-4 h-4 text-primary" />
-          </div>
-          <div className="text-2xl font-black text-foreground tabular-nums">{totalUnits}</div>
+        <div className="p-4">
+          <div className="text-xs font-medium text-muted-foreground mb-1">Units in Stock</div>
+          <div className="text-2xl font-bold text-foreground tabular-nums">{totalUnits}</div>
           <div className="text-[11px] text-muted-foreground mt-0.5">Physical bottles available</div>
-        </Card>
+        </div>
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-[11px] font-semibold uppercase">Inventory Value</span>
-            <DollarSign className="w-4 h-4 text-primary" />
-          </div>
-          <div className="text-2xl font-black text-foreground">
+        <div className="p-4">
+          <div className="text-xs font-medium text-muted-foreground mb-1">Inventory Valuation</div>
+          <div className="text-2xl font-bold text-foreground tabular-nums">
             <Money amount={totalCostValuation} />
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5">At wholesale cost basis</div>
-        </Card>
+        </div>
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-[11px] font-semibold uppercase">Stock Alerts</span>
-            <AlertTriangle className="w-4 h-4 text-warning" />
-          </div>
-          <div className="text-2xl font-black text-warning">
+        <div className="p-4">
+          <div className="text-xs font-medium text-muted-foreground mb-1">Stock Alerts</div>
+          <div className="text-2xl font-bold text-warning tabular-nums">
             {lowStockCount + outOfStockCount}
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5">
             {lowStockCount} low • {outOfStockCount} out of stock
           </div>
-        </Card>
+        </div>
       </div>
 
       {/* Filters Toolbar */}
-      <Card className="p-3.5 space-y-3">
+      <div className="rounded-lg border border-border bg-card p-3.5 space-y-3">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
             <SearchField
@@ -447,89 +435,172 @@ export default function ProductsPage() {
             onChange={setSelectedCategory}
           />
         </div>
-      </Card>
+      </div>
 
-      {/* Products Grid / List */}
+      {/* Products Table / Clean Commercial Rows */}
       {filteredProducts.length === 0 ? (
-        <Card className="p-12 text-center text-muted-foreground">
-          <Package className="w-10 h-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm font-semibold">No products match your criteria</p>
-          <p className="text-xs mt-1">Try relaxing filters or click "Add Product" above</p>
-        </Card>
+        <div className="rounded-lg border border-border bg-card p-12 text-center text-muted-foreground">
+          <p className="text-sm font-medium">No products match your criteria</p>
+          <p className="text-xs mt-1 text-muted-foreground/80">Try adjusting search filters or click "Add Product" above</p>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
-          {filteredProducts.map((p) => {
-            const isOutOfStock = p.remainingStock <= 0;
-            const isLow = p.isLowStock && !isOutOfStock;
-            const margin =
-              p.sellingPriceNum > 0
-                ? Math.round(
-                    ((p.sellingPriceNum - p.defaultCostPriceNum) / p.sellingPriceNum) * 100
-                  )
-                : 0;
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-secondary/60 text-muted-foreground border-b border-border select-none">
+                <tr>
+                  <th className="py-3 px-4 font-medium">Perfume / Variant</th>
+                  <th className="py-3 px-4 font-medium">Category & Brand</th>
+                  <th className="py-3 px-4 font-medium">Stock Status</th>
+                  <th className="py-3 px-4 font-medium text-right">Cost Price</th>
+                  <th className="py-3 px-4 font-medium text-right">Selling Price</th>
+                  <th className="py-3 px-4 font-medium text-right">Margin</th>
+                  <th className="py-3 px-4 font-medium text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filteredProducts.map((p) => {
+                  const isOutOfStock = p.remainingStock <= 0;
+                  const isLow = p.isLowStock && !isOutOfStock;
+                  const margin =
+                    p.sellingPriceNum > 0
+                      ? Math.round(
+                          ((p.sellingPriceNum - p.defaultCostPriceNum) / p.sellingPriceNum) * 100
+                        )
+                      : 0;
 
-            return (
-              <Card
-                key={p.id}
-                className="p-4 flex flex-col justify-between hover:border-primary/40 transition-all group"
-              >
-                <div>
-                  {/* Category and Stock Pill */}
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                      {p.category || "Perfumes"}
-                    </span>
+                  return (
+                    <tr
+                      key={p.id}
+                      className="hover:bg-secondary/40 transition-colors group"
+                    >
+                      <td className="py-3 px-4">
+                        <div className="font-semibold text-foreground">{p.name}</div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">
+                          {p.sku ? `SKU: ${p.sku}` : p.barcode ? `Barcode: ${p.barcode}` : "—"}
+                        </div>
+                      </td>
 
-                    {isOutOfStock ? (
-                      <Badge variant="destructive">0 Units</Badge>
-                    ) : isLow ? (
-                      <Badge variant="warning">{p.remainingStock} Low Stock</Badge>
-                    ) : (
-                      <Badge variant="success">{p.remainingStock} Units</Badge>
-                    )}
+                      <td className="py-3 px-4 text-muted-foreground">
+                        <div>{p.category || "Perfumes"}</div>
+                        {p.brand && <div className="text-[11px] text-muted-foreground/80">{p.brand}</div>}
+                      </td>
+
+                      <td className="py-3 px-4">
+                        {isOutOfStock ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-destructive font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
+                            Out of stock (0)
+                          </span>
+                        ) : isLow ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-warning font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-warning" />
+                            Low stock ({p.remainingStock})
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-success" />
+                            {p.remainingStock} in stock
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="py-3 px-4 text-right tabular-nums text-muted-foreground">
+                        {formatCurrency(p.defaultCostPriceNum)}
+                      </td>
+
+                      <td className="py-3 px-4 text-right tabular-nums font-semibold text-foreground">
+                        <Money amount={p.sellingPriceNum} />
+                      </td>
+
+                      <td className="py-3 px-4 text-right tabular-nums">
+                        {margin > 0 ? (
+                          <span className="text-success font-medium">+{margin}%</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+
+                      <td className="py-3 px-4 text-right">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openEditModal(p)}
+                        >
+                          Edit
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile High-Density Row List View */}
+          <div className="md:hidden divide-y divide-border">
+            {filteredProducts.map((p) => {
+              const isOutOfStock = p.remainingStock <= 0;
+              const isLow = p.isLowStock && !isOutOfStock;
+              const margin =
+                p.sellingPriceNum > 0
+                  ? Math.round(
+                      ((p.sellingPriceNum - p.defaultCostPriceNum) / p.sellingPriceNum) * 100
+                    )
+                  : 0;
+
+              return (
+                <div key={p.id} className="p-3.5 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-foreground text-xs leading-snug">
+                        {p.name}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5">
+                        {p.category || "Perfumes"} {p.sku && `• SKU: ${p.sku}`}
+                      </div>
+                    </div>
+
+                    <div className="text-right flex-shrink-0">
+                      <div className="text-xs font-semibold text-foreground tabular-nums">
+                        <Money amount={p.sellingPriceNum} />
+                      </div>
+                      {margin > 0 && (
+                        <div className="text-[10px] text-success font-medium tabular-nums mt-0.5">
+                          +{margin}% margin
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Product Title */}
-                  <h3 className="text-sm font-bold text-foreground line-clamp-2 leading-snug group-hover:text-primary transition-colors">
-                    {p.name}
-                  </h3>
+                  <div className="flex items-center justify-between pt-1 text-xs">
+                    <div>
+                      {isOutOfStock ? (
+                        <span className="text-destructive font-medium text-[11px]">0 in stock</span>
+                      ) : isLow ? (
+                        <span className="text-warning font-medium text-[11px]">
+                          {p.remainingStock} low stock
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-[11px]">
+                          {p.remainingStock} in stock
+                        </span>
+                      )}
+                    </div>
 
-                  {/* SKU & Brand */}
-                  <div className="text-[11px] text-muted-foreground mt-1 flex items-center gap-2">
-                    {p.sku && <span>SKU: {p.sku}</span>}
-                    {p.brand && (
-                      <>
-                        <span>•</span>
-                        <span>{p.brand}</span>
-                      </>
-                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openEditModal(p)}
+                    >
+                      Edit
+                    </Button>
                   </div>
                 </div>
-
-                {/* Pricing & Actions Footer */}
-                <div className="pt-3 mt-3 border-t border-border/60 flex items-end justify-between">
-                  <div>
-                    <div className="text-sm font-black text-foreground">
-                      <Money amount={p.sellingPriceNum} />
-                    </div>
-                    <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                      <span>Cost: {formatCurrency(p.defaultCostPriceNum)}</span>
-                      {margin > 0 && <span className="text-success font-semibold">({margin}% margin)</span>}
-                    </div>
-                  </div>
-
-                  <IconButton
-                    aria-label={`Edit ${p.name}`}
-                    size="sm"
-                    variant="outline"
-                    onClick={() => openEditModal(p)}
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </IconButton>
-                </div>
-              </Card>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -844,7 +915,7 @@ export default function ProductsPage() {
       {/* CAMERA BARCODE SCANNER FOR ADD MODAL */}
       {showAddCamera && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card w-full max-w-md rounded-3xl overflow-hidden border border-border shadow-2xl p-4">
+          <div className="bg-card w-full max-w-md rounded-lg overflow-hidden border border-border shadow-2xl p-4">
             <div className="flex items-center justify-between pb-3 border-b border-border">
               <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                 <Camera className="w-4 h-4 text-primary" />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -196,52 +197,47 @@ export default function BatchesPage() {
         </Button>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-[11px] font-semibold uppercase">Active Shipments</span>
-            <Layers className="w-4 h-4 text-primary" />
+      {/* Summary Metrics Bar */}
+      <Card className="p-0 overflow-hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border">
+          <div className="p-4 sm:p-5">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+              Active Shipments
+            </span>
+            <div className="text-xl sm:text-2xl font-bold text-foreground mt-1 tabular-nums tracking-tight">
+              {activeBatchesCount}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">Currently selling through</div>
           </div>
-          <div className="text-2xl font-black text-foreground">{activeBatchesCount}</div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">
-            Currently selling through
-          </div>
-        </Card>
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-[11px] font-semibold uppercase">Total Capital Invested</span>
-            <DollarSign className="w-4 h-4 text-primary" />
+          <div className="p-4 sm:p-5">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+              Total Capital Invested
+            </span>
+            <div className="text-xl sm:text-2xl font-bold text-foreground mt-1 tracking-tight">
+              <Money amount={totalInvestedCapital} />
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">Product wholesale + logistics</div>
           </div>
-          <div className="text-2xl font-black text-foreground">
-            <Money amount={totalInvestedCapital} />
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">
-            Product wholesale + logistics
-          </div>
-        </Card>
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between text-muted-foreground mb-1">
-            <span className="text-[11px] font-semibold uppercase">Remaining Bottles</span>
-            <Boxes className="w-4 h-4 text-primary" />
+          <div className="p-4 sm:p-5 bg-muted/20">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+              Remaining Bottles
+            </span>
+            <div className="text-xl sm:text-2xl font-bold text-foreground mt-1 tabular-nums tracking-tight">
+              {totalUnitsInBatches}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">Across active shipments</div>
           </div>
-          <div className="text-2xl font-black text-foreground tabular-nums">
-            {totalUnitsInBatches}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">
-            Across active shipments
-          </div>
-        </Card>
-      </div>
+        </div>
+      </Card>
 
       {/* Filter Segmented Control */}
-      <div className="inline-flex p-1 bg-muted rounded-xl border border-border">
+      <div className="inline-flex p-0.5 bg-muted rounded-md border border-border">
         <button
           type="button"
           onClick={() => setStatusFilter("ACTIVE")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+          className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${
             statusFilter === "ACTIVE"
               ? "bg-card text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
@@ -252,7 +248,7 @@ export default function BatchesPage() {
         <button
           type="button"
           onClick={() => setStatusFilter("COMPLETED")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+          className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${
             statusFilter === "COMPLETED"
               ? "bg-card text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
@@ -263,7 +259,7 @@ export default function BatchesPage() {
         <button
           type="button"
           onClick={() => setStatusFilter("ALL")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+          className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${
             statusFilter === "ALL"
               ? "bg-card text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
@@ -273,117 +269,153 @@ export default function BatchesPage() {
         </button>
       </div>
 
-      {/* Batch Cards Grid */}
+      {/* Shipment Ledger */}
       {batches.length === 0 ? (
         <Card className="p-12 text-center text-muted-foreground">
-          <Layers className="w-10 h-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm font-semibold">No shipment batches found</p>
+          <p className="text-sm font-medium">No shipment batches found</p>
           <p className="text-xs mt-1">Create a new batch to start logging incoming inventory</p>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {batches.map((batch) => {
-            const totalPurchased = (batch.batchItems || []).reduce(
-              (acc, i) => acc + (i.quantityPurchased || 0),
-              0
-            );
-            const totalRemaining = (batch.batchItems || []).reduce(
-              (acc, i) => acc + (i.quantityRemaining || 0),
-              0
-            );
-            const soldCount = totalPurchased - totalRemaining;
-            const progress = totalPurchased > 0 ? Math.round((soldCount / totalPurchased) * 100) : 0;
-            const isCompleted = batch.status === "COMPLETED";
+        <Card className="p-0 overflow-hidden">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-muted/40 text-xs font-semibold text-muted-foreground border-b border-border">
+                <tr>
+                  <th className="py-3 px-4">Shipment Reference</th>
+                  <th className="py-3 px-4">Purchase Date</th>
+                  <th className="py-3 px-4">Supplier / Vendor</th>
+                  <th className="py-3 px-4 text-right">Total Investment</th>
+                  <th className="py-3 px-4 text-right">Landed Extra</th>
+                  <th className="py-3 px-4">Sell-Through Rate</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {batches.map((batch) => {
+                  const totalPurchased = (batch.batchItems || []).reduce(
+                    (acc, i) => acc + (i.quantityPurchased || 0),
+                    0
+                  );
+                  const totalRemaining = (batch.batchItems || []).reduce(
+                    (acc, i) => acc + (i.quantityRemaining || 0),
+                    0
+                  );
+                  const soldCount = totalPurchased - totalRemaining;
+                  const progress = totalPurchased > 0 ? Math.round((soldCount / totalPurchased) * 100) : 0;
+                  const isCompleted = batch.status === "COMPLETED";
 
-            const purchaseDateStr = new Date(batch.purchaseDate).toLocaleDateString(undefined, {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            });
+                  return (
+                    <tr key={batch.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="py-3 px-4 font-semibold text-foreground whitespace-nowrap">
+                        <Link href={`/batches/${batch.id}`} className="hover:underline">
+                          {batch.reference}
+                        </Link>
+                      </td>
+                      <td className="py-3 px-4 text-xs text-muted-foreground whitespace-nowrap">
+                        {new Date(batch.purchaseDate).toLocaleDateString()}
+                      </td>
+                      <td className="py-3 px-4 text-xs text-foreground">
+                        {batch.supplier?.name || "—"}
+                      </td>
+                      <td className="py-3 px-4 text-right text-xs font-medium text-foreground tabular-nums whitespace-nowrap">
+                        <Money amount={batch.totalInvestment} />
+                      </td>
+                      <td className="py-3 px-4 text-right text-xs text-muted-foreground tabular-nums whitespace-nowrap">
+                        <Money amount={batch.additionalCosts} />
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="w-32 space-y-1">
+                          <div className="flex justify-between text-[11px] text-muted-foreground">
+                            <span>{progress}%</span>
+                            <span className="tabular-nums">{soldCount}/{totalPurchased}</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-muted rounded overflow-hidden">
+                            <div className="h-full bg-primary" style={{ width: `${progress}%` }} />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <Badge variant={isCompleted ? "outline" : "default"}>
+                          {batch.status}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => router.push(`/batches/${batch.id}`)}
+                          className="text-xs h-7 px-2.5"
+                        >
+                          Manage
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
 
-            return (
-              <Card
-                key={batch.id}
-                className="p-5 flex flex-col justify-between hover:border-primary/40 transition-all group"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <Truck className="w-3.5 h-3.5 text-primary" />
-                      {batch.reference}
-                    </span>
+          {/* Mobile Row View */}
+          <div className="md:hidden divide-y divide-border">
+            {batches.map((batch) => {
+              const totalPurchased = (batch.batchItems || []).reduce(
+                (acc, i) => acc + (i.quantityPurchased || 0),
+                0
+              );
+              const totalRemaining = (batch.batchItems || []).reduce(
+                (acc, i) => acc + (i.quantityRemaining || 0),
+                0
+              );
+              const soldCount = totalPurchased - totalRemaining;
+              const progress = totalPurchased > 0 ? Math.round((soldCount / totalPurchased) * 100) : 0;
+              const isCompleted = batch.status === "COMPLETED";
 
-                    <Badge variant={isCompleted ? "secondary" : "success"}>
+              return (
+                <div key={batch.id} className="p-4 space-y-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="text-sm font-semibold text-foreground">{batch.reference}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {new Date(batch.purchaseDate).toLocaleDateString()}
+                        {batch.supplier && ` • ${batch.supplier.name}`}
+                      </div>
+                    </div>
+                    <Badge variant={isCompleted ? "outline" : "default"}>
                       {batch.status}
                     </Badge>
                   </div>
 
-                  <div className="text-xs text-muted-foreground flex items-center gap-2 mb-3">
-                    <Calendar className="w-3.5 h-3.5" />
-                    <span>Purchased {purchaseDateStr}</span>
-                    {batch.supplier && (
-                      <>
-                        <span>•</span>
-                        <span className="font-semibold text-foreground">{batch.supplier.name}</span>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Financial Stats */}
-                  <div className="grid grid-cols-2 gap-2 p-3 rounded-xl bg-muted/40 border border-border/60 text-xs mb-3">
-                    <div>
-                      <div className="text-[10px] text-muted-foreground uppercase font-semibold">
-                        Total Investment
-                      </div>
-                      <div className="font-black text-foreground mt-0.5">
-                        <Money amount={batch.totalInvestment} />
-                      </div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Sell-through</span>
+                      <span className="font-medium text-foreground">{progress}% ({soldCount}/{totalPurchased})</span>
                     </div>
-                    <div>
-                      <div className="text-[10px] text-muted-foreground uppercase font-semibold">
-                        Landed Extra Costs
-                      </div>
-                      <div className="font-black text-muted-foreground mt-0.5">
-                        <Money amount={batch.additionalCosts} />
-                      </div>
+                    <div className="w-full h-1.5 bg-muted rounded overflow-hidden">
+                      <div className="h-full bg-primary" style={{ width: `${progress}%` }} />
                     </div>
                   </div>
 
-                  {/* Sell-Through Progress Bar */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Sell-through rate</span>
-                      <span className="font-bold text-foreground">{progress}%</span>
+                  <div className="flex items-center justify-between text-xs pt-1 border-t border-border">
+                    <div className="font-medium text-foreground">
+                      Investment: <Money amount={batch.totalInvestment} />
                     </div>
-                    <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className="h-full bg-primary rounded-full transition-all duration-500"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                    <div className="flex justify-between text-[11px] text-muted-foreground">
-                      <span>{soldCount} units sold</span>
-                      <span>{totalRemaining} units left</span>
-                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => router.push(`/batches/${batch.id}`)}
+                      className="text-xs h-7 px-2.5"
+                    >
+                      Manage
+                    </Button>
                   </div>
                 </div>
-
-                {/* Footer Action */}
-                <div className="pt-4 mt-4 border-t border-border/60">
-                  <Button
-                    size="md"
-                    variant="outline"
-                    className="w-full justify-between group-hover:border-primary/60 group-hover:text-primary transition-all font-bold"
-                    onClick={() => router.push(`/batches/${batch.id}`)}
-                  >
-                    <span>Manage Shipment & Items</span>
-                    <ArrowRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </Card>
       )}
 
       {/* CREATE BATCH SHEET */}

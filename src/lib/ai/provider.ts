@@ -28,123 +28,232 @@ interface ToolIntent {
 
 /**
  * Intent classifier and tool selector.
- * NEVER defaults to get_business_summary unless explicitly requested.
+ * Robust multi-pattern matching covering perfumes, stock, debts, sales, and operations.
  */
 function classifyIntentAndSelectTool(userQuery: string): ToolIntent {
   const q = userQuery.toLowerCase().trim();
 
-  // 1. EXPLICIT BUSINESS OVERVIEW ONLY
-  const isExplicitOverview =
-    q.includes("business overview") ||
-    q.includes("business summary") ||
-    q.includes("business health") ||
-    q.includes("overall performance") ||
-    q.includes("how is my business doing") ||
-    q.includes("how is avencia performing") ||
-    q.includes("complete summary") ||
-    q.includes("complete business report") ||
-    q.includes("monthly business summary") ||
-    q.includes("performance summary") ||
-    q.includes("overall business");
-
-  if (isExplicitOverview) {
-    return { toolName: "get_business_summary", args: { timeframe: extractTimeframe(q) } };
+  // 0. GREETINGS & CAPABILITIES
+  if (
+    q === "hi" ||
+    q === "hello" ||
+    q === "hey" ||
+    q.startsWith("hi ") ||
+    q.startsWith("hello ") ||
+    q.startsWith("hey ") ||
+    q.includes("good morning") ||
+    q.includes("good afternoon") ||
+    q.includes("good evening") ||
+    q.includes("who are you") ||
+    q.includes("what can you do") ||
+    q.includes("how can you help") ||
+    q === "help"
+  ) {
+    return { toolName: "greeting", args: {} };
   }
 
-  // 2. LOW STOCK / INVENTORY ALERTS
+  // 1. LOW STOCK & INVENTORY SHORTAGES (Catches "low on stock", "low in stock", "reorder", "depleted", etc.)
   if (
+    q.includes("low on stock") ||
+    q.includes("low in stock") ||
     q.includes("low stock") ||
     q.includes("out of stock") ||
+    q.includes("out-of-stock") ||
     q.includes("restock") ||
+    q.includes("reorder") ||
     q.includes("running low") ||
+    q.includes("running out") ||
+    q.includes("shortage") ||
+    q.includes("depleted") ||
     q.includes("below threshold") ||
     q.includes("almost finished") ||
     q.includes("stock alert") ||
     q.includes("inventory low") ||
-    q.includes("stock level")
+    q.includes("need stock") ||
+    (q.includes("stock") && (q.includes("low") || q.includes("which") || q.includes("alert")))
   ) {
     return { toolName: "get_low_stock_products", args: {} };
   }
 
-  // 3. CUSTOMER DEBT / WHO OWES ME
+  // 2. CUSTOMER DEBT / WHO OWES ME
   if (
     q.includes("who owe") ||
+    q.includes("who owes") ||
     q.includes("who is owing") ||
+    q.includes("owing me") ||
+    q.includes("owe me") ||
     q.includes("debt") ||
     q.includes("debtor") ||
     q.includes("unpaid") ||
+    q.includes("unsettled") ||
     q.includes("outstanding balance") ||
+    q.includes("credit customer") ||
+    q.includes("pending payment") ||
     q.includes("haven't paid") ||
     q.includes("havent paid") ||
     q.includes("still owe")
   ) {
-    // Check if asking about a specific customer name (e.g. "Does Myy owe me?", "How much does John owe?")
-    const specificMatch = userQuery.match(/(?:does|is|how much does|how much is)\s+([a-zA-Z0-9\s]+?)\s+(?:owe|owing|have debt|have a balance)/i);
+    // Check if asking about a specific customer name (e.g. "Does Kwame owe me?", "Check John's debt")
+    const specificMatch = userQuery.match(/(?:does|is|how much does|how much is|check)\s+([a-zA-Z0-9\s]+?)\s+(?:owe|owing|have debt|have a balance|balance|debt)/i);
     if (specificMatch && specificMatch[1]) {
       const name = specificMatch[1].trim();
-      if (name.length > 1 && !["anyone", "somebody", "a customer", "people"].includes(name.toLowerCase())) {
+      if (name.length > 1 && !["anyone", "somebody", "a customer", "people", "everyone"].includes(name.toLowerCase())) {
         return { toolName: "get_customer_summary", args: { customerNameOrId: name } };
       }
     }
     return { toolName: "get_customer_balances", args: {} };
   }
 
-  // 4. EXPENSES / SPENDING
-  if (
-    q.includes("expense") ||
-    q.includes("spend") ||
-    q.includes("spent") ||
-    q.includes("cost") ||
-    q.includes("outflow")
-  ) {
-    return { toolName: "get_expense_summary", args: { timeframe: extractTimeframe(q) } };
-  }
-
-  // 5. BEST SELLING / TOP PRODUCTS
+  // 3. BEST SELLING / TOP PRODUCTS
   if (
     q.includes("best selling") ||
     q.includes("best-selling") ||
+    q.includes("top selling") ||
+    q.includes("top-selling") ||
     q.includes("selling the most") ||
     q.includes("sold the most") ||
     q.includes("top product") ||
+    q.includes("top perfume") ||
     q.includes("popular product") ||
+    q.includes("popular perfume") ||
+    q.includes("most sold") ||
+    q.includes("highest selling") ||
+    q.includes("most popular") ||
     q.includes("product performance")
   ) {
     return { toolName: "get_product_performance", args: { timeframe: extractTimeframe(q) } };
   }
 
-  // 6. BATCH PERFORMANCE
-  if (q.includes("batch")) {
-    const matchBatchNum = userQuery.match(/batch\s*(\d+|[a-zA-Z0-9_-]+)/i);
-    const ref = matchBatchNum ? matchBatchNum[0] : "";
-    return { toolName: "get_batch_summary", args: { batchRefOrId: ref } };
+  // 4. GENERAL PRODUCT / INVENTORY CATALOG
+  if (
+    q.includes("inventory") ||
+    q.includes("catalog") ||
+    q.includes("how many product") ||
+    q.includes("how many perfume") ||
+    q.includes("list product") ||
+    q.includes("list perfume") ||
+    q.includes("what perfume") ||
+    q.includes("what product") ||
+    q.includes("total product") ||
+    q.includes("total stock") ||
+    q.includes("stock value") ||
+    q.includes("inventory value") ||
+    q.includes("all product") ||
+    q.includes("all perfume")
+  ) {
+    return { toolName: "get_product_performance", args: { timeframe: extractTimeframe(q) } };
   }
 
-  // 7. PROFIT (Pure profit query)
-  if (q.includes("profit") || q.includes("margin") || q.includes("net profit") || q.includes("gross profit")) {
+  // 5. EXPENSES / SPENDING
+  if (
+    q.includes("expense") ||
+    q.includes("expenses") ||
+    q.includes("spend") ||
+    q.includes("spent") ||
+    q.includes("spending") ||
+    q.includes("cost") ||
+    q.includes("costs") ||
+    q.includes("outflow") ||
+    q.includes("overheads") ||
+    q.includes("bill") ||
+    q.includes("bills")
+  ) {
+    return { toolName: "get_expense_summary", args: { timeframe: extractTimeframe(q) } };
+  }
+
+  // 6. PROFIT / MARGIN / EARNINGS
+  if (
+    q.includes("profit") ||
+    q.includes("margin") ||
+    q.includes("net profit") ||
+    q.includes("gross profit") ||
+    q.includes("how much made") ||
+    q.includes("how much did i make") ||
+    q.includes("earnings") ||
+    q.includes("gain")
+  ) {
     return { toolName: "get_sales_summary", args: { timeframe: extractTimeframe(q) }, isProfitOnly: true };
   }
 
-  // 8. SALES / REVENUE
+  // 7. CASH COLLECTED / PAYMENTS RECEIVED
+  if (
+    q.includes("cash collected") ||
+    q.includes("money collected") ||
+    q.includes("collected") ||
+    q.includes("cash in hand") ||
+    q.includes("received")
+  ) {
+    return { toolName: "get_sales_summary", args: { timeframe: extractTimeframe(q) } };
+  }
+
+  // 8. SALES TRANSACTION LIST / RECENT SALES
+  if (
+    q.includes("recent sale") ||
+    q.includes("latest sale") ||
+    q.includes("last sale") ||
+    q.includes("show sale") ||
+    q.includes("list sale") ||
+    q.includes("sales list") ||
+    q.includes("recent order") ||
+    q.includes("latest order") ||
+    q.includes("transaction")
+  ) {
+    return { toolName: "get_sales_list", args: { timeframe: extractTimeframe(q), limit: "5" } };
+  }
+
+  // 9. SALES / REVENUE / TURNOVER
   if (
     q.includes("sales") ||
     q.includes("sell") ||
     q.includes("sold") ||
     q.includes("revenue") ||
-    q.includes("orders")
+    q.includes("order") ||
+    q.includes("orders") ||
+    q.includes("turnover")
   ) {
     return { toolName: "get_sales_summary", args: { timeframe: extractTimeframe(q) } };
   }
 
-  // 9. SPECIFIC CUSTOMER PROFILE
-  if (q.includes("customer")) {
-    const nameMatch = userQuery.replace(/customer|summary|details|info|profile|about|show|get/gi, "").trim();
-    if (nameMatch.length > 2) {
-      return { toolName: "get_customer_summary", args: { customerNameOrId: nameMatch } };
-    }
+  // 10. BATCH PERFORMANCE / CONSIGNMENTS
+  if (q.includes("batch") || q.includes("consignment")) {
+    const matchBatchNum = userQuery.match(/batch\s*(\d+|[a-zA-Z0-9_-]+)/i);
+    const ref = matchBatchNum ? matchBatchNum[0] : "";
+    return { toolName: "get_batch_summary", args: { batchRefOrId: ref } };
   }
 
-  // 10. UNMATCHED — DO NOT return get_business_summary!
+  // 11. SPECIFIC CUSTOMER PROFILE
+  if (q.includes("customer") || q.includes("client")) {
+    const nameMatch = userQuery.replace(/customer|client|summary|details|info|profile|about|show|get|who is|find/gi, "").trim();
+    if (nameMatch.length >= 2 && !["list", "all", "top", "best"].includes(nameMatch.toLowerCase())) {
+      return { toolName: "get_customer_summary", args: { customerNameOrId: nameMatch } };
+    }
+    return { toolName: "get_customer_balances", args: {} };
+  }
+
+  // 12. EXPLICIT BUSINESS OVERVIEW / HEALTH / DASHBOARD
+  if (
+    q.includes("overview") ||
+    q.includes("summary") ||
+    q.includes("health") ||
+    q.includes("performance") ||
+    q.includes("how is my business") ||
+    q.includes("how is business") ||
+    q.includes("how are we doing") ||
+    q.includes("dashboard") ||
+    q.includes("report") ||
+    q.includes("status") ||
+    q.includes("update") ||
+    q.includes("stats") ||
+    q.includes("metrics")
+  ) {
+    return { toolName: "get_business_summary", args: { timeframe: extractTimeframe(q) } };
+  }
+
+  // 13. TIME CONTEXT ONLY (e.g. "today", "yesterday", "this month")
+  if (q.includes("today") || q.includes("this month") || q.includes("yesterday") || q.includes("this week")) {
+    return { toolName: "get_sales_summary", args: { timeframe: extractTimeframe(q) } };
+  }
+
   return { toolName: "unknown", args: {} };
 }
 
@@ -177,6 +286,12 @@ function formatFallbackResponse(
   const data = toolResult.data;
 
   switch (toolName) {
+    case "greeting": {
+      return {
+        text: `### Welcome to Ask Avencia AI\n\nI am your live Avencia perfume business analyst. I monitor your inventory, sales, customer debts, and expenses directly from your database.\n\n**Here are quick questions you can ask me right now:**\n\n- **Inventory**: *"Which perfumes are low on stock?"* or *"What is my inventory value?"*\n- **Customer Balances**: *"Who owes us money right now?"* or *"Does Kwame owe me?"*\n- **Sales & Revenue**: *"How much revenue today?"* or *"Show recent sales"*\n- **Profitability**: *"How much profit did I make this month?"*\n- **Expenses**: *"How much did I spend this month?"*\n- **Top Performers**: *"Best selling perfumes this month?"*\n- **Batches**: *"How is Batch 1 performing?"*\n- **Executive Overview**: *"Give me a business overview for this month"*`,
+      };
+    }
+
     case "get_low_stock_products": {
       if (data.lowStockCount === 0 && data.outOfStockCount === 0) {
         return {
@@ -246,9 +361,27 @@ function formatFallbackResponse(
       };
     }
 
+    case "get_sales_list": {
+      if (data.sales && data.sales.length > 0) {
+        const rows = data.sales.map((s: any, idx: number) => {
+          const itemsStr = s.items?.map((it: any) => `${it.quantity}x ${it.productName}`).join(", ") || `${s.itemCount} item(s)`;
+          return `${idx + 1}. **${s.date}** • **${s.customerName}**\n   - Total: GH₵${s.totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })} (Paid: GH₵${s.amountPaid.toLocaleString("en-US", { minimumFractionDigits: 2 })}${s.balanceDue > 0 ? `, Due: GH₵${s.balanceDue.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : ""})\n   - Status: \`${s.paymentStatus}\` • Items: ${itemsStr}`;
+        }).join("\n\n");
+
+        return {
+          text: `### Recent Sales Transactions\n\n${rows}\n\n*Displaying ${data.count} of ${data.totalCount} sales records.*`,
+          payload: { type: "sales_list", data },
+        };
+      }
+
+      return {
+        text: `### No Sales Records Found\n\nNo sales transactions were recorded for the specified period.`,
+        payload: { type: "sales_list", data },
+      };
+    }
+
     case "get_sales_summary": {
       if (intent?.isProfitOnly) {
-        const totalExp = (data.revenue - data.grossProfit) > 0 ? (data.revenue - data.netProfit) : 0;
         return {
           text: `### Profit (${data.timeframe})\n\n- **Gross Profit**: GH₵${data.grossProfit.toLocaleString("en-US", { minimumFractionDigits: 2 })}\n- **Net Profit**: GH₵${data.netProfit.toLocaleString("en-US", { minimumFractionDigits: 2 })}\n- **Profit Margin**: ${data.profitMarginPct}%`,
           payload: { type: "sales_summary", data },
@@ -278,7 +411,7 @@ function formatFallbackResponse(
         .join("\n");
 
       return {
-        text: `### Best-Selling Products\n\n${topList || "No product sales recorded for this timeframe."}\n\n- **Total Units Sold**: ${data.totalUnitsSold}`,
+        text: `### Products & Inventory Overview\n\n- **Total Products in Catalog**: ${data.totalProducts}\n- **Total Bottles in Stock**: ${data.totalStockUnits}\n- **Total Inventory Value**: GH₵${data.totalInventoryValue.toLocaleString("en-US", { minimumFractionDigits: 2 })}\n- **Total Units Sold**: ${data.totalUnitsSold}\n\n#### Top Selling Fragrances:\n${topList || "No product sales recorded for this timeframe."}`,
         payload: { type: "product_performance", data },
       };
     }
@@ -304,6 +437,7 @@ function formatFallbackResponse(
       };
     }
 
+    case "get_dashboard_summary":
     case "get_business_summary": {
       return {
         text: `### Business Health Overview (${data.timeframe})\n\n- **Revenue**: GH₵${data.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}\n- **Amount Collected**: GH₵${data.amountCollected.toLocaleString("en-US", { minimumFractionDigits: 2 })}\n- **Outstanding Debt**: GH₵${data.outstandingDebt.toLocaleString("en-US", { minimumFractionDigits: 2 })}\n- **Gross Profit**: GH₵${data.grossProfit.toLocaleString("en-US", { minimumFractionDigits: 2 })}\n- **Expenses**: GH₵${data.totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2 })}\n- **Net Profit**: GH₵${data.netProfit.toLocaleString("en-US", { minimumFractionDigits: 2 })}\n- **Total Orders**: ${data.totalOrders}\n- **Low Stock Items**: ${data.lowStockCount}`,
@@ -314,7 +448,7 @@ function formatFallbackResponse(
     case "unknown":
     default: {
       return {
-        text: `I can answer specific questions about your Avencia business records. What would you like to know?\n\n- **Low Stock**: *"Which products are low on stock?"*\n- **Customer Debt**: *"Who is owing me?"* or *"Does Myy owe me?"*\n- **Sales**: *"How much did I sell this month?"*\n- **Profit**: *"How much profit did I make this month?"*\n- **Expenses**: *"How much did I spend this month?"*\n- **Best-Selling Products**: *"What products are selling the most?"*\n- **Batch Performance**: *"How is Batch 4 performing?"*\n- **Business Overview**: *"Give me a business overview for this month."*`,
+        text: `I can answer specific questions about your Avencia business records. What would you like to know?\n\n- **Low Stock**: *"Which perfumes are low on stock?"*\n- **Customer Debt**: *"Who is owing me?"* or *"Does Kwame owe me?"*\n- **Sales**: *"How much did I sell this month?"* or *"What were my sales today?"*\n- **Recent Transactions**: *"Show recent sales"*\n- **Profit**: *"How much profit did I make this month?"*\n- **Expenses**: *"How much did I spend this month?"*\n- **Best-Selling Fragrances**: *"What perfumes are selling the most?"*\n- **Catalog & Inventory**: *"What is my inventory value?"*\n- **Batch Consignments**: *"How is Batch 1 performing?"*\n- **Executive Overview**: *"Give me a business overview for this month"*`,
       };
     }
   }
@@ -328,7 +462,7 @@ export async function processAIChat(
   businessId: string
 ): Promise<AIChatResponse> {
   const apiKey = process.env.GEMINI_API_KEY || process.env.AI_API_KEY;
-  const modelName = process.env.AI_MODEL || "gemini-2.5-flash";
+  const modelName = process.env.AI_MODEL || "gemini-2.0-flash";
 
   const userMessages = request.messages.filter((m) => m.role === "user");
   const lastUserMsg = userMessages[userMessages.length - 1]?.content || "";

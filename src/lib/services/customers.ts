@@ -126,8 +126,10 @@ export async function getCustomers(businessId: string, search?: string) {
       ...c,
       totalOrders,
       totalSpend,
+      totalSpent: totalSpend,
       totalProfit,
       totalOutstandingDebt,
+      totalDebt: totalOutstandingDebt,
       avgOrderValue,
       lastPurchaseDate,
     };
@@ -167,8 +169,10 @@ export async function getCustomerById(id: string, businessId: string) {
     ...customer,
     totalOrders,
     totalSpend,
+    totalSpent: totalSpend,
     totalProfit,
     totalOutstandingDebt,
+    totalDebt: totalOutstandingDebt,
     avgOrderValue: totalOrders > 0 ? Math.round((totalSpend / totalOrders) * 100) / 100 : 0,
   };
 }

@@ -21,10 +21,15 @@ export async function GET(request: Request) {
     };
 
     const result = await getSalesReport(DEFAULT_BUSINESS_ID, filter);
+    const summaryWithAliases = {
+      ...result.summary,
+      totalRevenue: result.summary.totalSalesRevenue,
+      totalSalesCount: result.summary.totalTransactions,
+    };
     return NextResponse.json({
       success: true,
       data: serializePlainObject(result.sales),
-      summary: serializePlainObject(result.summary),
+      summary: serializePlainObject(summaryWithAliases),
       paymentMethodBreakdown: serializePlainObject(result.paymentMethodBreakdown),
       dailySalesTrend: serializePlainObject(result.dailySalesTrend),
     });

@@ -29,13 +29,13 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
     ref
   ) => {
     const baseStyles =
-      "inline-flex items-center justify-center rounded-md transition-all duration-150 select-none disabled:opacity-50 disabled:pointer-events-none active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2";
+      "inline-flex items-center justify-center rounded-md transition-colors select-none disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-2 focus-visible:outline-offset-2";
 
     const variantStyles: Record<IconButtonVariant, string> = {
       ghost: "text-muted-foreground hover:text-foreground hover:bg-accent/60",
       outline: "border border-border bg-card text-foreground hover:bg-accent/60 hover:border-primary/40",
       secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-      primary: "bg-primary text-primary-foreground hover:bg-gold-600 shadow-sm shadow-gold-500/20",
+      primary: "bg-primary text-primary-foreground hover:bg-primary/90",
       destructive: "text-destructive hover:bg-destructive/10 hover:text-destructive",
     };
 

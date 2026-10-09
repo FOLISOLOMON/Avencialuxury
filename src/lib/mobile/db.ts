@@ -1,13 +1,14 @@
-import { MobileProduct, MobileCustomer, PendingSale, PendingCustomer } from "./types";
+import { MobileProduct, MobileCustomer, PendingSale, PendingCustomer, PendingDebtPayment } from "./types";
 
 const DB_NAME = "avencia_mobile_db";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 interface AvenciaDB {
   products: MobileProduct;
   customers: MobileCustomer;
   pendingSales: PendingSale;
   pendingCustomers: PendingCustomer;
+  pendingDebtPayments: PendingDebtPayment;
   metadata: { key: string; value: any };
 }
 
@@ -46,6 +47,12 @@ export async function getDB(): Promise<IDBDatabase> {
         const custStore = db.createObjectStore("pendingCustomers", { keyPath: "offlineId" });
         custStore.createIndex("status", "status", { unique: false });
         custStore.createIndex("createdAt", "createdAt", { unique: false });
+      }
+
+      if (!db.objectStoreNames.contains("pendingDebtPayments")) {
+        const debtStore = db.createObjectStore("pendingDebtPayments", { keyPath: "offlineId" });
+        debtStore.createIndex("status", "status", { unique: false });
+        debtStore.createIndex("createdAt", "createdAt", { unique: false });
       }
 
       if (!db.objectStoreNames.contains("metadata")) {
@@ -251,6 +258,56 @@ export async function removePendingSale(offlineId: string): Promise<void> {
   const db = await getDB();
   const tx = db.transaction("pendingSales", "readwrite");
   tx.objectStore("pendingSales").delete(offlineId);
+}
+
+// ==========================================
+// PENDING DEBT PAYMENTS QUEUE
+// ==========================================
+export async function addPendingDebtPayment(payment: Omit<PendingDebtPayment, "status" | "retryCount" | "createdAt">): Promise<PendingDebtPayment> {
+  const db = await getDB();
+  const tx = db.transaction("pendingDebtPayments", "readwrite");
+  const store = tx.objectStore("pendingDebtPayments");
+
+  const record: PendingDebtPayment = {
+    ...payment,
+    status: "pending",
+    retryCount: 0,
+    createdAt: new Date().toISOString(),
+  };
+
+  return new Promise((resolve, reject) => {
+    const req = store.add(record);
+    req.onsuccess = () => resolve(record);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function getPendingDebtPayments(): Promise<PendingDebtPayment[]> {
+  try {
+    const db = await getDB();
+    const tx = db.transaction("pendingDebtPayments", "readonly");
+    const store = tx.objectStore("pendingDebtPayments");
+
+    return new Promise((resolve, reject) => {
+      const req = store.getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  } catch (err) {
+    return [];
+  }
+}
+
+export async function updatePendingDebtPayment(payment: PendingDebtPayment): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction("pendingDebtPayments", "readwrite");
+  tx.objectStore("pendingDebtPayments").put(payment);
+}
+
+export async function removePendingDebtPayment(offlineId: string): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction("pendingDebtPayments", "readwrite");
+  tx.objectStore("pendingDebtPayments").delete(offlineId);
 }
 
 // ==========================================

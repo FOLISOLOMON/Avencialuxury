@@ -17,40 +17,107 @@ import {
 import { Button } from "@/components/ui/Button";
 import { useMobileProducts, useSyncStatus } from "@/lib/mobile/hooks";
 import { MobileSaleSummary } from "@/lib/mobile/types";
+import { getPendingSales } from "@/lib/mobile/db";
 
 export default function MobileHomePage() {
   const { products, loading: productsLoading } = useMobileProducts();
-  const { state: syncState } = useSyncStatus();
+  const { state: syncState, lastSyncedAt } = useSyncStatus();
 
   const [todayRevenue, setTodayRevenue] = useState(0);
+  const [todayCollected, setTodayCollected] = useState(0);
   const [todaySalesCount, setTodaySalesCount] = useState(0);
   const [recentSales, setRecentSales] = useState<MobileSaleSummary[]>([]);
   const [loadingSales, setLoadingSales] = useState(true);
 
-  // Fetch today's sales summary from shared backend API
+  // Fetch today's sales summary from shared backend API & local pending queue
   useEffect(() => {
+    let isMounted = true;
+
     async function loadSalesSummary() {
       try {
+        let pendingToday: MobileSaleSummary[] = [];
+        let pendingRev = 0;
+        let pendingPaid = 0;
+
+        try {
+          const pending = await getPendingSales();
+          const startOfToday = new Date();
+          startOfToday.setHours(0, 0, 0, 0);
+
+          const filteredPending = pending.filter((p) => {
+            const d = new Date(p.saleDate);
+            return !isNaN(d.getTime()) && d >= startOfToday;
+          });
+
+          pendingRev = filteredPending.reduce((sum, p) => sum + (Number(p.totalAmount) || 0), 0);
+          pendingPaid = filteredPending.reduce((sum, p) => sum + (Number(p.amountPaid) || 0), 0);
+
+          pendingToday = filteredPending.map((p) => ({
+            id: p.offlineId,
+            receiptNumber: "PENDING",
+            saleDate: p.saleDate,
+            totalAmount: p.totalAmount,
+            amountPaid: p.amountPaid,
+            paymentStatus: p.paymentStatus,
+            paymentMethod: p.paymentMethod,
+            customer: p.customerId ? { id: p.customerId, name: p.customerName || "Customer" } : null,
+            items: p.items.map((it) => ({
+              id: it.productId,
+              product: { name: it.productName },
+              quantity: it.quantity,
+              unitPrice: it.unitPrice,
+              subtotal: it.quantity * it.unitPrice,
+            })),
+          }));
+        } catch (dbErr) {
+          console.warn("Could not inspect local pending sales:", dbErr);
+        }
+
         const res = await fetch("/api/sales?quickRange=today");
         if (res.ok) {
           const json = await res.json();
-          if (json.success) {
-            setTodayRevenue(json.summary?.totalRevenue || 0);
-            setTodaySalesCount(json.summary?.totalSalesCount || 0);
-            if (Array.isArray(json.data)) {
-              setRecentSales(json.data.slice(0, 3));
-            }
+          if (json.success && isMounted) {
+            const serverRevenue = Number(json.summary?.totalSalesRevenue ?? json.summary?.totalRevenue ?? 0);
+            const serverCollected = Number(json.summary?.totalAmountCollected ?? serverRevenue);
+            const serverCount = Number(json.summary?.totalTransactions ?? json.summary?.totalSalesCount ?? 0);
+
+            setTodayRevenue(serverRevenue + pendingRev);
+            setTodayCollected(serverCollected + pendingPaid);
+            setTodaySalesCount(serverCount + pendingToday.length);
+
+            const serverSales: MobileSaleSummary[] = Array.isArray(json.data) ? json.data : [];
+            const combinedSales = [...pendingToday, ...serverSales];
+            setRecentSales(combinedSales.slice(0, 3));
+            return;
           }
+        }
+
+        // Fallback to local pending if offline
+        if (isMounted && pendingToday.length > 0) {
+          setTodayRevenue(pendingRev);
+          setTodayCollected(pendingPaid);
+          setTodaySalesCount(pendingToday.length);
+          setRecentSales(pendingToday.slice(0, 3));
         }
       } catch (err) {
         console.warn("Could not fetch today sales summary:", err);
       } finally {
-        setLoadingSales(false);
+        if (isMounted) setLoadingSales(false);
       }
     }
 
     loadSalesSummary();
-  }, []);
+
+    const handleFocus = () => loadSalesSummary();
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("online", handleFocus);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("online", handleFocus);
+    };
+  }, [lastSyncedAt, syncState]);
 
   // Calculate low stock items count from cached products
   const lowStockCount = products.filter(
@@ -85,67 +152,73 @@ export default function MobileHomePage() {
       {/* PRIMARY HERO ACTION: + NEW SALE */}
       <Link
         href="/mobile/sell"
-        className="group relative block w-full p-4 rounded-2xl bg-gradient-to-r from-primary via-primary to-amber-500 text-zinc-950 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98] transition-all overflow-hidden"
+        className="block w-full p-4 rounded-md bg-primary text-primary-foreground transition-opacity hover:opacity-95"
       >
         <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider bg-zinc-950/15 px-2 py-0.5 rounded-full">
-              ⚡ Rapid Checkout
+          <div className="space-y-0.5">
+            <span className="text-[10px] font-semibold uppercase tracking-wider block opacity-90">
+              Point of Sale
             </span>
-            <h2 className="text-2xl font-black tracking-tight text-zinc-950">
-              + NEW SALE
+            <h2 className="text-xl font-bold tracking-tight">
+              + New Sale
             </h2>
-            <p className="text-xs text-zinc-900 font-medium">
-              Record a sale in seconds
+            <p className="text-xs opacity-80">
+              Record customer checkout
             </p>
           </div>
-          <div className="w-13 h-13 rounded-2xl bg-zinc-950/10 border border-zinc-950/10 flex items-center justify-center group-hover:scale-105 transition-transform">
-            <ShoppingBag className="w-7 h-7 text-zinc-950 stroke-[2.2]" />
+          <div className="w-10 h-10 rounded border border-primary-foreground/20 flex items-center justify-center">
+            <ShoppingBag className="w-5 h-5 stroke-[2]" />
           </div>
         </div>
       </Link>
 
       {/* Today's Metrics Card */}
-      <div className="p-4 rounded-2xl bg-card border border-border shadow-xs">
+      <div className="p-4 rounded-md bg-card border border-border">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-            <TrendingUp className="w-3.5 h-3.5 text-primary" />
+          <span className="text-xs font-medium text-muted-foreground">
             Today&apos;s Revenue
           </span>
-          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+          <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-muted text-foreground">
             {todaySalesCount} {todaySalesCount === 1 ? "Sale" : "Sales"}
           </span>
         </div>
 
         <div className="flex items-baseline gap-1">
           <span className="text-xs font-semibold text-muted-foreground">GH₵</span>
-          <span className="text-3xl font-black tracking-tight text-foreground">
+          <span className="text-2xl font-bold tracking-tight text-foreground tabular-nums">
             {todayRevenue.toLocaleString("en-GH", {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             })}
           </span>
         </div>
+        {todayRevenue > todayCollected && (
+          <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1.5">
+            <span>GH₵{todayCollected.toFixed(2)} collected</span>
+            <span>•</span>
+            <span className="text-warning font-medium">GH₵{(todayRevenue - todayCollected).toFixed(2)} pending debt</span>
+          </p>
+        )}
       </div>
 
       {/* Low Stock Warning Banner */}
       {(lowStockCount > 0 || outOfStockCount > 0) && (
         <Link
           href="/mobile/products?filter=low"
-          className="flex items-center justify-between p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 active:scale-[0.99] transition-transform"
+          className="flex items-center justify-between p-3.5 rounded-md bg-warning/10 border border-warning/20 text-warning"
         >
           <div className="flex items-center gap-2.5">
-            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+            <AlertTriangle className="w-4 h-4 shrink-0" />
             <div>
-              <p className="text-xs font-semibold text-amber-200">
+              <p className="text-xs font-medium">
                 {outOfStockCount > 0
                   ? `${outOfStockCount} out of stock, ${lowStockCount} low`
                   : `${lowStockCount} perfumes running low on stock`}
               </p>
-              <p className="text-[11px] text-amber-400/80">Tap to inspect inventory</p>
+              <p className="text-[11px] text-muted-foreground">Tap to inspect inventory</p>
             </div>
           </div>
-          <ArrowRight className="w-4 h-4 text-amber-400 shrink-0" />
+          <ArrowRight className="w-4 h-4 shrink-0" />
         </Link>
       )}
 
@@ -153,13 +226,13 @@ export default function MobileHomePage() {
       <div className="grid grid-cols-2 gap-2.5">
         <Link
           href="/mobile/products"
-          className="p-3.5 rounded-xl bg-card border border-border hover:border-primary/40 active:scale-95 transition-all space-y-2"
+          className="p-3.5 rounded-md bg-card border border-border hover:border-border/80 transition-colors space-y-1.5"
         >
-          <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-            <Package className="w-4 h-4" />
+          <div className="w-7 h-7 rounded bg-muted text-foreground flex items-center justify-center">
+            <Package className="w-3.5 h-3.5" />
           </div>
           <div>
-            <p className="text-xs font-bold text-foreground">Check Stock</p>
+            <p className="text-xs font-semibold text-foreground">Check Stock</p>
             <p className="text-[11px] text-muted-foreground">
               {products.length} perfumes available
             </p>
@@ -168,13 +241,13 @@ export default function MobileHomePage() {
 
         <Link
           href="/mobile/customers"
-          className="p-3.5 rounded-xl bg-card border border-border hover:border-primary/40 active:scale-95 transition-all space-y-2"
+          className="p-3.5 rounded-md bg-card border border-border hover:border-border/80 transition-colors space-y-1.5"
         >
-          <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-            <Users className="w-4 h-4" />
+          <div className="w-7 h-7 rounded bg-muted text-foreground flex items-center justify-center">
+            <Users className="w-3.5 h-3.5" />
           </div>
           <div>
-            <p className="text-xs font-bold text-foreground">Customers</p>
+            <p className="text-xs font-semibold text-foreground">Customers</p>
             <p className="text-[11px] text-muted-foreground">
               View debts & directory
             </p>
@@ -185,8 +258,7 @@ export default function MobileHomePage() {
       {/* Recent Sales List */}
       <div className="space-y-2 pt-1">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5" />
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Recent Sales
           </h3>
           <Link
@@ -198,26 +270,25 @@ export default function MobileHomePage() {
         </div>
 
         {loadingSales ? (
-          <div className="p-4 rounded-xl bg-card border border-border text-center text-xs text-muted-foreground">
+          <div className="p-4 rounded-md bg-card border border-border text-center text-xs text-muted-foreground">
             Loading recent sales...
           </div>
         ) : recentSales.length === 0 ? (
-          <div className="p-5 rounded-xl border border-dashed border-border text-center space-y-2">
-            <Receipt className="w-7 h-7 text-muted-foreground mx-auto" />
-            <p className="text-xs font-semibold text-foreground">No sales recorded yet today</p>
+          <div className="p-5 rounded-md border border-dashed border-border text-center space-y-2">
+            <p className="text-xs font-medium text-foreground">No sales recorded yet today</p>
             <p className="text-[11px] text-muted-foreground">
-              Tap &apos;+ NEW SALE&apos; to record your first perfume sale.
+              Tap &apos;+ New Sale&apos; to record your first perfume sale.
             </p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {recentSales.map((sale) => (
               <div
                 key={sale.id}
-                className="p-3 rounded-xl bg-card border border-border flex items-center justify-between"
+                className="p-3 rounded-md bg-card border border-border flex items-center justify-between"
               >
                 <div>
-                  <p className="text-xs font-bold text-foreground">
+                  <p className="text-xs font-medium text-foreground">
                     {sale.customer?.name || "Walk-in Customer"}
                   </p>
                   <p className="text-[11px] text-muted-foreground">
@@ -225,16 +296,16 @@ export default function MobileHomePage() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs font-black text-foreground">
+                  <p className="text-xs font-bold text-foreground tabular-nums">
                     GH₵{sale.totalAmount.toFixed(2)}
                   </p>
                   <span
-                    className={`inline-block text-[10px] font-semibold px-1.5 py-0.2 rounded ${
+                    className={`inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded ${
                       sale.paymentStatus === "PAID"
-                        ? "bg-emerald-500/10 text-emerald-400"
+                        ? "bg-emerald-500/10 text-success"
                         : sale.paymentStatus === "PARTIAL"
-                        ? "bg-amber-500/10 text-amber-400"
-                        : "bg-red-500/10 text-red-400"
+                        ? "bg-amber-500/10 text-warning"
+                        : "bg-red-500/10 text-destructive"
                     }`}
                   >
                     {sale.paymentStatus}

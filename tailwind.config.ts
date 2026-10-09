@@ -17,8 +17,8 @@ const config: Config = {
     },
     extend: {
       fontFamily: {
-        sans: ["var(--font-sans)", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
-        display: ["var(--font-display)", "var(--font-sans)", "sans-serif"],
+        sans: ["var(--font-sans)", "Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
+        display: ["var(--font-display)", "Inter", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -32,12 +32,12 @@ const config: Config = {
           200: "#EBD9A4",
           300: "#E0C677",
           400: "#D4B44A",
-          500: "#C9A227", // Primary Avencia Gold
-          600: "#A8861F",
-          700: "#846817",
-          800: "#5E4A10",
-          900: "#392C0A",
-          950: "#211A05",
+          500: "#BFA028", // Primary Avencia Gold
+          600: "#A1841E",
+          700: "#7E6615",
+          800: "#5A480D",
+          900: "#382C07",
+          950: "#1F1803",
           ink: "hsl(var(--gold-ink))",
         },
         primary: {
@@ -89,10 +89,10 @@ const config: Config = {
         sm: "var(--radius-sm)",
       },
       boxShadow: {
-        subtle: "0 1px 2px 0 rgba(0, 0, 0, 0.04)",
-        card: "0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05)",
-        floating: "0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04)",
-        gold: "0 4px 14px 0 rgba(201, 162, 39, 0.35)",
+        subtle: "0 1px 2px 0 rgba(0, 0, 0, 0.03)",
+        card: "0 1px 2px 0 rgba(0, 0, 0, 0.03)",
+        floating: "0 12px 32px -4px rgba(0, 0, 0, 0.12)",
+        popover: "0 4px 16px -2px rgba(0, 0, 0, 0.08)",
       },
       keyframes: {
         "slide-up": {
@@ -100,23 +100,18 @@ const config: Config = {
           "100%": { transform: "translateY(0)", opacity: "1" },
         },
         "slide-down": {
-          "0%": { transform: "translateY(-10px)", opacity: "0" },
+          "0%": { transform: "translateY(-8px)", opacity: "0" },
           "100%": { transform: "translateY(0)", opacity: "1" },
         },
         "fade-in": {
           "0%": { opacity: "0" },
           "100%": { opacity: "1" },
         },
-        "pulse-subtle": {
-          "0%, 100%": { transform: "scale(1)" },
-          "50%": { transform: "scale(1.03)" },
-        },
       },
       animation: {
-        "slide-up": "slide-up 0.24s cubic-bezier(0.16, 1, 0.3, 1)",
-        "slide-down": "slide-down 0.18s ease-out",
-        "fade-in": "fade-in 0.15s ease-out",
-        "pulse-subtle": "pulse-subtle 2.4s ease-in-out infinite",
+        "slide-up": "slide-up 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+        "slide-down": "slide-down 0.15s ease-out",
+        "fade-in": "fade-in 0.12s ease-out",
       },
     },
   },

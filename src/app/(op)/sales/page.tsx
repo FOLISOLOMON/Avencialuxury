@@ -805,59 +805,47 @@ export default function SalesPage() {
       {/* SALES HISTORY VIEW */}
       {activeTab === "history" && (
         <div className="space-y-6">
-          {/* KPI Summary Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-            <Card className="p-4">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase">
-                Total Revenue
-              </span>
-              <div className="text-xl sm:text-2xl font-black text-foreground mt-1">
+          {/* KPI Summary Bar */}
+          <div className="rounded-lg border border-border bg-card grid grid-cols-2 md:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border">
+            <div className="p-4">
+              <div className="text-xs font-medium text-muted-foreground mb-1">Total Revenue</div>
+              <div className="text-2xl font-bold text-foreground tabular-nums">
                 <Money amount={summary.totalSalesRevenue} />
               </div>
               <div className="text-[11px] text-muted-foreground mt-0.5">
                 {summary.totalTransactions} transactions
               </div>
-            </Card>
+            </div>
 
-            <Card className="p-4">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase">
-                Cash Collected
-              </span>
-              <div className="text-xl sm:text-2xl font-black text-success mt-1">
+            <div className="p-4">
+              <div className="text-xs font-medium text-muted-foreground mb-1">Cash Collected</div>
+              <div className="text-2xl font-bold text-success tabular-nums">
                 <Money amount={summary.totalAmountCollected} />
               </div>
-              <div className="text-[11px] text-muted-foreground mt-0.5">
-                Realized cash inflow
-              </div>
-            </Card>
+              <div className="text-[11px] text-muted-foreground mt-0.5">Realized cash inflow</div>
+            </div>
 
-            <Card className="p-4">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase">
-                Outstanding Credit
-              </span>
-              <div className="text-xl sm:text-2xl font-black text-warning mt-1">
+            <div className="p-4">
+              <div className="text-xs font-medium text-muted-foreground mb-1">Outstanding Credit</div>
+              <div className="text-2xl font-bold text-warning tabular-nums">
                 <Money amount={summary.totalOutstanding} />
               </div>
-              <div className="text-[11px] text-muted-foreground mt-0.5">
-                Pending debtor balance
-              </div>
-            </Card>
+              <div className="text-[11px] text-muted-foreground mt-0.5">Pending debtor balance</div>
+            </div>
 
-            <Card className="p-4">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase">
-                Gross Profit
-              </span>
-              <div className="text-xl sm:text-2xl font-black text-primary mt-1">
+            <div className="p-4">
+              <div className="text-xs font-medium text-muted-foreground mb-1">Gross Profit</div>
+              <div className="text-2xl font-bold text-foreground tabular-nums">
                 <Money amount={summary.totalGrossProfit} />
               </div>
               <div className="text-[11px] text-muted-foreground mt-0.5">
                 {summary.profitMargin ? `${summary.profitMargin.toFixed(1)}% margin` : "FIFO calculated"}
               </div>
-            </Card>
+            </div>
           </div>
 
           {/* History Filters */}
-          <Card className="p-4 space-y-3">
+          <div className="rounded-lg border border-border bg-card p-3.5 space-y-3">
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="flex-1">
                 <SearchField
@@ -893,81 +881,180 @@ export default function SalesPage() {
                 />
               </div>
             </div>
-          </Card>
+          </div>
 
-          {/* Sales List */}
+          {/* Sales Transactions Table */}
           {sales.length === 0 ? (
-            <Card className="p-12 text-center text-muted-foreground">
-              <Receipt className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p className="text-sm font-semibold">No sales found</p>
-              <p className="text-xs mt-1">Try relaxing filters or record a new sale</p>
-            </Card>
+            <div className="rounded-lg border border-border bg-card p-12 text-center text-muted-foreground">
+              <p className="text-sm font-medium">No sales transactions found</p>
+              <p className="text-xs mt-1 text-muted-foreground/80">Try relaxing filters or record a new sale in the Sell tab</p>
+            </div>
           ) : (
-            <div className="space-y-3">
-              {sales.map((s) => {
-                const isVoided = s.status === "VOIDED";
-                const isPartial = s.paymentStatus === "PARTIAL" || s.balanceDue > 0;
-                const formattedDate = new Date(s.saleDate).toLocaleDateString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                });
+            <div className="rounded-lg border border-border bg-card overflow-hidden">
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-secondary/60 text-muted-foreground border-b border-border select-none">
+                    <tr>
+                      <th className="py-3 px-4 font-medium">Invoice & Date</th>
+                      <th className="py-3 px-4 font-medium">Customer</th>
+                      <th className="py-3 px-4 font-medium">Items</th>
+                      <th className="py-3 px-4 font-medium">Payment Method</th>
+                      <th className="py-3 px-4 font-medium text-right">Amount</th>
+                      <th className="py-3 px-4 font-medium">Status</th>
+                      <th className="py-3 px-4 font-medium text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {sales.map((s) => {
+                      const isVoided = s.status === "VOIDED";
+                      const isPartial = s.paymentStatus === "PARTIAL" || s.balanceDue > 0;
+                      const formattedDate = new Date(s.saleDate).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      });
 
-                return (
-                  <Card
-                    key={s.id}
-                    className={`p-4 transition-all hover:border-primary/40 ${
-                      isVoided ? "opacity-60 bg-muted/20" : ""
-                    }`}
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      {/* Sale Info */}
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5 font-black text-xs">
-                          {s.customer?.name ? s.customer.name.slice(0, 2).toUpperCase() : "WK"}
-                        </div>
-
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-bold text-foreground">
-                              {s.customer?.name || "Walk-in Customer"}
-                            </span>
-                            <span className="text-[11px] text-muted-foreground">
+                      return (
+                        <tr
+                          key={s.id}
+                          className={`hover:bg-secondary/40 transition-colors ${
+                            isVoided ? "opacity-60 bg-secondary/20" : ""
+                          }`}
+                        >
+                          <td className="py-3 px-4">
+                            <span className="font-mono text-xs font-semibold text-foreground">
                               #{s.id.slice(-6).toUpperCase()}
                             </span>
+                            <div className="text-[11px] text-muted-foreground mt-0.5">{formattedDate}</div>
+                          </td>
 
+                          <td className="py-3 px-4">
+                            <span className="font-medium text-foreground">
+                              {s.customer?.name || "Walk-in Client"}
+                            </span>
+                          </td>
+
+                          <td className="py-3 px-4 text-muted-foreground tabular-nums">
+                            {s.saleItems.length} {s.saleItems.length === 1 ? "item" : "items"}
+                          </td>
+
+                          <td className="py-3 px-4 text-muted-foreground">
+                            {s.paymentMethod}
+                          </td>
+
+                          <td className="py-3 px-4 text-right tabular-nums">
+                            <div className="font-semibold text-foreground">
+                              <Money amount={s.totalAmount} />
+                            </div>
+                            <div className="text-[11px] text-success font-medium">
+                              +<Money amount={s.grossProfit} /> margin
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-4">
                             {isVoided ? (
-                              <Badge variant="destructive">Voided</Badge>
+                              <span className="text-destructive font-medium text-xs">Voided</span>
                             ) : isPartial ? (
-                              <Badge variant="warning">
+                              <span className="text-warning font-medium text-xs">
                                 Due: {formatCurrency(s.balanceDue)}
-                              </Badge>
+                              </span>
                             ) : (
-                              <Badge variant="success">Paid</Badge>
+                              <span className="text-success font-medium text-xs">Paid</span>
                             )}
+                          </td>
 
-                            <Badge variant="outline">{s.paymentMethod}</Badge>
+                          <td className="py-3 px-4 text-right">
+                            <div className="inline-flex items-center gap-1.5">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setReceiptSale(s)}
+                              >
+                                Receipt
+                              </Button>
+
+                              {isPartial && !isVoided && (
+                                <Button
+                                  size="sm"
+                                  variant="primary"
+                                  onClick={() => {
+                                    setDebtSale(s);
+                                    setDebtAmount(s.balanceDue.toString());
+                                    setDebtNotes(`Payment for #${s.id.slice(-6)}`);
+                                  }}
+                                >
+                                  Collect
+                                </Button>
+                              )}
+
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setSelectedSaleDetail(s)}
+                              >
+                                Details
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Transaction Rows */}
+              <div className="md:hidden divide-y divide-border">
+                {sales.map((s) => {
+                  const isVoided = s.status === "VOIDED";
+                  const isPartial = s.paymentStatus === "PARTIAL" || s.balanceDue > 0;
+                  const formattedDate = new Date(s.saleDate).toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
+
+                  return (
+                    <div
+                      key={s.id}
+                      className={`p-3.5 space-y-2.5 ${
+                        isVoided ? "opacity-60 bg-secondary/20" : ""
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="font-semibold text-foreground text-xs">
+                            {s.customer?.name || "Walk-in Client"}
                           </div>
+                          <div className="text-[11px] text-muted-foreground mt-0.5">
+                            #{s.id.slice(-6).toUpperCase()} • {formattedDate}
+                          </div>
+                        </div>
 
-                          <div className="text-xs text-muted-foreground mt-1 flex items-center gap-3">
-                            <span>{formattedDate}</span>
-                            <span>•</span>
-                            <span>{s.saleItems.length} line items</span>
+                        <div className="text-right">
+                          <div className="font-semibold text-foreground text-xs tabular-nums">
+                            <Money amount={s.totalAmount} />
+                          </div>
+                          <div className="text-[10px] text-success font-medium tabular-nums mt-0.5">
+                            +<Money amount={s.grossProfit} />
                           </div>
                         </div>
                       </div>
 
-                      {/* Amounts & Action buttons */}
-                      <div className="flex items-center justify-between sm:justify-end gap-4 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/60">
-                        <div className="text-right">
-                          <div className="text-sm font-black text-foreground">
-                            <Money amount={s.totalAmount} />
-                          </div>
-                          <div className="text-[11px] text-success">
-                            +<Money amount={s.grossProfit} /> profit
-                          </div>
+                      <div className="flex items-center justify-between pt-1 border-t border-border/60 text-xs">
+                        <div>
+                          {isVoided ? (
+                            <span className="text-destructive font-medium text-[11px]">Voided</span>
+                          ) : isPartial ? (
+                            <span className="text-warning font-medium text-[11px]">
+                              Due: {formatCurrency(s.balanceDue)}
+                            </span>
+                          ) : (
+                            <span className="text-success font-medium text-[11px]">Paid • {s.paymentMethod}</span>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-1.5">
@@ -975,12 +1062,9 @@ export default function SalesPage() {
                             size="sm"
                             variant="outline"
                             onClick={() => setReceiptSale(s)}
-                            className="gap-1.5"
                           >
-                            <Printer className="w-3.5 h-3.5" />
-                            <span className="hidden md:inline">Receipt</span>
+                            Receipt
                           </Button>
-
                           {isPartial && !isVoided && (
                             <Button
                               size="sm"
@@ -990,13 +1074,10 @@ export default function SalesPage() {
                                 setDebtAmount(s.balanceDue.toString());
                                 setDebtNotes(`Payment for #${s.id.slice(-6)}`);
                               }}
-                              className="gap-1.5"
                             >
-                              <Banknote className="w-3.5 h-3.5" />
-                              <span className="hidden md:inline">Collect Debt</span>
+                              Collect
                             </Button>
                           )}
-
                           <Button
                             size="sm"
                             variant="ghost"
@@ -1007,9 +1088,9 @@ export default function SalesPage() {
                         </div>
                       </div>
                     </div>
-                  </Card>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -1377,7 +1458,7 @@ export default function SalesPage() {
       {/* CAMERA BARCODE SCANNER MODAL */}
       {showCameraScanner && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card w-full max-w-md rounded-3xl overflow-hidden border border-border shadow-2xl p-4">
+          <div className="bg-card w-full max-w-md rounded-lg overflow-hidden border border-border shadow-2xl p-4">
             <div className="flex items-center justify-between pb-3 border-b border-border">
               <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                 <Camera className="w-4 h-4 text-primary" />

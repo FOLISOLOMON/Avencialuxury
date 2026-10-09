@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
   Search,
   Plus,
@@ -16,6 +17,7 @@ import {
   Clock,
   Sparkles,
   Barcode,
+  ArrowLeft,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -23,7 +25,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { useMobileProducts, useMobileCustomers } from "@/lib/mobile/hooks";
 import { MobileProduct, MobileCustomer } from "@/lib/mobile/types";
 import { InlineCustomerModal } from "@/components/mobile/InlineCustomerModal";
-import { addPendingSale } from "@/lib/mobile/db";
+import { addPendingSale, putCachedCustomer } from "@/lib/mobile/db";
 import { syncManager } from "@/lib/mobile/sync";
 
 interface CartItem {
@@ -161,8 +163,8 @@ function MobileSellContent() {
       return;
     }
 
-    if (paymentType === "CREDIT" && !selectedCustomer) {
-      toast.error("Credit sale requires selecting or adding a customer", "Customer required");
+    if ((paymentType === "CREDIT" || (paymentType === "PARTIAL" && debtRemaining > 0)) && !selectedCustomer) {
+      toast.error("Partial or credit payment requires selecting or adding a customer to record debt", "Customer required");
       return;
     }
 
@@ -193,6 +195,16 @@ function MobileSellContent() {
 
         const json = await res.json();
         if (json.success && json.data) {
+          // Immediately update customer cache with new debt & spend
+          if (selectedCustomer) {
+            await putCachedCustomer({
+              ...selectedCustomer,
+              totalDebt: (selectedCustomer.totalDebt || 0) + debtRemaining,
+              totalSpent: (selectedCustomer.totalSpent || 0) + totalAmount,
+              lastPurchaseDate: new Date().toISOString(),
+            });
+          }
+
           setSaleSuccessData({
             total: totalAmount,
             receipt: json.data.receiptNumber || json.data.id?.substring(0, 8),
@@ -225,6 +237,15 @@ function MobileSellContent() {
           saleDate: new Date().toISOString(),
         });
 
+        if (selectedCustomer) {
+          await putCachedCustomer({
+            ...selectedCustomer,
+            totalDebt: (selectedCustomer.totalDebt || 0) + debtRemaining,
+            totalSpent: (selectedCustomer.totalSpent || 0) + totalAmount,
+            lastPurchaseDate: new Date().toISOString(),
+          });
+        }
+
         setSaleSuccessData({
           total: totalAmount,
           isOffline: true,
@@ -253,6 +274,15 @@ function MobileSellContent() {
         notes: saleNotes.trim() || undefined,
         saleDate: new Date().toISOString(),
       });
+
+      if (selectedCustomer) {
+        await putCachedCustomer({
+          ...selectedCustomer,
+          totalDebt: (selectedCustomer.totalDebt || 0) + debtRemaining,
+          totalSpent: (selectedCustomer.totalSpent || 0) + totalAmount,
+          lastPurchaseDate: new Date().toISOString(),
+        });
+      }
 
       setSaleSuccessData({
         total: totalAmount,
@@ -331,18 +361,28 @@ function MobileSellContent() {
   }
 
   return (
-    <div className="space-y-4 pb-20">
-      {/* 1. Header */}
+    <div className="space-y-4 pb-28">
+      {/* 1. Header with Back Button */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-foreground tracking-tight">New Sale</h1>
-          <p className="text-xs text-muted-foreground">Fast field checkout</p>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/mobile"
+            className="p-1.5 -ml-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors active:scale-95"
+            aria-label="Back to store"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <div>
+            <h1 className="text-lg font-bold text-foreground tracking-tight">New Sale</h1>
+            <p className="text-xs text-muted-foreground">Fast field checkout</p>
+          </div>
         </div>
+
         {cart.length > 0 && (
           <button
             type="button"
             onClick={() => setCart([])}
-            className="text-xs text-muted-foreground hover:text-destructive active:scale-95"
+            className="text-xs font-semibold text-muted-foreground hover:text-destructive active:scale-95 px-2 py-1 rounded-lg"
           >
             Clear cart
           </button>
@@ -665,15 +705,15 @@ function MobileSellContent() {
         )}
       </div>
 
-      {/* STICKY BOTTOM ACTION: COMPLETE SALE */}
-      <div className="fixed bottom-14 left-0 right-0 p-3 bg-background/95 backdrop-blur-md border-t border-border z-20 max-w-md mx-auto">
+      {/* FIXED BOTTOM ACTION: COMPLETE SALE */}
+      <div className="fixed bottom-0 left-0 right-0 p-3.5 bg-card/95 backdrop-blur-xl border-t border-border z-40 max-w-md mx-auto pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.15)]">
         <Button
           onClick={handleCompleteSale}
           disabled={cart.length === 0 || submitting}
-          className="w-full h-13 text-base font-black bg-primary text-primary-foreground shadow-lg shadow-primary/20 rounded-xl flex items-center justify-between px-5 active:scale-[0.98] transition-transform"
+          className="w-full h-13 text-base font-black bg-primary text-primary-foreground shadow-lg shadow-primary/25 rounded-2xl flex items-center justify-between px-5 active:scale-[0.98] transition-all hover:brightness-105"
         >
-          <span>{submitting ? "Recording..." : "COMPLETE SALE"}</span>
-          <span className="text-lg">GH₵{totalAmount.toFixed(2)}</span>
+          <span className="tracking-wide uppercase font-black">{submitting ? "RECORDING..." : "COMPLETE SALE"}</span>
+          <span className="text-lg font-black tracking-tight">GH₵{totalAmount.toFixed(2)}</span>
         </Button>
       </div>
 
