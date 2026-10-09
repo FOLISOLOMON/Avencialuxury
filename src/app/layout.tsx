@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ClientProviders } from "@/components/providers/ClientProviders";
+import { ServiceWorkerRegister } from "@/components/providers/ServiceWorkerRegister";
 
 const inter = Inter({ subsets: ["latin"] });
+
 
 export const metadata: Metadata = {
   title: "Avencia | Business Management & Sales Operating System",
@@ -40,6 +42,7 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} min-h-screen bg-background text-foreground antialiased`}>
         <ClientProviders>
+          <ServiceWorkerRegister />
           {children}
         </ClientProviders>
       </body>

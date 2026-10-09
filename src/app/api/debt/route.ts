@@ -62,3 +62,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: error.message || "Failed to record debt payment" }, { status: 400 });
   }
 }
+
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+    const { saleId, dueDate } = body;
+
+    if (!saleId) {
+      return NextResponse.json({ success: false, error: "saleId is required" }, { status: 400 });
+    }
+
+    const { updateSaleDueDate } = await import("@/lib/services/debt-reminder");
+    const updated = await updateSaleDueDate({
+      saleId,
+      dueDate: dueDate ? new Date(dueDate) : null,
+      businessId: DEFAULT_BUSINESS_ID,
+    });
+
+    return NextResponse.json({ success: true, data: serializePlainObject(updated) });
+  } catch (error: any) {
+    console.error("PATCH /api/debt error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message || "Failed to update debt due date" },
+      { status: 400 }
+    );
+  }
+}
+

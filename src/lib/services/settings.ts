@@ -11,6 +11,16 @@ export interface UpdateSettingsInput {
   dormantCustomerDays?: number;
   dailySummaryEnabled?: boolean;
   weeklySummaryEnabled?: boolean;
+  pushEnabled?: boolean;
+  upcomingRemindersEnabled?: boolean;
+  upcomingDaysAdvance?: number;
+  dueTodayEnabled?: boolean;
+  overdueEnabled?: boolean;
+  overdueIntervalDays?: number;
+  showCustomerDetailsInPush?: boolean;
+  quietHoursStart?: string | null;
+  quietHoursEnd?: string | null;
+  timezone?: string;
 }
 
 export async function getSettings(businessId: string) {
@@ -44,6 +54,14 @@ export async function getSettings(businessId: string) {
         dormantCustomerDays: 30,
         dailySummaryEnabled: true,
         weeklySummaryEnabled: true,
+        pushEnabled: true,
+        upcomingRemindersEnabled: true,
+        upcomingDaysAdvance: 1,
+        dueTodayEnabled: true,
+        overdueEnabled: true,
+        overdueIntervalDays: 3,
+        showCustomerDetailsInPush: false,
+        timezone: "Africa/Accra",
       },
     });
   }
@@ -59,6 +77,16 @@ export async function getSettings(businessId: string) {
     dormantCustomerDays: notificationSetting.dormantCustomerDays ?? 30,
     dailySummaryEnabled: notificationSetting.dailySummaryEnabled ?? true,
     weeklySummaryEnabled: notificationSetting.weeklySummaryEnabled ?? true,
+    pushEnabled: notificationSetting.pushEnabled ?? true,
+    upcomingRemindersEnabled: notificationSetting.upcomingRemindersEnabled ?? true,
+    upcomingDaysAdvance: notificationSetting.upcomingDaysAdvance ?? 1,
+    dueTodayEnabled: notificationSetting.dueTodayEnabled ?? true,
+    overdueEnabled: notificationSetting.overdueEnabled ?? true,
+    overdueIntervalDays: notificationSetting.overdueIntervalDays ?? 3,
+    showCustomerDetailsInPush: notificationSetting.showCustomerDetailsInPush ?? false,
+    quietHoursStart: notificationSetting.quietHoursStart ?? null,
+    quietHoursEnd: notificationSetting.quietHoursEnd ?? null,
+    timezone: notificationSetting.timezone || "Africa/Accra",
     notificationSetting,
   };
 }
@@ -97,7 +125,7 @@ export async function updateSettings(input: UpdateSettingsInput) {
     data: { lowStockThreshold },
   });
 
-  // Prepare NotificationSetting updates for automation rules controls
+  // Prepare NotificationSetting updates for automation rules & push controls
   const notificationUpdateData: any = {};
   if (input.largeExpenseThreshold !== undefined) {
     notificationUpdateData.largeExpenseThreshold = new Prisma.Decimal(input.largeExpenseThreshold);
@@ -114,6 +142,36 @@ export async function updateSettings(input: UpdateSettingsInput) {
   if (input.weeklySummaryEnabled !== undefined) {
     notificationUpdateData.weeklySummaryEnabled = input.weeklySummaryEnabled;
   }
+  if (input.pushEnabled !== undefined) {
+    notificationUpdateData.pushEnabled = input.pushEnabled;
+  }
+  if (input.upcomingRemindersEnabled !== undefined) {
+    notificationUpdateData.upcomingRemindersEnabled = input.upcomingRemindersEnabled;
+  }
+  if (input.upcomingDaysAdvance !== undefined) {
+    notificationUpdateData.upcomingDaysAdvance = input.upcomingDaysAdvance;
+  }
+  if (input.dueTodayEnabled !== undefined) {
+    notificationUpdateData.dueTodayEnabled = input.dueTodayEnabled;
+  }
+  if (input.overdueEnabled !== undefined) {
+    notificationUpdateData.overdueEnabled = input.overdueEnabled;
+  }
+  if (input.overdueIntervalDays !== undefined) {
+    notificationUpdateData.overdueIntervalDays = input.overdueIntervalDays;
+  }
+  if (input.showCustomerDetailsInPush !== undefined) {
+    notificationUpdateData.showCustomerDetailsInPush = input.showCustomerDetailsInPush;
+  }
+  if (input.quietHoursStart !== undefined) {
+    notificationUpdateData.quietHoursStart = input.quietHoursStart;
+  }
+  if (input.quietHoursEnd !== undefined) {
+    notificationUpdateData.quietHoursEnd = input.quietHoursEnd;
+  }
+  if (input.timezone !== undefined) {
+    notificationUpdateData.timezone = input.timezone;
+  }
 
   const updatedNotificationSetting = await prisma.notificationSetting.upsert({
     where: { businessId: input.businessId },
@@ -125,6 +183,16 @@ export async function updateSettings(input: UpdateSettingsInput) {
       dormantCustomerDays: input.dormantCustomerDays ?? 30,
       dailySummaryEnabled: input.dailySummaryEnabled ?? true,
       weeklySummaryEnabled: input.weeklySummaryEnabled ?? true,
+      pushEnabled: input.pushEnabled ?? true,
+      upcomingRemindersEnabled: input.upcomingRemindersEnabled ?? true,
+      upcomingDaysAdvance: input.upcomingDaysAdvance ?? 1,
+      dueTodayEnabled: input.dueTodayEnabled ?? true,
+      overdueEnabled: input.overdueEnabled ?? true,
+      overdueIntervalDays: input.overdueIntervalDays ?? 3,
+      showCustomerDetailsInPush: input.showCustomerDetailsInPush ?? false,
+      quietHoursStart: input.quietHoursStart ?? null,
+      quietHoursEnd: input.quietHoursEnd ?? null,
+      timezone: input.timezone || "Africa/Accra",
     },
   });
 
@@ -139,6 +207,17 @@ export async function updateSettings(input: UpdateSettingsInput) {
     dormantCustomerDays: updatedNotificationSetting.dormantCustomerDays ?? 30,
     dailySummaryEnabled: updatedNotificationSetting.dailySummaryEnabled ?? true,
     weeklySummaryEnabled: updatedNotificationSetting.weeklySummaryEnabled ?? true,
+    pushEnabled: updatedNotificationSetting.pushEnabled ?? true,
+    upcomingRemindersEnabled: updatedNotificationSetting.upcomingRemindersEnabled ?? true,
+    upcomingDaysAdvance: updatedNotificationSetting.upcomingDaysAdvance ?? 1,
+    dueTodayEnabled: updatedNotificationSetting.dueTodayEnabled ?? true,
+    overdueEnabled: updatedNotificationSetting.overdueEnabled ?? true,
+    overdueIntervalDays: updatedNotificationSetting.overdueIntervalDays ?? 3,
+    showCustomerDetailsInPush: updatedNotificationSetting.showCustomerDetailsInPush ?? false,
+    quietHoursStart: updatedNotificationSetting.quietHoursStart ?? null,
+    quietHoursEnd: updatedNotificationSetting.quietHoursEnd ?? null,
+    timezone: updatedNotificationSetting.timezone || "Africa/Accra",
     notificationSetting: updatedNotificationSetting,
   };
 }
+

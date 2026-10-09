@@ -18,6 +18,9 @@ import {
 import { Button } from "@/components/ui/Button";
 import { useSyncStatus, usePendingQueue } from "@/lib/mobile/hooks";
 import { useTheme } from "@/components/theme/ThemeProvider";
+import { NotificationSettingsCard } from "@/components/notifications/NotificationSettingsCard";
+
+
 
 export default function MobileMorePage() {
   const { state, lastSyncedAt, triggerSync } = useSyncStatus();
@@ -151,7 +154,10 @@ export default function MobileMorePage() {
         </Link>
       </div>
 
-      {/* 5. SWITCH TO DESKTOP AVENCIA OP */}
+      {/* 5. EXTERNAL WEB PUSH NOTIFICATIONS & DEBT REMINDERS */}
+      <NotificationSettingsCard />
+
+      {/* 6. SWITCH TO DESKTOP AVENCIA OP */}
       <div className="p-4 rounded-2xl bg-card border border-border shadow-xs space-y-2">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">

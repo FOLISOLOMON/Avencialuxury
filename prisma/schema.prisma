@@ -105,6 +105,8 @@ model Business {
   notificationSetting NotificationSetting?
   automationExecutions AutomationExecution[]
   whatsAppLogs        WhatsAppLog[]
+  pushSubscriptions   PushSubscription[]
+  pushDeliveryLogs    PushDeliveryLog[]
 }
 
 
@@ -250,6 +252,7 @@ model Sale {
   paymentStatus PaymentStatus @default(PAID)
   amountPaid    Decimal       @default(0) @db.Decimal(12, 2)
   balanceDue    Decimal       @default(0) @db.Decimal(12, 2)
+  dueDate       DateTime?
   status        SaleStatus    @default(COMPLETED)
   notes         String?
   createdAt     DateTime      @default(now())
@@ -259,6 +262,7 @@ model Sale {
 
   @@index([businessId])
   @@index([businessId, saleDate])
+  @@index([businessId, dueDate])
   @@index([businessId, customerId])
   @@index([businessId, status])
   @@index([businessId, paymentStatus])
@@ -414,6 +418,16 @@ model NotificationSetting {
   weeklySummaryEnabled   Boolean  @default(true)
   profitAllocatedEnabled Boolean  @default(true)
   securityEnabled        Boolean  @default(true)
+  pushEnabled               Boolean  @default(true)
+  upcomingRemindersEnabled  Boolean  @default(true)
+  upcomingDaysAdvance       Int      @default(1)
+  dueTodayEnabled           Boolean  @default(true)
+  overdueEnabled            Boolean  @default(true)
+  overdueIntervalDays       Int      @default(3)
+  showCustomerDetailsInPush Boolean  @default(false)
+  quietHoursStart           String?
+  quietHoursEnd             String?
+  timezone                  String   @default("Africa/Accra")
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 }
@@ -474,4 +488,48 @@ model WhatsAppLog {
   @@index([businessId, status])
   @@index([dedupeKey])
 }
+
+model PushSubscription {
+  id          String    @id @default(cuid())
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  userId      String?
+  endpoint    String    @unique
+  p256dh      String
+  auth        String
+  userAgent   String?
+  deviceName  String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([businessId])
+  @@index([businessId, isActive])
+}
+
+model PushDeliveryLog {
+  id              String    @id @default(cuid())
+  businessId      String
+  business        Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  notificationType String
+  entityType      String?
+  entityId        String?
+  customerId      String?
+  saleId          String?
+  scheduledDate   DateTime?
+  dedupeKey       String    @unique
+  title           String
+  body            String
+  status          String    @default("SENT")
+  recipientCount  Int       @default(0)
+  error           String?
+  sentAt          DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([businessId])
+  @@index([businessId, notificationType])
+  @@index([businessId, createdAt])
+  @@index([dedupeKey])
+}
+
 

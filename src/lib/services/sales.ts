@@ -34,6 +34,7 @@ export interface CreateSaleInput {
   businessId: string;
   customerId?: string | null;
   saleDate?: Date | null;
+  dueDate?: Date | string | null;
   discount?: number | null;
   paymentMethod?: PaymentMethod | string | null;
   amountPaid?: number | null;
@@ -252,6 +253,7 @@ export async function createSale(input: CreateSaleInput) {
           businessId: input.businessId,
           customerId: input.customerId || null,
           saleDate: input.saleDate || new Date(),
+          dueDate: input.dueDate ? new Date(input.dueDate) : null,
           subtotal: new Prisma.Decimal(subtotal),
           discount: new Prisma.Decimal(discount),
           totalAmount: new Prisma.Decimal(totalAmount),

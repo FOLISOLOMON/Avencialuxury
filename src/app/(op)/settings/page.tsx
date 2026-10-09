@@ -32,6 +32,8 @@ import {
   Layers,
   Sparkles,
 } from "lucide-react";
+import { NotificationSettingsCard } from "@/components/notifications/NotificationSettingsCard";
+
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
@@ -451,6 +453,11 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* SECTION 5: EXTERNAL WEB PUSH NOTIFICATIONS & DEBT REMINDERS */}
+        <div className="p-5 space-y-4">
+          <NotificationSettingsCard />
         </div>
       </div>
     </div>

@@ -95,6 +95,28 @@ export async function POST(request: Request) {
     const weeklySummaryEnabled =
       body.weeklySummaryEnabled !== undefined ? Boolean(body.weeklySummaryEnabled) : undefined;
 
+    // Push Notification Settings
+    const pushEnabled =
+      body.pushEnabled !== undefined ? Boolean(body.pushEnabled) : undefined;
+    const upcomingRemindersEnabled =
+      body.upcomingRemindersEnabled !== undefined ? Boolean(body.upcomingRemindersEnabled) : undefined;
+    const upcomingDaysAdvance =
+      body.upcomingDaysAdvance !== undefined ? parseInt(body.upcomingDaysAdvance, 10) : undefined;
+    const dueTodayEnabled =
+      body.dueTodayEnabled !== undefined ? Boolean(body.dueTodayEnabled) : undefined;
+    const overdueEnabled =
+      body.overdueEnabled !== undefined ? Boolean(body.overdueEnabled) : undefined;
+    const overdueIntervalDays =
+      body.overdueIntervalDays !== undefined ? parseInt(body.overdueIntervalDays, 10) : undefined;
+    const showCustomerDetailsInPush =
+      body.showCustomerDetailsInPush !== undefined ? Boolean(body.showCustomerDetailsInPush) : undefined;
+    const quietHoursStart =
+      body.quietHoursStart !== undefined ? (body.quietHoursStart ? String(body.quietHoursStart).trim() : null) : undefined;
+    const quietHoursEnd =
+      body.quietHoursEnd !== undefined ? (body.quietHoursEnd ? String(body.quietHoursEnd).trim() : null) : undefined;
+    const timezone =
+      body.timezone !== undefined ? String(body.timezone).trim() : undefined;
+
     const settings = await updateSettings({
       businessId: DEFAULT_BUSINESS_ID,
       lowStockThreshold,
@@ -105,6 +127,16 @@ export async function POST(request: Request) {
       dormantCustomerDays,
       dailySummaryEnabled,
       weeklySummaryEnabled,
+      pushEnabled,
+      upcomingRemindersEnabled,
+      upcomingDaysAdvance,
+      dueTodayEnabled,
+      overdueEnabled,
+      overdueIntervalDays,
+      showCustomerDetailsInPush,
+      quietHoursStart,
+      quietHoursEnd,
+      timezone,
     });
 
     return NextResponse.json({ success: true, data: serializePlainObject(settings) });

@@ -434,3 +434,22 @@ export async function cleanupExpiredNotifications(businessId?: string): Promise<
     deletedCount: deleted.count,
   };
 }
+
+/**
+ * 5. runDebtReminders(businessId)
+ * Scans active customer debts and sends external push notifications for upcoming,
+ * due today, and overdue debts.
+ */
+export async function runDebtReminders(businessId?: string) {
+  const { runDebtReminderScan } = await import("@/lib/services/debt-reminder");
+  const targetIds = await resolveBusinessIds(businessId);
+  const results = [];
+
+  for (const bId of targetIds) {
+    const scan = await runDebtReminderScan(bId);
+    results.push(scan);
+  }
+
+  return results;
+}
+

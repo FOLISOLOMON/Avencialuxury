@@ -24,11 +24,23 @@ function MobileCustomersContent() {
   const [selectedPaymentCustomer, setSelectedPaymentCustomer] = useState<MobileCustomer | null>(null);
   const [filterDebtOnly, setFilterDebtOnly] = useState(initialDebtOnly);
 
+  const urlCustomerId = searchParams.get("id");
+
   React.useEffect(() => {
-    if (searchParams.get("filter") === "debt" || searchParams.get("tab") === "debt") {
+    if (searchParams.get("filter") === "debt" || searchParams.get("tab") === "debt" || urlCustomerId) {
       setFilterDebtOnly(true);
     }
-  }, [searchParams]);
+  }, [searchParams, urlCustomerId]);
+
+  React.useEffect(() => {
+    if (urlCustomerId && customers.length > 0) {
+      const match = customers.find((c) => c.id === urlCustomerId);
+      if (match) {
+        setSearch(match.name);
+      }
+    }
+  }, [urlCustomerId, customers]);
+
 
   const filteredCustomers = useMemo(() => {
     let result = customers;

@@ -117,3 +117,76 @@ self.addEventListener("fetch", (event) => {
     })()
   );
 });
+
+// ==========================================
+// 4. Web Push Notifications Engine
+// ==========================================
+
+self.addEventListener("push", (event) => {
+  let data = {
+    title: "Avencia — Payment Reminder",
+    body: "You have an important business alert.",
+    icon: "/logo/Avencia gold icon logo.png",
+    badge: "/icon.png",
+    url: "/customers",
+  };
+
+  if (event.data) {
+    try {
+      const parsed = event.data.json();
+      data = { ...data, ...parsed };
+    } catch (e) {
+      data.body = event.data.text() || data.body;
+    }
+  }
+
+  const notificationOptions = {
+    body: data.body,
+    icon: data.icon || "/logo/Avencia gold icon logo.png",
+    badge: data.badge || "/icon.png",
+    tag: data.tag || `avencia-alert-${Date.now()}`,
+    renotify: true,
+    requireInteraction: false,
+    data: {
+      url: data.url || "/customers",
+      ...data.data,
+    },
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, notificationOptions)
+  );
+});
+
+// ==========================================
+// 5. Notification Click & App Navigation
+// ==========================================
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const targetUrl = event.notification.data?.url || "/customers";
+
+  event.waitUntil(
+    clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((windowClients) => {
+        // If an existing Avencia window/tab is open, focus it and navigate
+        for (const client of windowClients) {
+          if ("focus" in client) {
+            client.focus();
+            if ("navigate" in client) {
+              return client.navigate(targetUrl);
+            }
+            return client;
+          }
+        }
+
+        // If no window is currently open, open a new window to the target URL
+        if (clients.openWindow) {
+          return clients.openWindow(targetUrl);
+        }
+      })
+  );
+});
+

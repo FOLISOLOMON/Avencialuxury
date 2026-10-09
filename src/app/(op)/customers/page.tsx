@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { formatCurrency, formatGhanaPhoneNumber } from "@/lib/utils";
 import {
   Button,
@@ -49,14 +50,17 @@ interface Customer {
   lastPurchaseDate: string | null;
 }
 
-export default function CustomersPage() {
+function CustomersContent() {
+  const searchParams = useSearchParams();
+  const urlCustomerId = searchParams.get("id");
+
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Search & Filter
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<"ALL" | "DEBTORS">("ALL");
+  const [activeTab, setActiveTab] = useState<"ALL" | "DEBTORS">(urlCustomerId ? "DEBTORS" : "ALL");
 
   // Add Customer Sheet
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -99,6 +103,19 @@ export default function CustomersPage() {
   useEffect(() => {
     fetchCustomers();
   }, [search]);
+
+  // Handle URL deep-link from notification clicks (?id=...&saleId=...)
+  useEffect(() => {
+    if (urlCustomerId && customers.length > 0) {
+      const match = customers.find((c) => c.id === urlCustomerId);
+      if (match) {
+        setSelectedCustomer(match);
+        if ((match.totalOutstandingDebt || 0) > 0) {
+          setActiveTab("DEBTORS");
+        }
+      }
+    }
+  }, [urlCustomerId, customers]);
 
   // Global Add Customer Header Trigger
   useEffect(() => {
@@ -721,25 +738,52 @@ export default function CustomersPage() {
               </div>
             )}
 
-            <div className="pt-2 flex gap-3">
-              {(selectedCustomer.totalOutstandingDebt || 0) > 0 && (
-                <Button
-                  variant="primary"
-                  className="flex-1 font-black"
-                  onClick={() => {
-                    const c = selectedCustomer;
-                    setSelectedCustomer(null);
-                    openDebtModal(c);
-                  }}
-                >
-                  <Banknote className="w-4 h-4 mr-2" />
-                  Record Payment
-                </Button>
+            <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+              {(selectedCustomer.totalOutstandingDebt || 0) > 0 ? (
+                <>
+                  <Button
+                    variant="primary"
+                    className="flex-1 font-black"
+                    onClick={() => {
+                      const c = selectedCustomer;
+                      setSelectedCustomer(null);
+                      openDebtModal(c);
+                    }}
+                  >
+                    <Banknote className="w-4 h-4 mr-2" />
+                    Record Payment
+                  </Button>
+
+                  {selectedCustomer.phone && (
+                    <a
+                      href={getWhatsAppDebtReminderUrl(selectedCustomer) || "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 inline-flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-colors"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      Remind on WhatsApp
+                    </a>
+                  )}
+                </>
+              ) : (
+                <div className="w-full p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center justify-center gap-1.5 font-semibold">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Account in good standing — no outstanding debt</span>
+                </div>
               )}
             </div>
           </div>
         )}
       </Sheet>
     </div>
+  );
+}
+
+export default function CustomersPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-xs text-muted-foreground">Loading customers...</div>}>
+      <CustomersContent />
+    </Suspense>
   );
 }
