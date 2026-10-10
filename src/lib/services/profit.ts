@@ -23,6 +23,8 @@ export async function getFinancialSummary(businessId: string) {
       totalAmount: true,
       totalCost: true,
       grossProfit: true,
+      amountPaid: true,
+      balanceDue: true,
     },
   });
 
@@ -34,6 +36,8 @@ export async function getFinancialSummary(businessId: string) {
   });
 
   const totalRevenue = salesAggregate._sum.totalAmount?.toNumber() || 0;
+  const totalAmountCollected = salesAggregate._sum.amountPaid?.toNumber() || 0;
+  const totalOutstandingDebt = salesAggregate._sum.balanceDue?.toNumber() || 0;
   const totalCostOfGoods = salesAggregate._sum.totalCost?.toNumber() || 0;
   const totalGrossProfit = salesAggregate._sum.grossProfit?.toNumber() || 0;
   const totalExpenses = expensesAggregate._sum.amount?.toNumber() || 0;
@@ -86,6 +90,8 @@ export async function getFinancialSummary(businessId: string) {
 
   return {
     totalRevenue,
+    totalAmountCollected,
+    totalOutstandingDebt,
     totalCostOfGoods,
     totalGrossProfit,
     totalExpenses,

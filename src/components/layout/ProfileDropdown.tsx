@@ -32,7 +32,7 @@ export function ProfileDropdown() {
       {/* Trigger Button: Avatar + Dropdown Indicator */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 p-1 rounded-full hover:bg-gold-500/15 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+        className="flex items-center gap-1.5 p-1 rounded-full hover:bg-accent/60 transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40"
         aria-label="User Profile & Settings Menu"
         aria-expanded={isOpen}
       >

@@ -474,7 +474,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
         {items.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground">
             <p className="text-sm font-medium">No products added yet</p>
-            <p className="text-xs mt-1">Click "Add Items" to log perfume bottles into this batch</p>
+            <p className="text-xs mt-1">Click &quot;Add Items&quot; to log perfume bottles into this batch</p>
           </div>
         ) : (
           <div>

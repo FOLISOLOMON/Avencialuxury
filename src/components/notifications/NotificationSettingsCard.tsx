@@ -226,9 +226,9 @@ export function NotificationSettingsCard() {
                   variant="outline"
                   onClick={handleTestNotification}
                   disabled={testSending || pushLoading}
+                  isLoading={testSending}
                 >
-                  <Send className={`w-3.5 h-3.5 mr-1.5 ${testSending ? "animate-spin" : ""}`} />
-                  {testSending ? "Sending..." : "Send Test Alert"}
+                  Send Test Alert
                 </Button>
                 <Button
                   size="sm"
@@ -237,7 +237,6 @@ export function NotificationSettingsCard() {
                   onClick={unsubscribe}
                   disabled={pushLoading}
                 >
-                  <BellOff className="w-3.5 h-3.5 mr-1.5" />
                   Unsubscribe
                 </Button>
               </>
@@ -247,9 +246,9 @@ export function NotificationSettingsCard() {
                 variant="primary"
                 onClick={subscribe}
                 disabled={pushLoading || !isSupported}
+                isLoading={pushLoading}
               >
-                <BellRing className="w-3.5 h-3.5 mr-1.5" />
-                {pushLoading ? "Connecting..." : "Enable on this Device"}
+                Enable on this Device
               </Button>
             )}
           </div>
@@ -487,8 +486,8 @@ export function NotificationSettingsCard() {
               )}
               {saveError && <span className="text-xs text-red-400">{saveError}</span>}
             </div>
-            <Button size="sm" variant="primary" type="submit" disabled={saving}>
-              {saving ? "Saving..." : "Save Preferences"}
+            <Button size="md" variant="primary" type="submit" disabled={saving} isLoading={saving}>
+              Save Preferences
             </Button>
           </div>
         </Card>
@@ -503,8 +502,8 @@ export function NotificationSettingsCard() {
               <Smartphone className="w-3.5 h-3.5 text-primary" />
               Registered Devices ({devices.length})
             </h4>
-            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={fetchSettingsAndDevices}>
-              <RefreshCw className="w-3 h-3 mr-1" />
+            <Button size="sm" variant="ghost" onClick={fetchSettingsAndDevices}>
+              <RefreshCw className="w-3.5 h-3.5 mr-1" />
               Refresh
             </Button>
           </div>

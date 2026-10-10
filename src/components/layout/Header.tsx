@@ -36,10 +36,10 @@ export function Header() {
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setIsDrawerOpen(true)}
-              className="md:hidden p-2 -ml-1.5 rounded-xl bg-[#F8F7F3] dark:bg-[#181818] text-[#171717] dark:text-[#F5F5F5] hover:bg-gold-500/15 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+              className="md:hidden w-10 h-10 -ml-1 rounded-xl bg-card border border-border text-foreground hover:bg-accent flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40"
               aria-label="Toggle navigation drawer"
             >
-              <Menu className="w-5 h-5 text-gold-600 dark:text-gold-400" />
+              <Menu className="w-5 h-5 text-primary" />
             </button>
 
             <div className="min-w-0">

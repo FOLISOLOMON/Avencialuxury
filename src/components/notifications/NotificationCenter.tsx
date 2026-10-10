@@ -226,7 +226,7 @@ export function NotificationCenter({
             <div className="w-9 h-9 rounded-md bg-muted text-foreground flex items-center justify-center mx-auto">
               <CheckCircle2 className="w-4 h-4 text-success" />
             </div>
-            <h4 className="font-semibold text-xs text-foreground">You're all caught up!</h4>
+            <h4 className="font-semibold text-xs text-foreground">You&apos;re all caught up!</h4>
             <p className="text-[11px] text-muted-foreground">No new notifications in this category.</p>
           </div>
         ) : (

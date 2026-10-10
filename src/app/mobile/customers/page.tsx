@@ -156,10 +156,10 @@ function MobileCustomersContent() {
         </div>
 
         <Button
+          size="sm"
+          variant="primary"
           onClick={() => setModalOpen(true)}
-          className="h-9 px-3 bg-primary text-primary-foreground text-xs font-bold rounded-xl active:scale-95"
         >
-          <UserPlus className="w-3.5 h-3.5 mr-1" />
           Add Customer
         </Button>
       </div>
@@ -319,8 +319,11 @@ function MobileCustomersContent() {
                               </div>
 
                               <div className="flex gap-1.5 pt-1 border-t border-border/40">
-                                <button
+                                <Button
                                   type="button"
+                                  size="sm"
+                                  variant="secondary"
+                                  className="flex-1"
                                   onClick={() => {
                                     setEditDueDateSale({
                                       id: s.id,
@@ -333,21 +336,19 @@ function MobileCustomersContent() {
                                     setNewDueDate(s.dueDate ? s.dueDate.split("T")[0] : "");
                                     setDueError(null);
                                   }}
-                                  className="flex-1 py-1 px-2 rounded-lg bg-secondary text-foreground text-[11px] font-medium border border-border flex items-center justify-center gap-1 active:scale-95"
                                 >
-                                  <Calendar className="w-3 h-3" />
                                   Edit Due Date
-                                </button>
+                                </Button>
 
                                 {c.phone && (
                                   <a
                                     href={singleWaUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="py-1 px-2 rounded-lg bg-emerald-600/10 text-emerald-500 border border-emerald-600/20 text-[11px] font-semibold flex items-center justify-center gap-1 active:scale-95"
+                                    className="inline-flex items-center justify-center h-8 px-2.5 rounded-md bg-emerald-600/10 text-emerald-500 border border-emerald-600/20 text-xs font-semibold active:scale-[0.98] transition-all"
                                     title="WhatsApp Invoice Reminder"
                                   >
-                                    <MessageCircle className="w-3 h-3" />
+                                    <MessageCircle className="w-3.5 h-3.5 mr-1" />
                                     Remind
                                   </a>
                                 )}
@@ -363,16 +364,17 @@ function MobileCustomersContent() {
                 {/* Action Buttons: Add Payment & Contact */}
                 <div className="flex gap-2 pt-1 border-t border-border/60 items-center">
                   {hasDebt ? (
-                    <button
+                    <Button
                       type="button"
+                      size="sm"
+                      variant="destructive"
+                      className="flex-1"
                       onClick={() => setSelectedPaymentCustomer(c)}
-                      className="flex-1 py-1.5 px-2.5 bg-destructive/15 hover:bg-destructive/25 text-destructive border border-destructive/30 text-xs font-bold rounded-lg flex items-center justify-center gap-1 active:scale-95 transition-all"
                     >
-                      <DollarSign className="w-3.5 h-3.5" />
                       Add Payment
-                    </button>
+                    </Button>
                   ) : (
-                    <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-lg">
+                    <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-md">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       <span>All Settled</span>
                     </div>
@@ -395,7 +397,7 @@ function MobileCustomersContent() {
                         }
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex-1 py-1.5 px-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors active:scale-95"
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 px-2.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-semibold transition-all active:scale-[0.98]"
                       >
                         <MessageCircle className="w-3.5 h-3.5" />
                         WhatsApp
@@ -403,7 +405,7 @@ function MobileCustomersContent() {
 
                       <a
                         href={`tel:${c.phone}`}
-                        className="py-1.5 px-2.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors active:scale-95"
+                        className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold transition-all active:scale-[0.98]"
                         aria-label="Call customer"
                       >
                         <Phone className="w-3.5 h-3.5" />
@@ -492,22 +494,24 @@ function MobileCustomersContent() {
                 { label: "In 14d", days: 14 },
                 { label: "In 30d", days: 30 },
               ].map((preset) => (
-                <button
+                <Button
                   key={preset.days}
                   type="button"
+                  size="sm"
+                  variant="secondary"
                   onClick={() => setNewDueDate(getQuickDueDate(preset.days))}
-                  className="px-2.5 py-1 text-xs rounded-lg bg-secondary hover:bg-secondary/80 text-foreground border border-border transition-colors font-medium active:scale-95"
                 >
                   {preset.label}
-                </button>
+                </Button>
               ))}
-              <button
+              <Button
                 type="button"
+                size="sm"
+                variant="ghost"
                 onClick={() => setNewDueDate("")}
-                className="px-2.5 py-1 text-xs rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground border border-border transition-colors font-medium active:scale-95"
               >
                 Clear
-              </button>
+              </Button>
             </div>
 
             <Input
@@ -522,6 +526,7 @@ function MobileCustomersContent() {
             <Button
               type="button"
               variant="outline"
+              size="md"
               className="flex-1"
               onClick={() => setEditDueDateSale(null)}
             >
@@ -530,7 +535,8 @@ function MobileCustomersContent() {
             <Button
               type="submit"
               variant="primary"
-              className="flex-1 font-bold"
+              size="md"
+              className="flex-1"
               isLoading={dueSubmitting}
             >
               Save Due Date

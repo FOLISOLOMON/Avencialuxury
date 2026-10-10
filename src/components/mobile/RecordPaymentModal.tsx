@@ -216,8 +216,10 @@ export function RecordPaymentModal({
 
             <Button
               type="button"
+              variant="secondary"
+              size="md"
               onClick={handleClose}
-              className="w-full h-10 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl active:scale-95"
+              className="w-full"
             >
               Done
             </Button>
@@ -236,8 +238,10 @@ export function RecordPaymentModal({
           </div>
           <Button
             type="button"
+            variant="secondary"
+            size="md"
             onClick={handleClose}
-            className="w-full h-11 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl mt-3 active:scale-95"
+            className="w-full mt-3"
           >
             Close
           </Button>
@@ -254,13 +258,14 @@ export function RecordPaymentModal({
                 GH₵{currentDebt.toFixed(2)}
               </span>
             </div>
-            <button
+            <Button
               type="button"
+              variant="destructive"
+              size="sm"
               onClick={() => handleQuickAmount(currentDebt)}
-              className="text-xs font-bold px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground active:scale-95 transition-transform"
             >
               Pay Full Debt
-            </button>
+            </Button>
           </div>
 
           {/* Amount Input */}
@@ -283,24 +288,28 @@ export function RecordPaymentModal({
 
             {/* Quick preset chips (capped to current debt) */}
             <div className="flex gap-1.5 pt-1 overflow-x-auto no-scrollbar">
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                size="sm"
                 onClick={() => handleQuickAmount(currentDebt)}
-                className="text-xs font-semibold px-2.5 py-1 rounded-md bg-muted hover:bg-muted/80 text-foreground border border-border whitespace-nowrap active:scale-95"
+                className="whitespace-nowrap"
               >
                 Pay Full (GH₵{currentDebt.toFixed(2)})
-              </button>
+              </Button>
               {[50, 100, 200, 500]
                 .filter((preset) => preset < currentDebt)
                 .map((preset) => (
-                  <button
+                  <Button
                     key={preset}
                     type="button"
+                    variant="secondary"
+                    size="sm"
                     onClick={() => handleQuickAmount(preset)}
-                    className="text-xs font-semibold px-2.5 py-1 rounded-md bg-muted hover:bg-muted/80 text-foreground border border-border whitespace-nowrap active:scale-95"
+                    className="whitespace-nowrap"
                   >
                     GH₵{preset}
-                  </button>
+                  </Button>
                 ))}
             </div>
           </div>
@@ -347,12 +356,13 @@ export function RecordPaymentModal({
         </div>
 
         {/* Submit Actions */}
-        <div className="flex gap-2 pt-2">
+        <div className="flex gap-3 pt-2">
           <Button
             type="button"
             variant="outline"
+            size="md"
             onClick={handleClose}
-            className="flex-1 h-11 text-xs font-bold"
+            className="flex-1"
             disabled={submitting}
           >
             Cancel
@@ -360,20 +370,13 @@ export function RecordPaymentModal({
 
           <Button
             type="submit"
-            className="flex-1 h-11 text-xs font-bold bg-primary text-primary-foreground"
-            disabled={submitting || !amount}
+            variant="primary"
+            size="md"
+            className="flex-1"
+            isLoading={submitting}
+            disabled={!amount}
           >
-            {submitting ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                Recording...
-              </>
-            ) : (
-              <>
-                <CheckCircle2 className="w-4 h-4 mr-1.5" />
-                Confirm Payment
-              </>
-            )}
+            Confirm Payment
           </Button>
         </div>
       </form>

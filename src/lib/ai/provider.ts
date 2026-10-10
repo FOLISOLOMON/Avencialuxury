@@ -77,17 +77,16 @@ function classifyIntentAndSelectTool(userQuery: string): ToolIntent {
 
   // 2. CUSTOMER DEBT / WHO OWES ME
   if (
-    q.includes("who owe") ||
-    q.includes("who owes") ||
-    q.includes("who is owing") ||
-    q.includes("owing me") ||
-    q.includes("owe me") ||
+    q.includes("owing") ||
+    q.includes("owes") ||
+    q.includes("owe") ||
     q.includes("debt") ||
     q.includes("debtor") ||
     q.includes("unpaid") ||
     q.includes("unsettled") ||
     q.includes("outstanding balance") ||
     q.includes("credit customer") ||
+    q.includes("credit sale") ||
     q.includes("pending payment") ||
     q.includes("haven't paid") ||
     q.includes("havent paid") ||

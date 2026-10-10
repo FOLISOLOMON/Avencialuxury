@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
+import { IconButton } from "@/components/ui/IconButton";
 import { navigationSections } from "./Sidebar";
 
 interface SideDrawerProps {
@@ -80,13 +81,13 @@ export function SideDrawer({ isOpen: controlledIsOpen, onClose: controlledOnClos
               </p>
             </div>
           </div>
-          <button
+          <IconButton
+            icon={X}
+            size="sm"
+            variant="ghost"
             onClick={handleClose}
-            className="p-1.5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary flex-shrink-0"
             aria-label="Close navigation menu"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          />
         </div>
 
         {/* Drawer Navigation grouped by sections */}

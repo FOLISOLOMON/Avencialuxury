@@ -51,10 +51,11 @@ export function ConfirmDialog({
       }
       footer={
         <div className="flex items-center justify-end gap-3 w-full">
-          <Button variant="outline" onClick={onClose} disabled={isLoading} className="flex-1 sm:flex-initial">
+          <Button size="md" variant="outline" onClick={onClose} disabled={isLoading} className="flex-1 sm:flex-initial">
             {cancelLabel}
           </Button>
           <Button
+            size="md"
             variant={variant === "destructive" ? "destructive" : "primary"}
             onClick={onConfirm}
             isLoading={isLoading}

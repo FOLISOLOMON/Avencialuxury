@@ -508,7 +508,7 @@ export default function InventoryPage() {
                         </div>
                         {txn.note && (
                           <div className="text-[11px] text-muted-foreground italic">
-                            "{txn.note}"
+                            &quot;{txn.note}&quot;
                           </div>
                         )}
                       </div>

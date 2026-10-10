@@ -190,10 +190,9 @@ export default function BatchesPage() {
         <Button
           onClick={openCreateModal}
           size="md"
-          className="gap-2 font-bold self-start sm:self-auto"
+          variant="primary"
         >
-          <Plus className="w-4 h-4" />
-          <span>New Shipment Batch</span>
+          New Shipment Batch
         </Button>
       </div>
 
@@ -482,6 +481,7 @@ export default function BatchesPage() {
             <Button
               type="button"
               variant="outline"
+              size="md"
               className="flex-1"
               onClick={() => setIsModalOpen(false)}
             >
@@ -490,7 +490,8 @@ export default function BatchesPage() {
             <Button
               type="submit"
               variant="primary"
-              className="flex-1 font-black"
+              size="md"
+              className="flex-1"
               isLoading={submitting}
             >
               Create & Add Items

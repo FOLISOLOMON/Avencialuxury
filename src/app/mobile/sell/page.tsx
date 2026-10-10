@@ -388,15 +388,18 @@ function MobileSellContent() {
 
           <Button
             onClick={handleResetForNextSale}
-            className="w-full h-12 bg-primary text-primary-foreground font-bold text-sm rounded-xl active:scale-95 transition-transform"
+            size="lg"
+            variant="primary"
+            className="w-full"
           >
-            + Start Next Sale
+            Start Next Sale
           </Button>
 
           <Button
             variant="outline"
+            size="md"
             onClick={() => router.push("/mobile/sales")}
-            className="w-full h-11 text-xs"
+            className="w-full"
           >
             View Sales History
           </Button>
@@ -741,21 +744,18 @@ function MobileSellContent() {
                     const target = getQuickDueDate(preset.days);
                     const isSelected = dueDate === target;
                     return (
-                      <button
+                      <Button
                         key={preset.days}
                         type="button"
+                        size="sm"
+                        variant={isSelected ? "primary" : "secondary"}
                         onClick={() => {
                           setDueDate(target);
                           setNoAgreedDueDate(false);
                         }}
-                        className={`py-1.5 text-[11px] font-bold rounded-lg border text-center transition-all active:scale-95 ${
-                          isSelected
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-muted/50 border-border text-muted-foreground hover:text-foreground"
-                        }`}
                       >
                         {preset.label}
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>
@@ -835,10 +835,12 @@ function MobileSellContent() {
         <Button
           onClick={handleCompleteSale}
           disabled={cart.length === 0 || submitting}
-          className="w-full h-13 text-base font-black bg-primary text-primary-foreground shadow-lg shadow-primary/25 rounded-2xl flex items-center justify-between px-5 active:scale-[0.98] transition-all hover:brightness-105"
+          size="lg"
+          variant="primary"
+          className="w-full h-12 flex items-center justify-between px-5 font-bold shadow-lg shadow-primary/25 rounded-xl"
         >
-          <span className="tracking-wide uppercase font-black">{submitting ? "RECORDING..." : "COMPLETE SALE"}</span>
-          <span className="text-lg font-black tracking-tight">GH₵{totalAmount.toFixed(2)}</span>
+          <span className="tracking-wide uppercase">{submitting ? "Recording..." : "Complete Sale"}</span>
+          <span className="text-base font-extrabold tracking-tight">GH₵{totalAmount.toFixed(2)}</span>
         </Button>
       </div>
 

@@ -1375,21 +1375,18 @@ export default function SalesPage() {
                       const targetDate = getQuickDueDate(preset.days);
                       const isSelected = dueDate === targetDate;
                       return (
-                        <button
+                        <Button
                           key={preset.days}
                           type="button"
+                          size="sm"
+                          variant={isSelected ? "primary" : "secondary"}
                           onClick={() => {
                             setDueDate(targetDate);
                             setNoAgreedDueDate(false);
                           }}
-                          className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition-all ${
-                            isSelected
-                              ? "bg-primary text-primary-foreground border-primary shadow-xs"
-                              : "bg-card hover:bg-muted text-muted-foreground hover:text-foreground border-border"
-                          }`}
                         >
                           {preset.label}
-                        </button>
+                        </Button>
                       );
                     })}
                   </div>
@@ -1438,6 +1435,7 @@ export default function SalesPage() {
             <Button
               type="button"
               variant="outline"
+              size="md"
               className="flex-1"
               onClick={() => setShowCheckoutSheet(false)}
             >
@@ -1446,10 +1444,11 @@ export default function SalesPage() {
             <Button
               type="submit"
               variant="primary"
-              className="flex-1 font-black"
+              size="md"
+              className="flex-1"
               isLoading={submittingSale}
             >
-              Confirm & Print Receipt
+              Confirm Sale
             </Button>
           </div>
         </form>
@@ -1518,6 +1517,7 @@ export default function SalesPage() {
             <Button
               type="button"
               variant="outline"
+              size="md"
               className="flex-1"
               onClick={() => setDebtSale(null)}
             >
@@ -1526,7 +1526,8 @@ export default function SalesPage() {
             <Button
               type="submit"
               variant="primary"
-              className="flex-1 font-black"
+              size="md"
+              className="flex-1"
               isLoading={debtSubmitting}
             >
               Apply Payment
@@ -1597,18 +1598,15 @@ export default function SalesPage() {
                 const targetDate = getQuickDueDate(preset.days);
                 const isSelected = newDueDate === targetDate;
                 return (
-                  <button
+                  <Button
                     key={preset.days}
                     type="button"
+                    size="sm"
+                    variant={isSelected ? "primary" : "secondary"}
                     onClick={() => setNewDueDate(targetDate)}
-                    className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition-all ${
-                      isSelected
-                        ? "bg-primary text-primary-foreground border-primary shadow-xs"
-                        : "bg-card hover:bg-muted text-muted-foreground hover:text-foreground border-border"
-                    }`}
                   >
                     {preset.label}
-                  </button>
+                  </Button>
                 );
               })}
             </div>
@@ -1625,6 +1623,7 @@ export default function SalesPage() {
             <Button
               type="button"
               variant="outline"
+              size="md"
               className="flex-1"
               onClick={() => setEditDueDateSale(null)}
             >
@@ -1633,7 +1632,8 @@ export default function SalesPage() {
             <Button
               type="submit"
               variant="primary"
-              className="flex-1 font-black"
+              size="md"
+              className="flex-1"
               isLoading={editDueDateSubmitting}
             >
               Update Due Date
@@ -1739,22 +1739,23 @@ export default function SalesPage() {
             <div className="pt-2 flex gap-3">
               <Button
                 variant="outline"
+                size="md"
                 className="flex-1"
                 onClick={() => {
                   setReceiptSale(selectedSaleDetail);
                 }}
               >
                 <Printer className="w-4 h-4 mr-2" />
-                Print / Share Receipt
+                Print Receipt
               </Button>
 
               {selectedSaleDetail.status !== "VOIDED" && (
                 <Button
                   variant="destructive"
+                  size="md"
                   className="flex-1"
                   onClick={() => setVoidSaleTarget(selectedSaleDetail)}
                 >
-                  <RotateCcw className="w-4 h-4 mr-2" />
                   Void Sale
                 </Button>
               )}

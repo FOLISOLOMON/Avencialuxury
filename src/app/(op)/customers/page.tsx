@@ -382,10 +382,9 @@ function CustomersContent() {
         <Button
           onClick={openAddModal}
           size="md"
-          className="gap-2 font-bold self-start sm:self-auto"
+          variant="primary"
         >
-          <Plus className="w-4 h-4" />
-          <span>Add Customer</span>
+          Add Customer
         </Button>
       </div>
 
@@ -463,7 +462,7 @@ function CustomersContent() {
       {filteredCustomers.length === 0 ? (
         <div className="rounded-lg border border-border bg-card p-12 text-center text-muted-foreground">
           <p className="text-sm font-medium">No customer records found</p>
-          <p className="text-xs mt-1 text-muted-foreground/80">Try another search term or click "Add Customer" above</p>
+          <p className="text-xs mt-1 text-muted-foreground/80">Try another search term or click &quot;Add Customer&quot; above</p>
         </div>
       ) : (
         <div className="rounded-lg border border-border bg-card overflow-hidden">
@@ -704,6 +703,7 @@ function CustomersContent() {
             <Button
               type="button"
               variant="outline"
+              size="md"
               className="flex-1"
               onClick={() => setIsAddOpen(false)}
             >
@@ -712,7 +712,8 @@ function CustomersContent() {
             <Button
               type="submit"
               variant="primary"
-              className="flex-1 font-black"
+              size="md"
+              className="flex-1"
               isLoading={addSubmitting}
             >
               Save Customer
@@ -782,6 +783,7 @@ function CustomersContent() {
             <Button
               type="button"
               variant="outline"
+              size="md"
               className="flex-1"
               onClick={() => setDebtCustomer(null)}
             >
@@ -790,7 +792,8 @@ function CustomersContent() {
             <Button
               type="submit"
               variant="primary"
-              className="flex-1 font-black"
+              size="md"
+              className="flex-1"
               isLoading={debtSubmitting}
             >
               Apply Payment
@@ -928,8 +931,10 @@ function CustomersContent() {
                             </div>
 
                             <div className="flex items-center gap-1.5">
-                              <button
+                              <Button
                                 type="button"
+                                size="sm"
+                                variant="secondary"
                                 onClick={() => {
                                   setEditDueDateSale({
                                     id: s.id,
@@ -942,24 +947,22 @@ function CustomersContent() {
                                   setNewDueDate(s.dueDate ? s.dueDate.split("T")[0] : "");
                                   setEditDueDateError(null);
                                 }}
-                                className="px-2 py-1 rounded bg-secondary hover:bg-secondary/80 text-foreground text-[10px] font-medium border border-border transition-colors flex items-center gap-1"
                               >
-                                <Calendar className="w-3 h-3" />
                                 Edit Date
-                              </button>
+                              </Button>
 
-                              <button
+                              <Button
                                 type="button"
+                                size="sm"
+                                variant="primary"
                                 onClick={() => {
                                   const c = selectedCustomer;
                                   setSelectedCustomer(null);
                                   openDebtModal(c, s.id, s.balanceDue);
                                 }}
-                                className="px-2 py-1 rounded bg-primary text-primary-foreground text-[10px] font-semibold hover:bg-primary/90 transition-colors flex items-center gap-1"
                               >
-                                <Banknote className="w-3 h-3" />
                                 Pay
-                              </button>
+                              </Button>
 
                               {singleWhatsAppUrl && (
                                 <a
@@ -987,14 +990,14 @@ function CustomersContent() {
                 <>
                   <Button
                     variant="primary"
-                    className="flex-1 font-black"
+                    size="md"
+                    className="flex-1"
                     onClick={() => {
                       const c = selectedCustomer;
                       setSelectedCustomer(null);
                       openDebtModal(c);
                     }}
                   >
-                    <Banknote className="w-4 h-4 mr-2" />
                     Settle Total Debt
                   </Button>
 
@@ -1083,22 +1086,24 @@ function CustomersContent() {
                 { label: "In 14 days", days: 14 },
                 { label: "In 30 days", days: 30 },
               ].map((preset) => (
-                <button
+                <Button
                   key={preset.days}
                   type="button"
+                  size="sm"
+                  variant="secondary"
                   onClick={() => setNewDueDate(getQuickDueDate(preset.days))}
-                  className="px-2.5 py-1 text-xs rounded-md bg-secondary hover:bg-secondary/80 text-foreground border border-border transition-colors font-medium"
                 >
                   {preset.label}
-                </button>
+                </Button>
               ))}
-              <button
+              <Button
                 type="button"
+                size="sm"
+                variant="ghost"
                 onClick={() => setNewDueDate("")}
-                className="px-2.5 py-1 text-xs rounded-md bg-muted hover:bg-muted/80 text-muted-foreground border border-border transition-colors font-medium"
               >
                 Clear Date
-              </button>
+              </Button>
             </div>
 
             <Input
@@ -1113,6 +1118,7 @@ function CustomersContent() {
             <Button
               type="button"
               variant="outline"
+              size="md"
               className="flex-1"
               onClick={() => setEditDueDateSale(null)}
             >
@@ -1121,7 +1127,8 @@ function CustomersContent() {
             <Button
               type="submit"
               variant="primary"
-              className="flex-1 font-black"
+              size="md"
+              className="flex-1"
               isLoading={editDueDateSubmitting}
             >
               Save Due Date

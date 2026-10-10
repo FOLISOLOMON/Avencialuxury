@@ -295,7 +295,7 @@ export default function CameraScanner({ onScan, onClose, hint }: CameraScannerPr
                 <p className="font-semibold text-slate-200 flex items-center gap-1">
                   <ShieldAlert className="w-3.5 h-3.5 text-amber-400" /> Mobile Development Tip:
                 </p>
-                <p>To enable live camera on local HTTP, open <code className="text-gold-400 font-mono">chrome://flags</code> on your phone, search <em>"Insecure origins"</em>, add your URL, and enable it.</p>
+                <p>To enable live camera on local HTTP, open <code className="text-gold-400 font-mono">chrome://flags</code> on your phone, search <em>&quot;Insecure origins&quot;</em>, add your URL, and enable it.</p>
               </div>
             )}
           </div>

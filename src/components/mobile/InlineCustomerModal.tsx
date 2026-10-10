@@ -189,10 +189,11 @@ export function InlineCustomerModal({
           />
         </div>
 
-        <div className="pt-2 flex gap-2">
+        <div className="pt-2 flex gap-3">
           <Button
             type="button"
             variant="outline"
+            size="md"
             className="flex-1"
             onClick={onClose}
             disabled={saving}
@@ -202,17 +203,12 @@ export function InlineCustomerModal({
 
           <Button
             type="submit"
-            className="flex-1 bg-primary text-primary-foreground font-semibold"
-            disabled={saving}
+            variant="primary"
+            size="md"
+            className="flex-1"
+            isLoading={saving}
           >
-            {saving ? (
-              "Saving..."
-            ) : (
-              <>
-                <UserPlus className="w-4 h-4 mr-1.5" />
-                Save & Select
-              </>
-            )}
+            Save & Select
           </Button>
         </div>
       </form>

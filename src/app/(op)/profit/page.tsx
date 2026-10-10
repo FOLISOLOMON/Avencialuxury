@@ -31,6 +31,8 @@ import {
 
 interface ProfitSummary {
   totalRevenue: number;
+  totalAmountCollected?: number;
+  totalOutstandingDebt?: number;
   totalCostOfGoods: number;
   totalGrossProfit: number;
   totalExpenses: number;
@@ -179,7 +181,16 @@ export default function ProfitPage() {
             <div className="text-xl sm:text-2xl font-bold text-foreground mt-1 tracking-tight">
               <Money amount={summary?.totalRevenue || 0} />
             </div>
-            <div className="text-xs text-muted-foreground mt-1">Top-line turnover</div>
+            <div className="text-[11px] text-muted-foreground mt-1">
+              {summary?.totalAmountCollected !== undefined && summary.totalAmountCollected < (summary?.totalRevenue || 0) ? (
+                <span>
+                  GH₵{summary.totalAmountCollected.toFixed(2)} collected •{" "}
+                  <span className="text-warning font-medium">GH₵{(summary?.totalOutstandingDebt || 0).toFixed(2)} debt</span>
+                </span>
+              ) : (
+                "Top-line turnover"
+              )}
+            </div>
           </div>
 
           <div className="p-4 sm:p-5">
@@ -340,7 +351,7 @@ export default function ProfitPage() {
         {allocations.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground">
             <p className="text-sm font-medium">No profit distributions logged yet</p>
-            <p className="text-xs mt-1">Click "Allocate Profit" above to record a distribution</p>
+            <p className="text-xs mt-1">Click &quot;Allocate Profit&quot; above to record a distribution</p>
           </div>
         ) : (
           <div>

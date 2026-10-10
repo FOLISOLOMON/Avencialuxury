@@ -248,7 +248,7 @@ export function InteractiveDashboard({
         {/* Metric 1: Today's Revenue */}
         <div className="p-4 sm:p-5 flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-            <span className="font-medium">Today's Sales</span>
+            <span className="font-medium">Today&apos;s Sales</span>
             <span className="tabular-nums">
               {todayStats.count} {todayStats.count === 1 ? "transaction" : "transactions"}
             </span>

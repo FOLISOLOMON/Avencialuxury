@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { Search, X, Package, Plus, AlertTriangle, CheckCircle2, ShoppingBag, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
 import { useMobileProducts } from "@/lib/mobile/hooks";
 
 type StockFilter = "all" | "in_stock" | "low" | "out";
@@ -55,16 +56,16 @@ export default function MobileProductsPage() {
           <h1 className="text-lg font-bold text-foreground tracking-tight">Product Lookup</h1>
           <p className="text-xs text-muted-foreground">Quickly check perfume availability & prices</p>
         </div>
-        <button
-          type="button"
+        <Button
+          size="sm"
+          variant="outline"
           onClick={handleRefresh}
           disabled={refreshing}
-          className="p-2 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground active:scale-95 transition-all flex items-center gap-1 text-xs"
+          isLoading={refreshing}
           aria-label="Refresh product stock"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-primary" : ""}`} />
-          <span className="text-[11px] font-semibold">Sync</span>
-        </button>
+          Sync
+        </Button>
       </div>
 
       {/* 2. Instant Search Bar */}
@@ -195,14 +196,13 @@ export default function MobileProductsPage() {
                 {/* Direct Sell Button */}
                 <Link
                   href={`/mobile/sell?productId=${p.id}`}
-                  className={`h-9 px-3 rounded-xl flex items-center gap-1 text-xs font-bold shrink-0 transition-transform active:scale-95 ${
+                  className={`inline-flex items-center justify-center h-8 px-3 rounded-md text-xs font-semibold shrink-0 transition-all active:scale-[0.98] ${
                     isOutOfStock
                       ? "bg-muted text-muted-foreground opacity-50 pointer-events-none"
-                      : "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-primary text-primary-foreground shadow-xs hover:brightness-105"
                   }`}
                   aria-label={`Sell ${p.name}`}
                 >
-                  <ShoppingBag className="w-3.5 h-3.5" />
                   Sell
                 </Link>
               </div>

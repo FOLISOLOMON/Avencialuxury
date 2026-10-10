@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Receipt, Search, Filter, Calendar, Clock, CheckCircle2, ChevronRight, AlertCircle, RefreshCw, MessageCircle } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
+import { Button } from "@/components/ui/Button";
 import { MobileSaleSummary } from "@/lib/mobile/types";
 import { getPendingSales } from "@/lib/mobile/db";
 import { getSaleReceiptWhatsAppUrl } from "@/lib/mobile/whatsapp";
@@ -85,9 +86,9 @@ export default function MobileSalesPage() {
           <button
             key={status}
             onClick={() => setFilterStatus(status)}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+            className={`h-8 px-3 rounded-full text-xs font-medium whitespace-nowrap transition-all cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 ${
               filterStatus === status
-                ? "bg-primary text-primary-foreground"
+                ? "bg-primary text-primary-foreground font-semibold shadow-xs"
                 : "bg-muted/60 text-muted-foreground hover:bg-muted"
             }`}
           >
@@ -241,28 +242,31 @@ export default function MobileSalesPage() {
             </div>
 
             {/* WhatsApp Share Button */}
-            <a
-              href={getSaleReceiptWhatsAppUrl({
-                receiptNo: selectedSale.receiptNumber || selectedSale.id.slice(-6),
-                customerName: selectedSale.customer?.name,
-                customerPhone: (selectedSale.customer as any)?.phone,
-                items: (selectedSale.items || []).map((it) => ({
-                  name: it.product?.name || "Perfume Item",
-                  quantity: it.quantity,
-                  unitPrice: it.unitPrice,
-                })),
-                totalAmount: selectedSale.totalAmount,
-                amountPaid: selectedSale.amountPaid,
-                balanceDue: Math.max(0, selectedSale.totalAmount - selectedSale.amountPaid),
-                paymentMethod: selectedSale.paymentMethod,
-              })}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all shadow-sm"
+            <Button
+              size="lg"
+              variant="primary"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white border-transparent"
+              onClick={() => {
+                const url = getSaleReceiptWhatsAppUrl({
+                  receiptNo: selectedSale.receiptNumber || selectedSale.id.slice(-6),
+                  customerName: selectedSale.customer?.name,
+                  customerPhone: (selectedSale.customer as any)?.phone,
+                  items: (selectedSale.items || []).map((it) => ({
+                    name: it.product?.name || "Perfume Item",
+                    quantity: it.quantity,
+                    unitPrice: it.unitPrice,
+                  })),
+                  totalAmount: selectedSale.totalAmount,
+                  amountPaid: selectedSale.amountPaid,
+                  balanceDue: Math.max(0, selectedSale.totalAmount - selectedSale.amountPaid),
+                  paymentMethod: selectedSale.paymentMethod,
+                });
+                window.open(url, "_blank", "noopener,noreferrer");
+              }}
             >
-              <MessageCircle className="w-4 h-4" />
+              <MessageCircle className="w-4 h-4 mr-2" />
               Send Receipt via WhatsApp
-            </a>
+            </Button>
           </div>
         )}
       </Sheet>

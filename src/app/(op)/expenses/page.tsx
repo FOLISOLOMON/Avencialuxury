@@ -227,10 +227,9 @@ export default function ExpensesPage() {
         <Button
           onClick={openAddModal}
           size="md"
-          className="gap-2 font-bold self-start sm:self-auto"
+          variant="primary"
         >
-          <Plus className="w-4 h-4" />
-          <span>Log Expense</span>
+          Log Expense
         </Button>
       </div>
 
@@ -299,7 +298,7 @@ export default function ExpensesPage() {
       {filteredExpenses.length === 0 ? (
         <div className="rounded-lg border border-border bg-card p-12 text-center text-muted-foreground">
           <p className="text-sm font-medium">No expenses recorded for this filter</p>
-          <p className="text-xs mt-1 text-muted-foreground/80">Click "Log Expense" above to record a new business expense</p>
+          <p className="text-xs mt-1 text-muted-foreground/80">Click &quot;Log Expense&quot; above to record a new business expense</p>
         </div>
       ) : (
         <div className="rounded-lg border border-border bg-card overflow-hidden">
@@ -480,6 +479,7 @@ export default function ExpensesPage() {
             <Button
               type="button"
               variant="outline"
+              size="md"
               className="flex-1"
               onClick={() => setIsAddOpen(false)}
             >
@@ -488,7 +488,8 @@ export default function ExpensesPage() {
             <Button
               type="submit"
               variant="primary"
-              className="flex-1 font-black"
+              size="md"
+              className="flex-1"
               isLoading={addSubmitting}
             >
               Save Expense

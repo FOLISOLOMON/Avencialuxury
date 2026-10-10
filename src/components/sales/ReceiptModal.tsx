@@ -3,6 +3,8 @@
 import { X, Share2, Printer } from "lucide-react";
 import Image from "next/image";
 import { formatCurrency } from "@/lib/utils";
+import { Button } from "@/components/ui/Button";
+import { IconButton } from "@/components/ui/IconButton";
 
 interface ReceiptModalProps {
   sale: any;
@@ -70,13 +72,13 @@ export function ReceiptModal({ sale, isOpen, onClose }: ReceiptModalProps) {
             </div>
             <h3 className="font-semibold text-sm tracking-tight text-foreground">Customer Sales Receipt</h3>
           </div>
-          <button
+          <IconButton
+            icon={X}
+            size="sm"
+            variant="ghost"
             onClick={onClose}
-            className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             aria-label="Close receipt"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          />
         </div>
 
         {/* Printable Receipt Body */}
@@ -177,23 +179,25 @@ export function ReceiptModal({ sale, isOpen, onClose }: ReceiptModalProps) {
         </div>
 
         {/* Action Buttons */}
-        <div className="p-3 bg-muted/20 border-t border-border flex items-center justify-between gap-2.5">
-          <button
+        <div className="p-3 bg-muted/20 border-t border-border flex items-center justify-between gap-3">
+          <Button
+            size="md"
+            variant="outline"
             onClick={() => window.print()}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-md border border-border bg-card text-foreground font-medium text-xs hover:bg-muted transition-colors cursor-pointer"
+            className="flex-1"
           >
-            <Printer className="w-3.5 h-3.5" />
-            Print
-          </button>
-          <a
-            href={whatsappUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs transition-colors cursor-pointer"
+            <Printer className="w-4 h-4 mr-1.5" />
+            Print Receipt
+          </Button>
+          <Button
+            size="md"
+            variant="primary"
+            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white border-transparent"
+            onClick={() => window.open(whatsappUrl, "_blank", "noopener,noreferrer")}
           >
-            <Share2 className="w-3.5 h-3.5" />
+            <Share2 className="w-4 h-4 mr-1.5" />
             WhatsApp
-          </a>
+          </Button>
         </div>
       </div>
     </div>

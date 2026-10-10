@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -358,13 +359,13 @@ export function AttentionRequired({
             )}
           </div>
 
-          <a
+          <Link
             href="/batches"
             className="inline-flex items-center justify-between text-xs font-medium text-primary hover:underline pt-2 border-t border-border"
           >
             <span>View Active Batches</span>
             <ArrowRight className="w-3.5 h-3.5" />
-          </a>
+          </Link>
         </div>
       </div>
     </div>

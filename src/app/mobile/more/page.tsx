@@ -61,10 +61,10 @@ export default function MobileMorePage() {
             size="sm"
             variant="outline"
             disabled={syncing || state === "offline"}
+            isLoading={syncing}
             onClick={handleManualSync}
-            className="text-xs h-8 px-2.5"
           >
-            <RefreshCw className={`w-3.5 h-3.5 mr-1 ${syncing ? "animate-spin" : ""}`} />
+            <RefreshCw className="w-3.5 h-3.5 mr-1" />
             Sync Now
           </Button>
         </div>
@@ -147,7 +147,7 @@ export default function MobileMorePage() {
 
         <Link
           href="/mobile/products"
-          className="w-full mt-2 py-2 px-3 rounded-xl bg-muted/60 hover:bg-muted text-xs font-bold text-primary flex items-center justify-center gap-1.5 transition-colors"
+          className="w-full mt-2 h-10 px-3 rounded-xl bg-muted/60 hover:bg-muted text-xs font-semibold text-primary inline-flex items-center justify-center gap-1.5 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40"
         >
           <span>Open Perfume Catalog</span>
           <ExternalLink className="w-3.5 h-3.5" />
@@ -173,7 +173,7 @@ export default function MobileMorePage() {
 
         <Link
           href="/"
-          className="w-full mt-2 py-2 px-3 rounded-xl bg-muted/60 hover:bg-muted text-xs font-bold text-primary flex items-center justify-center gap-1.5 transition-colors"
+          className="w-full mt-2 h-10 px-3 rounded-xl bg-muted/60 hover:bg-muted text-xs font-semibold text-primary inline-flex items-center justify-center gap-1.5 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40"
         >
           <span>Open Desktop Business System</span>
           <ExternalLink className="w-3.5 h-3.5" />

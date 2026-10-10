@@ -355,10 +355,9 @@ export default function ProductsPage() {
         <Button
           onClick={openAddModal}
           size="md"
-          className="gap-2 font-bold self-start sm:self-auto"
+          variant="primary"
         >
-          <Plus className="w-4 h-4" />
-          <span>Add Product</span>
+          Add Product
         </Button>
       </div>
 
@@ -441,7 +440,7 @@ export default function ProductsPage() {
       {filteredProducts.length === 0 ? (
         <div className="rounded-lg border border-border bg-card p-12 text-center text-muted-foreground">
           <p className="text-sm font-medium">No products match your criteria</p>
-          <p className="text-xs mt-1 text-muted-foreground/80">Try adjusting search filters or click "Add Product" above</p>
+          <p className="text-xs mt-1 text-muted-foreground/80">Try adjusting search filters or click &quot;Add Product&quot; above</p>
         </div>
       ) : (
         <div className="rounded-lg border border-border bg-card overflow-hidden">
@@ -792,6 +791,7 @@ export default function ProductsPage() {
             <Button
               type="button"
               variant="outline"
+              size="md"
               className="flex-1"
               onClick={() => setIsAddOpen(false)}
             >
@@ -800,7 +800,8 @@ export default function ProductsPage() {
             <Button
               type="submit"
               variant="primary"
-              className="flex-1 font-black"
+              size="md"
+              className="flex-1"
               isLoading={addSubmitting}
             >
               Save Product
@@ -895,6 +896,7 @@ export default function ProductsPage() {
             <Button
               type="button"
               variant="outline"
+              size="md"
               className="flex-1"
               onClick={() => setEditingProduct(null)}
             >
@@ -903,7 +905,8 @@ export default function ProductsPage() {
             <Button
               type="submit"
               variant="primary"
-              className="flex-1 font-black"
+              size="md"
+              className="flex-1"
               isLoading={editSubmitting}
             >
               Update Product
