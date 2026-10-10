@@ -79,9 +79,8 @@ function MobileCustomersContent() {
   const urlCustomerId = searchParams.get("id");
 
   React.useEffect(() => {
-    if (searchParams.get("filter") === "debt" || searchParams.get("tab") === "debt" || urlCustomerId) {
-      setFilterDebtOnly(true);
-    }
+    const isDebt = searchParams.get("filter") === "debt" || searchParams.get("tab") === "debt" || Boolean(urlCustomerId);
+    setFilterDebtOnly(isDebt);
   }, [searchParams, urlCustomerId]);
 
   React.useEffect(() => {
@@ -187,13 +186,50 @@ function MobileCustomersContent() {
         </button>
       )}
 
-      {/* 3. Search Bar */}
+      {/* 3. Segmented Filter Tabs */}
+      <div className="flex items-center gap-1.5 p-1 bg-muted/60 rounded-xl border border-border/60">
+        <button
+          type="button"
+          onClick={() => setFilterDebtOnly(false)}
+          className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all ${
+            !filterDebtOnly
+              ? "bg-card text-foreground shadow-xs border border-border/80"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          All Clients ({customers.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilterDebtOnly(true)}
+          className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            filterDebtOnly
+              ? "bg-destructive text-destructive-foreground shadow-xs"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <span>Owing Debt</span>
+          {debtCustomersCount > 0 && (
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                filterDebtOnly
+                  ? "bg-white/20 text-white"
+                  : "bg-destructive/15 text-destructive"
+              }`}
+            >
+              {debtCustomersCount}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* 4. Search Bar */}
       <div className="relative">
         <Search className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by customer name or phone..."
+          placeholder={filterDebtOnly ? "Search debtors by name or phone..." : "Search by customer name or phone..."}
           className="pl-9 pr-8 text-sm h-11 rounded-xl bg-card border-border"
         />
         {search && (
@@ -206,7 +242,7 @@ function MobileCustomersContent() {
         )}
       </div>
 
-      {/* 4. Customer Directory List */}
+      {/* 5. Customer Directory List */}
       {loading ? (
         <div className="p-8 text-center text-xs text-muted-foreground">
           Loading customer directory...
@@ -214,10 +250,25 @@ function MobileCustomersContent() {
       ) : filteredCustomers.length === 0 ? (
         <div className="p-8 rounded-2xl border border-dashed border-border text-center space-y-2">
           <Users className="w-8 h-8 text-muted-foreground mx-auto" />
-          <p className="text-sm font-semibold text-foreground">No customers found</p>
-          <p className="text-xs text-muted-foreground">
-            Tap &apos;Add Customer&apos; above to register a new client profile.
+          <p className="text-sm font-semibold text-foreground">
+            {filterDebtOnly ? "No debtors found" : "No customers found"}
           </p>
+          <p className="text-xs text-muted-foreground">
+            {filterDebtOnly
+              ? "All customer accounts are settled and up to date."
+              : "Tap 'Add Customer' above to register a new client profile."}
+          </p>
+          {filterDebtOnly && (
+            <div className="pt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setFilterDebtOnly(false)}
+              >
+                View All Clients
+              </Button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-2.5">

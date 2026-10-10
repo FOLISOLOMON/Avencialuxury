@@ -5,6 +5,7 @@ import { syncManager } from "./sync";
 import {
   getCachedProducts,
   getCachedCustomers,
+  cacheCustomers,
   getPendingSales,
   getPendingCustomers,
 } from "./db";
@@ -99,18 +100,47 @@ export function useMobileCustomers() {
   const reloadCustomers = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. First get cached customers
+      // 1. First get cached customers for instant UI display
       const cached = await getCachedCustomers();
       if (cached && cached.length > 0) {
         setCustomers(cached);
         setLoading(false);
       }
 
-      // 2. If online, refresh in background
-      if (navigator.onLine) {
+      // 2. If online, fetch directly from server without stale cache
+      if (typeof window !== "undefined" && navigator.onLine) {
+        try {
+          const res = await fetch("/api/customers", { cache: "no-store" });
+          if (res.ok) {
+            const json = await res.json();
+            if (json.success && Array.isArray(json.data)) {
+              const mapped: MobileCustomer[] = json.data.map((c: any) => ({
+                id: c.id,
+                name: c.name,
+                phone: c.phone,
+                email: c.email,
+                notes: c.notes,
+                totalDebt: Number(c.totalDebt ?? c.totalOutstandingDebt ?? 0),
+                totalSpent: Number(c.totalSpent ?? c.totalSpend ?? 0),
+                lastPurchaseDate: c.lastPurchaseDate,
+                sales: c.sales || [],
+              }));
+              setCustomers(mapped);
+              setLoading(false);
+              cacheCustomers(mapped).catch(() => {});
+              return;
+            }
+          }
+        } catch (fetchErr) {
+          console.warn("Direct fetch /api/customers error:", fetchErr);
+        }
+
+        // Fallback to syncManager refresh if direct fetch failed
         await syncManager.refreshCacheFromServer();
         const fresh = await getCachedCustomers();
-        setCustomers(fresh);
+        if (fresh && fresh.length > 0) {
+          setCustomers(fresh);
+        }
       }
     } catch (e) {
       console.warn("Failed to load mobile customers:", e);

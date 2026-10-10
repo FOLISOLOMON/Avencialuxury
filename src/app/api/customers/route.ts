@@ -3,6 +3,9 @@ import { createCustomer, getCustomers } from "@/lib/services/customers";
 import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 import { serializePlainObject } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);

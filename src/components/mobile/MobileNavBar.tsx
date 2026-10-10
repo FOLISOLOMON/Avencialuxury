@@ -7,7 +7,7 @@ import {
   Home,
   Receipt,
   Plus,
-  CircleDollarSign,
+  Package,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,13 +22,6 @@ function MobileNavBarContent() {
     }
     return pathname.startsWith(path);
   };
-
-  const isPaymentActive =
-    pathname === "/mobile/customers" &&
-    (searchParams.get("filter") === "debt" || searchParams.get("tab") === "debt");
-
-  const isCustomerActive =
-    pathname === "/mobile/customers" && !isPaymentActive;
 
   // On the dedicated checkout screen (/mobile/sell), hide the navigation bar
   // so the Complete Sale action bar is 100% visible and unobstructed
@@ -76,12 +69,12 @@ function MobileNavBarContent() {
               href="/mobile"
               className={cn(
                 "flex flex-col items-center justify-center py-1 rounded-xl text-center transition-colors active:scale-95 group",
-                isCurrent("/mobile") && !isSellActive && !pathname.startsWith("/mobile/sales") && !pathname.startsWith("/mobile/customers")
+                isCurrent("/mobile") && !isSellActive && !pathname.startsWith("/mobile/sales") && !pathname.startsWith("/mobile/customers") && !pathname.startsWith("/mobile/products")
                   ? "text-primary font-bold"
                   : "text-muted-foreground/75 hover:text-foreground font-medium"
               )}
             >
-              <Home className={cn("w-5 h-5 transition-transform group-hover:scale-105", isCurrent("/mobile") && !isSellActive && !pathname.startsWith("/mobile/sales") && !pathname.startsWith("/mobile/customers") && "stroke-[2.5]")} />
+              <Home className={cn("w-5 h-5 transition-transform group-hover:scale-105", isCurrent("/mobile") && !isSellActive && !pathname.startsWith("/mobile/sales") && !pathname.startsWith("/mobile/customers") && !pathname.startsWith("/mobile/products") && "stroke-[2.5]")} />
               <span className="text-[10px] mt-0.5 tracking-tight">Home</span>
             </Link>
 
@@ -102,32 +95,32 @@ function MobileNavBarContent() {
             {/* 3. Center Spacer (Under the floating (+) button) */}
             <div className="pointer-events-none flex items-center justify-center h-full" aria-hidden="true" />
 
-            {/* 4. Payment */}
+            {/* 4. Products */}
             <Link
-              href="/mobile/customers?filter=debt"
+              href="/mobile/products"
               className={cn(
                 "flex flex-col items-center justify-center py-1 rounded-xl text-center transition-colors active:scale-95 group",
-                isPaymentActive
+                isCurrent("/mobile/products")
                   ? "text-primary font-bold"
                   : "text-muted-foreground/75 hover:text-foreground font-medium"
               )}
             >
-              <CircleDollarSign className={cn("w-5 h-5 transition-transform group-hover:scale-105", isPaymentActive && "stroke-[2.5]")} />
-              <span className="text-[10px] mt-0.5 tracking-tight">Payment</span>
+              <Package className={cn("w-5 h-5 transition-transform group-hover:scale-105", isCurrent("/mobile/products") && "stroke-[2.5]")} />
+              <span className="text-[10px] mt-0.5 tracking-tight">Products</span>
             </Link>
 
-            {/* 5. Customer (Changed back from Profile) */}
+            {/* 5. Customers */}
             <Link
               href="/mobile/customers"
               className={cn(
                 "flex flex-col items-center justify-center py-1 rounded-xl text-center transition-colors active:scale-95 group",
-                isCustomerActive
+                isCurrent("/mobile/customers")
                   ? "text-primary font-bold"
                   : "text-muted-foreground/75 hover:text-foreground font-medium"
               )}
             >
-              <Users className={cn("w-5 h-5 transition-transform group-hover:scale-105", isCustomerActive && "stroke-[2.5]")} />
-              <span className="text-[10px] mt-0.5 tracking-tight">Customer</span>
+              <Users className={cn("w-5 h-5 transition-transform group-hover:scale-105", isCurrent("/mobile/customers") && "stroke-[2.5]")} />
+              <span className="text-[10px] mt-0.5 tracking-tight">Customers</span>
             </Link>
           </div>
         </div>
