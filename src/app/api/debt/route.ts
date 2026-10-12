@@ -15,13 +15,6 @@ export async function GET(request: Request) {
     const view = searchParams.get("view");
 
     if (view === "summary") {
-      // Summary with overall revenue/debt is restricted to OWNER
-      if (auth!.user.role !== "OWNER") {
-        return NextResponse.json(
-          { success: false, error: "Forbidden: Overall debt summaries are restricted to the business owner." },
-          { status: 403 }
-        );
-      }
       const summary = await getDebtDashboardSummary(auth!.businessId);
       return NextResponse.json({ success: true, data: serializePlainObject(summary) });
     }

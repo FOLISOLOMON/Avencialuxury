@@ -108,10 +108,10 @@ export function SessionMonitor() {
           json = await res.json();
         } catch (e) {}
 
-        if (json.deactivated || res.status === 403) {
+        if (json?.deactivated === true) {
           triggerEjection("deactivated");
-        } else {
-          triggerEjection(json.sessionRevoked ? "revoked" : "unauthorized");
+        } else if (json?.sessionRevoked === true || (res.status === 401 && json?.authenticated === false)) {
+          triggerEjection("revoked");
         }
       }
     } catch (err) {
@@ -147,7 +147,7 @@ export function SessionMonitor() {
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("online", onOnline);
 
-    // 4. Global fetch interceptor: Any 401/403 API response instantly triggers ejection
+    // 4. Global fetch interceptor: ONLY eject if backend explicitly states deactivated or sessionRevoked
     const originalFetch = window.fetch;
     window.fetch = async (...args) => {
       const response = await originalFetch(...args);
@@ -161,15 +161,13 @@ export function SessionMonitor() {
             .clone()
             .json()
             .then((data) => {
-              if (data?.deactivated || response.status === 403) {
+              if (data?.deactivated === true) {
                 triggerEjection("deactivated");
-              } else if (data?.sessionRevoked || response.status === 401) {
+              } else if (data?.sessionRevoked === true) {
                 triggerEjection("revoked");
               }
             })
-            .catch(() => {
-              triggerEjection("unauthorized");
-            });
+            .catch(() => {});
         }
       }
 
