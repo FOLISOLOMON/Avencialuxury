@@ -55,6 +55,9 @@ export function TeamManagementCard() {
   const [inviting, setInviting] = useState(false);
   const [inviteSuccessMsg, setInviteSuccessMsg] = useState<string | null>(null);
   const [lastCreatedInviteUrl, setLastCreatedInviteUrl] = useState<string | null>(null);
+  const [testingEmail, setTestingEmail] = useState(false);
+  const [emailTestMsg, setEmailTestMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
   const fetchTeam = async () => {
     setLoading(true);
@@ -159,6 +162,44 @@ export function TeamManagementCard() {
     }
   };
 
+  const handleTestEmail = async () => {
+    setTestingEmail(true);
+    setEmailTestMsg(null);
+    try {
+      const res = await fetch("/api/team/test-email", { method: "POST" });
+      const json = await res.json();
+      if (json.success) {
+        setEmailTestMsg({ type: "success", text: json.message || "Email connection verified successfully!" });
+      } else {
+        setEmailTestMsg({ type: "error", text: json.error || "Failed to connect to email server" });
+      }
+    } catch (err: any) {
+      setEmailTestMsg({ type: "error", text: err.message || "Failed to test email connection" });
+    } finally {
+      setTestingEmail(false);
+    }
+  };
+
+  const handleResendInvitation = async (invitationId: string) => {
+    setResendingId(invitationId);
+    setError(null);
+    try {
+      const res = await fetch(`/api/team/invitations/${invitationId}`, { method: "POST" });
+      const json = await res.json();
+      if (json.success) {
+        setInviteSuccessMsg(json.message || "Invitation email resent!");
+        if (json.inviteUrl) setLastCreatedInviteUrl(json.inviteUrl);
+        fetchTeam();
+      } else {
+        setError(json.error || "Failed to resend invitation");
+      }
+    } catch (err: any) {
+      setError(err.message || "Error resending invitation");
+    } finally {
+      setResendingId(null);
+    }
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     alert("Invite link copied to clipboard!");
@@ -177,16 +218,56 @@ export function TeamManagementCard() {
           </p>
         </div>
 
-        <Button
-          variant={showInviteForm ? "secondary" : "primary"}
-          size="sm"
-          onClick={() => setShowInviteForm(!showInviteForm)}
-          className="gap-1.5"
-        >
-          <UserPlus className="w-4 h-4" />
-          <span>{showInviteForm ? "Close Form" : "Invite New Worker"}</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleTestEmail}
+            isLoading={testingEmail}
+            className="gap-1.5 text-xs"
+            title="Send a live test email using your configured SMTP / Gmail credentials"
+          >
+            <Mail className="w-3.5 h-3.5" />
+            <span>Test Email Service</span>
+          </Button>
+
+          <Button
+            variant={showInviteForm ? "secondary" : "primary"}
+            size="sm"
+            onClick={() => setShowInviteForm(!showInviteForm)}
+            className="gap-1.5"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>{showInviteForm ? "Close Form" : "Invite New Worker"}</span>
+          </Button>
+        </div>
       </div>
+
+      {emailTestMsg && (
+        <div
+          className={`p-3 rounded-md text-xs font-medium flex items-center justify-between gap-2 ${
+            emailTestMsg.type === "success"
+              ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
+              : "bg-destructive/10 border border-destructive/20 text-destructive"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {emailTestMsg.type === "success" ? (
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+            )}
+            <span>{emailTestMsg.text}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setEmailTestMsg(null)}
+            className="text-neutral-400 hover:text-neutral-200"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {error && (
         <div className="p-3 rounded-md bg-destructive/10 text-destructive text-xs font-medium flex items-center gap-2">
@@ -353,6 +434,17 @@ export function TeamManagementCard() {
                 </div>
 
                 <div className="flex items-center gap-2 flex-shrink-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleResendInvitation(inv.id)}
+                    isLoading={resendingId === inv.id}
+                    className="text-xs h-7 px-2.5 gap-1"
+                    title="Resend invitation email"
+                  >
+                    <Mail className="w-3 h-3" />
+                    <span>Resend</span>
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"

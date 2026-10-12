@@ -45,7 +45,9 @@ export async function POST(
       sentById: auth!.user.id,
     });
 
-    const appBaseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+    const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
+    const proto = request.headers.get("x-forwarded-proto") || (request.url.startsWith("https") ? "https" : "http");
+    const appBaseUrl = process.env.NEXTAUTH_URL || process.env.APP_URL || (host ? `${proto}://${host}` : "http://localhost:3000");
     const inviteUrl = `${appBaseUrl}/invite/${result.rawToken}`;
 
     const emailResult = await sendWorkerInvitationEmail({
@@ -61,9 +63,10 @@ export async function POST(
       inviteUrl,
       rawToken: result.rawToken,
       emailSent: emailResult.sent,
+      emailError: emailResult.error,
       message: emailResult.sent
         ? `Invitation email successfully resent to ${result.invitation.email}!`
-        : "Invitation refreshed with a new 24-hour validity window.",
+        : `Invitation refreshed with a new 24-hour validity window.${emailResult.error ? ` (Email issue: ${emailResult.error})` : ""}`,
     });
   } catch (error: any) {
     console.error("POST /api/team/invitations/[id] error:", error);

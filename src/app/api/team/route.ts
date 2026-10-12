@@ -55,7 +55,9 @@ export async function POST(request: Request) {
     });
 
     // Provide the invitation link directly for easy sharing by the owner
-    const appBaseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+    const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
+    const proto = request.headers.get("x-forwarded-proto") || (request.url.startsWith("https") ? "https" : "http");
+    const appBaseUrl = process.env.NEXTAUTH_URL || process.env.APP_URL || (host ? `${proto}://${host}` : "http://localhost:3000");
     const inviteUrl = `${appBaseUrl}/invite/${result.rawToken}`;
 
     // Dispatch email if SMTP is configured
@@ -72,9 +74,10 @@ export async function POST(request: Request) {
       inviteUrl,
       rawToken: result.rawToken,
       emailSent: emailResult.sent,
+      emailError: emailResult.error,
       message: emailResult.sent
         ? `Invitation email successfully sent to ${result.invitation.email}!`
-        : `Invitation created for ${result.invitation.name}. You can also share the link directly.`,
+        : `Invitation created for ${result.invitation.name}.${emailResult.error ? ` (Email issue: ${emailResult.error})` : ""} You can also share the link directly.`,
     });
   } catch (error: any) {
     console.error("POST /api/team error:", error);

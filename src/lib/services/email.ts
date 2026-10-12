@@ -7,13 +7,28 @@ import nodemailer from "nodemailer";
 
 const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || "465", 10);
-const SMTP_USER = process.env.SMTP_USER || "";
-const SMTP_PASS = process.env.SMTP_PASS || "";
+const SMTP_USER = (process.env.SMTP_USER || "").trim();
+const SMTP_PASS = (process.env.SMTP_PASS || "").replace(/\s+/g, ""); // Clean 16-char App Password
 const SMTP_FROM = process.env.SMTP_FROM || (SMTP_USER ? `Avencia Perfumes <${SMTP_USER}>` : "Avencia Perfumes <no-reply@avencialuxury.com>");
 
 function getTransporter() {
   if (!SMTP_USER || !SMTP_PASS) {
     return null;
+  }
+
+  const isGmail = SMTP_HOST.includes("gmail") || SMTP_USER.endsWith("@gmail.com");
+
+  if (isGmail) {
+    return nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: SMTP_USER,
+        pass: SMTP_PASS,
+      },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
+    });
   }
 
   return nodemailer.createTransport({
@@ -24,6 +39,9 @@ function getTransporter() {
       user: SMTP_USER,
       pass: SMTP_PASS,
     },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
   });
 }
 
@@ -185,3 +203,73 @@ export async function sendPasswordResetEmail(options: SendPasswordResetOptions):
     return { sent: false, error: err.message };
   }
 }
+
+/**
+ * Diagnostic utility for the owner to test production SMTP connectivity.
+ */
+export async function testEmailConnection(testRecipient: string): Promise<{
+  success: boolean;
+  error?: string;
+  diagnostics?: Record<string, any>;
+}> {
+  if (!SMTP_USER || !SMTP_PASS) {
+    return {
+      success: false,
+      error: "SMTP credentials are missing. Please add SMTP_USER and SMTP_PASS to your production hosting environment variables (e.g. Vercel Project Settings).",
+      diagnostics: {
+        hasUser: !!SMTP_USER,
+        hasPass: !!SMTP_PASS,
+        host: SMTP_HOST,
+        port: SMTP_PORT,
+      },
+    };
+  }
+
+  const transporter = getTransporter();
+  if (!transporter) {
+    return { success: false, error: "Failed to initialize email transporter." };
+  }
+
+  try {
+    await transporter.verify();
+
+    await transporter.sendMail({
+      from: SMTP_FROM,
+      to: testRecipient,
+      subject: "Avencia Perfumes — SMTP Test Verification",
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #141414; color: #FFFFFF; padding: 28px; border-radius: 12px; border: 1px solid #2A2A2A; max-width: 480px;">
+          <h2 style="color: #D4AF37; margin-top: 0;">Avencia Email Verified</h2>
+          <p style="font-size: 14px; line-height: 1.6; color: #CCCCCC;">
+            Your production email delivery system has successfully connected to Gmail SMTP and is operational!
+          </p>
+          <p style="font-size: 12px; color: #888888; border-top: 1px solid #262626; padding-top: 12px; margin-top: 20px;">
+            Sent to: ${testRecipient} &bull; ${new Date().toLocaleString()}
+          </p>
+        </div>
+      `,
+    });
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("[Email Service] Test connection failed:", err);
+    let friendlyError = err.message || "Failed to establish SMTP connection";
+
+    if (err.message?.includes("535") || err.message?.includes("BadCredentials") || err.message?.includes("Username and Password not accepted")) {
+      friendlyError = "Gmail rejected credentials (535): Make sure 2-Step Verification is enabled on your Google account and you are using a 16-character Google App Password (not your regular account password).";
+    } else if (err.code === "ETIMEDOUT" || err.code === "ESOCKETTIMEDOUT") {
+      friendlyError = "Connection to smtp.gmail.com timed out. Check network firewall or hosting port restrictions.";
+    }
+
+    return {
+      success: false,
+      error: friendlyError,
+      diagnostics: {
+        code: err.code,
+        command: err.command,
+        response: err.response,
+      },
+    };
+  }
+}
+
