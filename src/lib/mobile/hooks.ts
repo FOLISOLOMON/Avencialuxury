@@ -88,6 +88,20 @@ export function useMobileProducts() {
 
   useEffect(() => {
     reloadProducts();
+
+    const handleSync = () => {
+      reloadProducts();
+    };
+    window.addEventListener("avencia:sync:products", handleSync);
+    window.addEventListener("avencia:sync:inventory", handleSync);
+    window.addEventListener("avencia:sync:batches", handleSync);
+    window.addEventListener("avencia:sync:sales", handleSync);
+    return () => {
+      window.removeEventListener("avencia:sync:products", handleSync);
+      window.removeEventListener("avencia:sync:inventory", handleSync);
+      window.removeEventListener("avencia:sync:batches", handleSync);
+      window.removeEventListener("avencia:sync:sales", handleSync);
+    };
   }, [reloadProducts]);
 
   return { products, loading, refetch: reloadProducts };
@@ -151,6 +165,16 @@ export function useMobileCustomers() {
 
   useEffect(() => {
     reloadCustomers();
+
+    const handleSync = () => {
+      reloadCustomers();
+    };
+    window.addEventListener("avencia:sync:customers", handleSync);
+    window.addEventListener("avencia:sync:sales", handleSync);
+    return () => {
+      window.removeEventListener("avencia:sync:customers", handleSync);
+      window.removeEventListener("avencia:sync:sales", handleSync);
+    };
   }, [reloadCustomers]);
 
   return { customers, loading, refetch: reloadCustomers };

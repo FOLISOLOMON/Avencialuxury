@@ -11,7 +11,13 @@ export async function POST(
     const { auth, errorResponse } = await requireAuth(request);
     if (errorResponse) return errorResponse;
 
-    const { id: saleId } = await params;
+    const resolvedParams = await Promise.resolve(params);
+    const saleId = resolvedParams?.id;
+
+    if (!saleId) {
+      return NextResponse.json({ success: false, error: "Sale ID is required." }, { status: 400 });
+    }
+
     const body = await request.json();
     const { reason } = body || {};
 

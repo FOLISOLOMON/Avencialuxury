@@ -118,6 +118,19 @@ export default function BatchesPage() {
     } catch (e) {}
   };
 
+  // Real-time synchronization: instantly refresh batches when inventory, batches, or sales update
+  useEffect(() => {
+    const handleSync = () => {
+      fetchBatches();
+    };
+    window.addEventListener("avencia:sync:batches", handleSync);
+    window.addEventListener("avencia:sync:inventory", handleSync);
+    return () => {
+      window.removeEventListener("avencia:sync:batches", handleSync);
+      window.removeEventListener("avencia:sync:inventory", handleSync);
+    };
+  }, [statusFilter]);
+
   const handleCreateBatch = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
@@ -144,6 +157,10 @@ export default function BatchesPage() {
       const json = await res.json();
       if (json.success) {
         setIsModalOpen(false);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("avencia:sync:batches"));
+          window.dispatchEvent(new CustomEvent("avencia:sync:inventory"));
+        }
         router.push(`/batches/${json.data.id}`);
       } else {
         setFormError(json.error || "Could not create batch");

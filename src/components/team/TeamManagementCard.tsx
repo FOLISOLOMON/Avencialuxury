@@ -86,6 +86,16 @@ export function TeamManagementCard() {
 
   useEffect(() => {
     fetchTeam();
+
+    const handleSync = () => {
+      fetchTeam();
+    };
+    window.addEventListener("avencia:sync:team", handleSync);
+    window.addEventListener("avencia:sync:sales", handleSync);
+    return () => {
+      window.removeEventListener("avencia:sync:team", handleSync);
+      window.removeEventListener("avencia:sync:sales", handleSync);
+    };
   }, []);
 
   const handleSendInvite = async (e: React.FormEvent) => {
@@ -385,7 +395,7 @@ export function TeamManagementCard() {
                   </div>
                   <p className="text-[11px] text-muted-foreground truncate">{w.email}</p>
                   <p className="text-[10px] text-neutral-500 mt-0.5">
-                    Attributed: {w._count?.sales ?? 0} sales • {w._count?.debtPayments ?? 0} debt collections
+                    Attributed: {w._count?.sales ?? (w._count as any)?.createdSales ?? 0} sales • {w._count?.debtPayments ?? (w._count as any)?.collectedPayments ?? 0} debt collections
                   </p>
                 </div>
 

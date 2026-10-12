@@ -60,6 +60,16 @@ export default function MobileSalesPage() {
 
   useEffect(() => {
     fetchSales();
+
+    const handleSync = () => {
+      fetchSales();
+    };
+    window.addEventListener("avencia:sync:sales", handleSync);
+    window.addEventListener("avencia:sync:cancellations", handleSync);
+    return () => {
+      window.removeEventListener("avencia:sync:sales", handleSync);
+      window.removeEventListener("avencia:sync:cancellations", handleSync);
+    };
   }, []);
 
   const handleRequestCancellation = async (e: React.FormEvent) => {
@@ -82,13 +92,28 @@ export default function MobileSalesPage() {
       }
 
       setCancelMessage("Cancellation request submitted to the Owner for review.");
+
+      // Optimistically update local selected sale state immediately
+      setSelectedSale({
+        ...selectedSale,
+        cancellationRequest: {
+          status: "PENDING",
+          reason: cancelReason.trim(),
+        },
+      });
+
+      // Broadcast instant live sync to owner OP dashboard & cancellation queue
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("avencia:sync:cancellations"));
+        window.dispatchEvent(new CustomEvent("avencia:sync:sales"));
+      }
+
       setTimeout(() => {
         setCancelModalOpen(false);
         setCancelReason("");
         setCancelMessage(null);
         fetchSales();
-        setSelectedSale(null);
-      }, 2000);
+      }, 1500);
     } catch (err: any) {
       setCancelMessage(err.message || "Error submitting request");
     } finally {
@@ -268,6 +293,15 @@ export default function MobileSalesPage() {
               </div>
             )}
 
+            {selectedSale.cancellationRequest?.status === "REJECTED" && (
+              <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium flex items-center gap-2">
+                <AlertOctagon className="w-4 h-4 shrink-0" />
+                <span>
+                  Previous cancellation rejected: {selectedSale.cancellationRequest.rejectionReason || "Owner declined request"}. You may re-submit with clarification if needed.
+                </span>
+              </div>
+            )}
+
             {/* Summary */}
             <div className="p-3.5 rounded-xl bg-muted/40 border border-border/80 flex justify-between items-center">
               <div>
@@ -378,11 +412,18 @@ export default function MobileSalesPage() {
                 </Button>
               )}
 
-              {selectedSale.paymentStatus !== "CANCELLED" && !selectedSale.cancellationRequest && (
+              {selectedSale.status !== "VOIDED" &&
+                selectedSale.status !== "REFUNDED" &&
+                selectedSale.cancellationRequest?.status !== "PENDING" &&
+                selectedSale.cancellationRequest?.status !== "APPROVED" && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setCancelModalOpen(true)}
+                  onClick={() => {
+                    setCancelReason("");
+                    setCancelMessage(null);
+                    setCancelModalOpen(true);
+                  }}
                   className="text-xs text-muted-foreground hover:text-destructive"
                 >
                   <AlertOctagon className="w-3.5 h-3.5 mr-1" />
@@ -407,7 +448,15 @@ export default function MobileSalesPage() {
             </p>
 
             {cancelMessage && (
-              <div className="p-2.5 rounded bg-muted/40 text-xs font-medium text-foreground">
+              <div
+                className={`p-2.5 rounded text-xs font-medium ${
+                  cancelMessage.includes("Error") ||
+                  cancelMessage.includes("Failed") ||
+                  cancelMessage.includes("Unauthorized")
+                    ? "bg-destructive/15 text-destructive border border-destructive/20"
+                    : "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
+                }`}
+              >
                 {cancelMessage}
               </div>
             )}

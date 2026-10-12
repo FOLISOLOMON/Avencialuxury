@@ -240,6 +240,21 @@ export default function SalesPage() {
     return () => window.removeEventListener("avencia:open-add-sale", handler);
   }, []);
 
+  // Real-time synchronization: instantly refresh data when sales, cancellations, or products update
+  useEffect(() => {
+    const handleSync = () => {
+      fetchData();
+    };
+    window.addEventListener("avencia:sync:sales", handleSync);
+    window.addEventListener("avencia:sync:cancellations", handleSync);
+    window.addEventListener("avencia:sync:products", handleSync);
+    return () => {
+      window.removeEventListener("avencia:sync:sales", handleSync);
+      window.removeEventListener("avencia:sync:cancellations", handleSync);
+      window.removeEventListener("avencia:sync:products", handleSync);
+    };
+  }, []);
+
   // Filter products for POS
   const categories = useMemo(() => {
     const set = new Set<string>();

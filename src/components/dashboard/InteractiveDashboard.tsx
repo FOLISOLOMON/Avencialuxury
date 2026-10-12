@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ShoppingBag,
   Plus,
@@ -37,8 +38,20 @@ export function InteractiveDashboard({
   customers = [],
   settings,
 }: InteractiveDashboardProps) {
+  const router = useRouter();
   const toast = useToast();
   const currency = settings?.currency || "GHS";
+
+  // Auto-refresh server props on real-time sync events
+  useEffect(() => {
+    const handleSync = () => {
+      router.refresh();
+    };
+    window.addEventListener("avencia:sync", handleSync);
+    return () => {
+      window.removeEventListener("avencia:sync", handleSync);
+    };
+  }, [router]);
 
   // Quick Action Modal states
   const [isQuickProductOpen, setIsQuickProductOpen] = useState(false);

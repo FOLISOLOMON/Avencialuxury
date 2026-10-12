@@ -242,6 +242,13 @@ function MobileSellContent() {
 
       // Trigger background sync to refresh caches
       syncManager.refreshCacheFromServer();
+
+      // Instantly notify main OP and desktop dashboard
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("avencia:sync:sales"));
+        window.dispatchEvent(new CustomEvent("avencia:sync:inventory"));
+        window.dispatchEvent(new CustomEvent("avencia:sync:team"));
+      }
     } catch (err: any) {
       toast.error(
         err.message || "Failed to commit sale. Check connection and retry.",

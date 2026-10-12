@@ -140,6 +140,23 @@ export default function ProductsPage() {
     return () => window.removeEventListener("avencia:open-add-product", handler);
   }, []);
 
+  // Real-time synchronization: instantly refresh products when inventory, batches, or sales update
+  useEffect(() => {
+    const handleSync = () => {
+      fetchProducts();
+    };
+    window.addEventListener("avencia:sync:products", handleSync);
+    window.addEventListener("avencia:sync:inventory", handleSync);
+    window.addEventListener("avencia:sync:sales", handleSync);
+    window.addEventListener("avencia:sync:batches", handleSync);
+    return () => {
+      window.removeEventListener("avencia:sync:products", handleSync);
+      window.removeEventListener("avencia:sync:inventory", handleSync);
+      window.removeEventListener("avencia:sync:sales", handleSync);
+      window.removeEventListener("avencia:sync:batches", handleSync);
+    };
+  }, [search]);
+
   const openAddModal = () => {
     setAddError(null);
     setLookupInfo(null);
@@ -252,6 +269,10 @@ export default function ProductsPage() {
       const json = await res.json();
       if (json.success) {
         setIsAddOpen(false);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("avencia:sync:products"));
+          window.dispatchEvent(new CustomEvent("avencia:sync:inventory"));
+        }
         fetchProducts();
       } else {
         setAddError(json.error || "Failed to create product");
@@ -299,6 +320,9 @@ export default function ProductsPage() {
       const json = await res.json();
       if (json.success) {
         setEditingProduct(null);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("avencia:sync:products"));
+        }
         fetchProducts();
       } else {
         setEditError(json.error || "Failed to update product");

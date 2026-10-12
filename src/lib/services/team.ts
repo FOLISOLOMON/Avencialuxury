@@ -15,10 +15,12 @@ export interface CreateInvitationInput {
 export async function getWorkersList(businessId: string) {
   await ensureDefaultBusiness(businessId);
 
-  const workers = await prisma.user.findMany({
+  const users = await prisma.user.findMany({
     where: {
-      businessId,
-      role: "WORKER",
+      OR: [
+        { businessId },
+        { businesses: { some: { id: businessId } } },
+      ],
     },
     select: {
       id: true,
@@ -27,17 +29,47 @@ export async function getWorkersList(businessId: string) {
       role: true,
       isActive: true,
       createdAt: true,
-      _count: {
-        select: {
-          createdSales: true,
-          collectedPayments: true,
-        },
-      },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: [
+      { role: "asc" }, // OWNER first, then WORKER
+      { createdAt: "desc" },
+    ],
   });
 
-  return workers;
+  const workersWithCounts = await Promise.all(
+    users.map(async (u) => {
+      const [salesCount, paymentsCount] = await Promise.all([
+        prisma.sale.count({
+          where: {
+            creatorId: u.id,
+            status: { notIn: ["VOIDED"] },
+          },
+        }),
+        prisma.debtPayment.count({
+          where: {
+            collectorId: u.id,
+          },
+        }),
+      ]);
+
+      return {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        isActive: u.isActive,
+        createdAt: u.createdAt,
+        _count: {
+          sales: salesCount,
+          debtPayments: paymentsCount,
+          createdSales: salesCount,
+          collectedPayments: paymentsCount,
+        },
+      };
+    })
+  );
+
+  return workersWithCounts;
 }
 
 export async function getPendingInvitations(businessId: string) {

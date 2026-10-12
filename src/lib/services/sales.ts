@@ -707,9 +707,17 @@ export async function requestSaleCancellation(params: {
     throw new Error("This sale is already voided.");
   }
 
-  // Worker can only request cancellation for their own sale
-  if (params.requester.role === "WORKER" && sale.creatorId !== params.requester.id) {
+  // Worker can request cancellation for their own sales or sales where creatorId was not explicitly set
+  if (params.requester.role === "WORKER" && sale.creatorId && sale.creatorId !== params.requester.id) {
     throw new Error("Unauthorized: You can only request cancellation for sales you created.");
+  }
+
+  // If creatorId was unassigned, attribute this sale to the requesting worker
+  if (!sale.creatorId && params.requester.role === "WORKER") {
+    await prisma.sale.update({
+      where: { id: sale.id },
+      data: { creatorId: params.requester.id },
+    });
   }
 
   // Check if a request already exists
@@ -745,13 +753,14 @@ export async function requestSaleCancellation(params: {
   });
 
   // Notify the owner
+  const requesterName = cancellationRequest.requester?.name || "Worker";
   await createNotification({
     businessId: sale.businessId,
     type: "CANCELLATION_REQUESTED",
     category: "SALES",
     severity: "WARNING",
     title: "Sale Cancellation Requested",
-    message: `${cancellationRequest.requester.name} requested cancellation of Sale #${sale.id.slice(-6)}: "${params.reason.trim()}".`,
+    message: `${requesterName} requested cancellation of Sale #${sale.id.slice(-6)}: "${params.reason.trim()}".`,
     actionLabel: "Review Queue",
     actionUrl: "/sales",
     entityType: "SALE",

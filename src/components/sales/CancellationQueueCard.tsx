@@ -71,6 +71,16 @@ export function CancellationQueueCard() {
 
   useEffect(() => {
     fetchQueue();
+
+    const handleSync = () => {
+      fetchQueue();
+    };
+    window.addEventListener("avencia:sync:cancellations", handleSync);
+    window.addEventListener("avencia:sync:sales", handleSync);
+    return () => {
+      window.removeEventListener("avencia:sync:cancellations", handleSync);
+      window.removeEventListener("avencia:sync:sales", handleSync);
+    };
   }, []);
 
   const handleReview = async (requestId: string, action: "APPROVE" | "REJECT") => {
@@ -91,6 +101,13 @@ export function CancellationQueueCard() {
       const json = await res.json();
       if (!res.ok || !json.success) {
         throw new Error(json.error || "Failed to process review");
+      }
+
+      // Broadcast instant live update to worker mobile devices
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("avencia:sync:cancellations"));
+        window.dispatchEvent(new CustomEvent("avencia:sync:sales"));
+        window.dispatchEvent(new CustomEvent("avencia:sync:inventory"));
       }
 
       fetchQueue();
