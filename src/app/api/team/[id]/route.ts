@@ -13,9 +13,12 @@ export async function PATCH(
 
     const { id: workerId } = await params;
     const body = await request.json();
-    const { action } = body || {};
+    const { action, isActive } = body || {};
 
-    if (action === "deactivate") {
+    const shouldDeactivate = action === "deactivate" || isActive === false;
+    const shouldActivate = action === "activate" || isActive === true;
+
+    if (shouldDeactivate) {
       const updated = await deactivateWorker({
         businessId: auth!.businessId,
         workerId,
@@ -26,7 +29,7 @@ export async function PATCH(
         data: serializePlainObject(updated),
         message: "Worker deactivated. All active sessions have been revoked immediately.",
       });
-    } else if (action === "activate") {
+    } else if (shouldActivate) {
       const updated = await activateWorker({
         businessId: auth!.businessId,
         workerId,

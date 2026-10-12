@@ -127,7 +127,10 @@ export function TeamManagementCard() {
       const res = await fetch(`/api/team/${workerId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: !currentActive }),
+        body: JSON.stringify({
+          action: currentActive ? "deactivate" : "activate",
+          isActive: !currentActive,
+        }),
       });
       const json = await res.json();
       if (json.success) {
