@@ -338,3 +338,37 @@ export async function getMeta<T = any>(key: string): Promise<T | null> {
     return null;
   }
 }
+
+// ==========================================
+// PURGE OFFLINE DATA ON SESSION TERMINATION
+// ==========================================
+export async function clearAllOfflineData(): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    const db = await getDB();
+    const stores: (keyof AvenciaDB)[] = [
+      "products",
+      "customers",
+      "pendingSales",
+      "pendingCustomers",
+      "pendingDebtPayments",
+      "metadata",
+    ];
+    const tx = db.transaction(stores, "readwrite");
+    stores.forEach((storeName) => {
+      try {
+        tx.objectStore(storeName).clear();
+      } catch (e) {
+        // Ignore store errors if store is empty
+      }
+    });
+
+    return new Promise((resolve) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  } catch (err) {
+    console.warn("Failed to clear offline data:", err);
+  }
+}
+

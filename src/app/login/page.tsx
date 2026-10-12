@@ -4,7 +4,7 @@ import React, { useState, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Lock, Mail, ArrowRight, AlertCircle, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { Lock, Mail, ArrowRight, AlertCircle, ShieldCheck, CheckCircle2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
@@ -13,11 +13,14 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const isMobile = searchParams.get("mobile") === "true";
   const returnUrl = searchParams.get("returnUrl");
+  const isDeactivated = searchParams.get("deactivated") === "true";
+  const isSessionRevoked = searchParams.get("session_revoked") === "true";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,6 +103,20 @@ function LoginForm() {
               Enter your credentials to access the Avencia terminal
             </p>
           </div>
+
+          {isDeactivated && (
+            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-medium flex items-center gap-2.5 animate-in fade-in duration-200">
+              <ShieldAlert className="w-4 h-4 flex-shrink-0 text-amber-400" />
+              <span>Your account has been deactivated by the administrator. Contact your manager if you believe this is an error.</span>
+            </div>
+          )}
+
+          {isSessionRevoked && !isDeactivated && (
+            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-medium flex items-center gap-2.5 animate-in fade-in duration-200">
+              <ShieldAlert className="w-4 h-4 flex-shrink-0 text-amber-400" />
+              <span>Your session has been terminated by the administrator. Please sign in again.</span>
+            </div>
+          )}
 
           {error && (
             <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium flex items-center gap-2.5 animate-in fade-in duration-200">

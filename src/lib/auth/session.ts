@@ -192,37 +192,95 @@ export async function requireAuth(
     allowedRoles?: Role[];
   }
 ): Promise<{ auth?: AuthContext; errorResponse?: NextResponse }> {
-  const auth = await getAuthenticatedUser(req);
-
-  if (!auth) {
-    return {
-      errorResponse: NextResponse.json(
-        { success: false, error: "Unauthorized: Invalid or expired session. Please sign in." },
-        { status: 401 }
-      ),
-    };
+  const token = extractTokenFromRequest(req);
+  if (!token) {
+    const errorResponse = NextResponse.json(
+      { success: false, error: "Unauthorized: Please sign in." },
+      { status: 401 }
+    );
+    return { errorResponse };
   }
 
-  if (!auth.user.isActive) {
-    return {
-      errorResponse: NextResponse.json(
-        { success: false, error: "Forbidden: Account has been deactivated. Contact the owner." },
-        { status: 403 }
-      ),
-    };
+  const payload = await verifySessionToken(token);
+  if (!payload) {
+    const errorResponse = NextResponse.json(
+      { success: false, error: "Unauthorized: Invalid or expired session." },
+      { status: 401 }
+    );
+    errorResponse.cookies.delete(SESSION_COOKIE_NAME);
+    return { errorResponse };
   }
 
-  if (options?.allowedRoles && !options.allowedRoles.includes(auth.user.role)) {
-    return {
-      errorResponse: NextResponse.json(
-        {
-          success: false,
-          error: `Forbidden: Access requires ${options.allowedRoles.join(" or ")} privileges.`,
+  try {
+    const dbSession = await prisma.session.findUnique({
+      where: { id: payload.sessionId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            isActive: true,
+            businessId: true,
+          },
         },
+      },
+    });
+
+    if (!dbSession || dbSession.revokedAt !== null || dbSession.expiresAt < new Date()) {
+      const errorResponse = NextResponse.json(
+        { success: false, error: "Unauthorized: Session has been revoked or expired.", sessionRevoked: true },
+        { status: 401 }
+      );
+      errorResponse.cookies.delete(SESSION_COOKIE_NAME);
+      return { errorResponse };
+    }
+
+    const user = dbSession.user;
+    if (!user || !user.isActive) {
+      const errorResponse = NextResponse.json(
+        { success: false, error: "Forbidden: Account has been deactivated. Contact the owner.", deactivated: true },
         { status: 403 }
+      );
+      errorResponse.cookies.delete(SESSION_COOKIE_NAME);
+      return { errorResponse };
+    }
+
+    if (options?.allowedRoles && !options.allowedRoles.includes(user.role)) {
+      return {
+        errorResponse: NextResponse.json(
+          {
+            success: false,
+            error: `Forbidden: Access requires ${options.allowedRoles.join(" or ")} privileges.`,
+          },
+          { status: 403 }
+        ),
+      };
+    }
+
+    const effectiveBusinessId = user.businessId || DEFAULT_BUSINESS_ID;
+    const auth: AuthContext = {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+        businessId: effectiveBusinessId,
+      },
+      sessionId: dbSession.id,
+      businessId: effectiveBusinessId,
+    };
+
+    return { auth };
+  } catch (err) {
+    console.error("[Auth] requireAuth DB error:", err);
+    return {
+      errorResponse: NextResponse.json(
+        { success: false, error: "Internal session error" },
+        { status: 500 }
       ),
     };
   }
-
-  return { auth };
 }
