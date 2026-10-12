@@ -23,19 +23,25 @@ export async function GET(
     }
 
     if (auth!.user.role === "WORKER") {
+      const p = product as any;
       const sanitized = {
-        id: product.id,
-        name: product.name,
-        barcode: product.barcode,
-        sku: product.sku,
-        description: product.description,
-        category: product.category,
-        brand: product.brand,
-        size: product.size,
-        sellingPrice: product.sellingPrice,
-        stock: (product as any).stock,
-        lowStockThreshold: product.lowStockThreshold,
-        isActive: product.isActive,
+        id: p.id,
+        name: p.name,
+        barcode: p.barcode,
+        sku: p.sku,
+        description: p.description,
+        category: p.category,
+        brand: p.brand,
+        size: p.size,
+        sellingPrice: p.sellingPrice,
+        sellingPriceNum: p.sellingPriceNum ?? (typeof p.sellingPrice?.toNumber === "function" ? p.sellingPrice.toNumber() : Number(p.sellingPrice || 0)),
+        remainingStock: p.remainingStock ?? p.stockLevel ?? 0,
+        stockLevel: p.stockLevel ?? p.remainingStock ?? 0,
+        stock: p.remainingStock ?? p.stockLevel ?? 0,
+        lowStockThreshold: p.lowStockThreshold,
+        lowStockAlert: p.lowStockThreshold,
+        isLowStock: p.isLowStock ?? (Number(p.remainingStock || 0) <= Number(p.lowStockThreshold || 5)),
+        isActive: p.isActive,
       };
       return NextResponse.json({ success: true, data: serializePlainObject(sanitized) });
     }

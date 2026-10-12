@@ -25,8 +25,13 @@ export async function GET(request: Request) {
         brand: p.brand,
         size: p.size,
         sellingPrice: p.sellingPrice,
-        stock: p.stock,
+        sellingPriceNum: p.sellingPriceNum ?? (typeof p.sellingPrice?.toNumber === "function" ? p.sellingPrice.toNumber() : Number(p.sellingPrice || 0)),
+        remainingStock: p.remainingStock ?? p.stockLevel ?? 0,
+        stockLevel: p.stockLevel ?? p.remainingStock ?? 0,
+        stock: p.remainingStock ?? p.stockLevel ?? 0,
         lowStockThreshold: p.lowStockThreshold,
+        lowStockAlert: p.lowStockThreshold,
+        isLowStock: p.isLowStock ?? (Number(p.remainingStock || 0) <= Number(p.lowStockThreshold || 5)),
         isActive: p.isActive,
         // defaultCostPrice redacted
       }));

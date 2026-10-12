@@ -25,6 +25,7 @@ yarn-error.log*
 
 # scratch directory
 scratch/
+.tmp/
 
 # vercel
 .vercel

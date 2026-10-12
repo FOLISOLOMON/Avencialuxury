@@ -276,12 +276,12 @@ class MobileSyncManager {
             brand: p.brand,
             sellingPrice: Number(p.sellingPriceNum ?? p.sellingPrice ?? 0),
             costPrice: Number(p.defaultCostPriceNum ?? p.defaultCostPrice ?? 0),
-            stockLevel: Number(p.remainingStock ?? p.stockLevel ?? 0),
+            stockLevel: Number(p.remainingStock ?? p.stockLevel ?? p.stock ?? 0),
             lowStockAlert: Number(p.lowStockThreshold ?? p.lowStockAlert ?? 5),
             barcode: p.barcode,
             volumeMl: p.volumeMl || (p.size ? parseInt(p.size, 10) || null : null),
             genderCategory: p.category || p.genderCategory,
-            concentration: p.concentration,
+            concentration: p.concentration || p.description,
           }));
           await cacheProducts(mobileProducts);
         }
