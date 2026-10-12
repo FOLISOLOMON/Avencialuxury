@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
 import { getSettings, updateSettings } from "@/lib/services/settings";
-import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 import { PaymentMethod } from "@prisma/client";
 import { serializePlainObject } from "@/lib/utils";
+import { requireAuth } from "@/lib/auth/session";
+import { logAudit } from "@/lib/services/audit";
 
 const VALID_PAYMENT_METHODS = new Set(Object.values(PaymentMethod));
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const settings = await getSettings(DEFAULT_BUSINESS_ID);
+    const { auth, errorResponse } = await requireAuth(request, { allowedRoles: ["OWNER"] });
+    if (errorResponse) return errorResponse;
+
+    const settings = await getSettings(auth!.businessId);
     return NextResponse.json({ success: true, data: serializePlainObject(settings) });
   } catch (error: any) {
     console.error("GET /api/settings error:", error);
@@ -21,6 +25,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const { auth, errorResponse } = await requireAuth(request, { allowedRoles: ["OWNER"] });
+    if (errorResponse) return errorResponse;
+
     const body = await request.json();
 
     if (!body || typeof body !== "object") {
@@ -69,9 +76,9 @@ export async function POST(request: Request) {
     let batchNearCompletionThreshold: number | undefined = undefined;
     if (body.batchNearCompletionThreshold !== undefined && body.batchNearCompletionThreshold !== null) {
       const parsed = parseFloat(body.batchNearCompletionThreshold);
-      if (isNaN(parsed) || parsed <= 0 || parsed > 100) {
+      if (isNaN(parsed) || parsed < 0 || parsed > 100) {
         return NextResponse.json(
-          { success: false, error: "Batch near completion threshold must be between 1% and 100%" },
+          { success: false, error: "Batch near completion threshold must be between 0 and 100" },
           { status: 400 }
         );
       }
@@ -83,7 +90,7 @@ export async function POST(request: Request) {
       const parsed = parseInt(body.dormantCustomerDays, 10);
       if (isNaN(parsed) || parsed < 1) {
         return NextResponse.json(
-          { success: false, error: "Dormant customer threshold must be at least 1 day" },
+          { success: false, error: "Dormant customer days must be at least 1" },
           { status: 400 }
         );
       }
@@ -94,8 +101,6 @@ export async function POST(request: Request) {
       body.dailySummaryEnabled !== undefined ? Boolean(body.dailySummaryEnabled) : undefined;
     const weeklySummaryEnabled =
       body.weeklySummaryEnabled !== undefined ? Boolean(body.weeklySummaryEnabled) : undefined;
-
-    // Push Notification Settings
     const pushEnabled =
       body.pushEnabled !== undefined ? Boolean(body.pushEnabled) : undefined;
     const upcomingRemindersEnabled =
@@ -118,7 +123,7 @@ export async function POST(request: Request) {
       body.timezone !== undefined ? String(body.timezone).trim() : undefined;
 
     const settings = await updateSettings({
-      businessId: DEFAULT_BUSINESS_ID,
+      businessId: auth!.businessId,
       lowStockThreshold,
       currency: body.currency ? String(body.currency).trim() : undefined,
       defaultPaymentMethod,
@@ -137,6 +142,15 @@ export async function POST(request: Request) {
       quietHoursStart,
       quietHoursEnd,
       timezone,
+    });
+
+    await logAudit({
+      businessId: auth!.businessId,
+      userId: auth!.user.id,
+      action: "SETTINGS_UPDATED",
+      entityType: "BUSINESS_SETTINGS",
+      entityId: (settings as any)?.id || auth!.businessId,
+      details: { currency: body.currency, lowStockThreshold },
     });
 
     return NextResponse.json({ success: true, data: serializePlainObject(settings) });

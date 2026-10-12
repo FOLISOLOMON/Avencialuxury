@@ -1,13 +1,38 @@
 import { NextResponse } from "next/server";
 import { createProduct, getProducts } from "@/lib/services/products";
-import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 import { serializePlainObject } from "@/lib/utils";
+import { requireAuth } from "@/lib/auth/session";
+import { logAudit } from "@/lib/services/audit";
 
 export async function GET(request: Request) {
   try {
+    const { auth, errorResponse } = await requireAuth(request);
+    if (errorResponse) return errorResponse;
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || undefined;
-    const products = await getProducts(DEFAULT_BUSINESS_ID, search);
+    const products = await getProducts(auth!.businessId, search);
+
+    // Data minimization for worker: do not expose confidential purchase costs
+    if (auth!.user.role === "WORKER") {
+      const sanitized = products.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        barcode: p.barcode,
+        sku: p.sku,
+        description: p.description,
+        category: p.category,
+        brand: p.brand,
+        size: p.size,
+        sellingPrice: p.sellingPrice,
+        stock: p.stock,
+        lowStockThreshold: p.lowStockThreshold,
+        isActive: p.isActive,
+        // defaultCostPrice redacted
+      }));
+      return NextResponse.json({ success: true, data: serializePlainObject(sanitized) });
+    }
+
     return NextResponse.json({ success: true, data: serializePlainObject(products) });
   } catch (error: any) {
     console.error("GET /api/products error:", error);
@@ -17,6 +42,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    // Creating products and configuring prices is strictly OWNER only
+    const { auth, errorResponse } = await requireAuth(request, { allowedRoles: ["OWNER"] });
+    if (errorResponse) return errorResponse;
+
     const body = await request.json();
 
     if (!body || typeof body !== "object") {
@@ -56,7 +85,7 @@ export async function POST(request: Request) {
     }
 
     const product = await createProduct({
-      businessId: DEFAULT_BUSINESS_ID,
+      businessId: auth!.businessId,
       name: body.name.trim(),
       barcode: body.barcode ? String(body.barcode).trim() : undefined,
       sku: body.sku ? String(body.sku).trim() : undefined,
@@ -69,6 +98,15 @@ export async function POST(request: Request) {
       lowStockThreshold,
       initialStock,
       batchId: body.batchId || undefined,
+    });
+
+    await logAudit({
+      businessId: auth!.businessId,
+      userId: auth!.user.id,
+      action: "PRODUCT_CREATED",
+      entityType: "PRODUCT",
+      entityId: product.id,
+      details: { name: product.name, sellingPrice, defaultCostPrice },
     });
 
     return NextResponse.json({ success: true, data: serializePlainObject(product) });

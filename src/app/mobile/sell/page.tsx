@@ -188,7 +188,7 @@ function MobileSellContent() {
     }
 
     setSubmitting(true);
-    const offlineId = "sale_off_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
+    const idempotencyKey = "sale_idemp_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9);
 
     const saleItemsPayload = cart.map((item) => ({
       productId: item.product.id,
@@ -197,106 +197,34 @@ function MobileSellContent() {
     }));
 
     try {
-      if (navigator.onLine) {
-        // ONLINE: Post to shared backend
-        const res = await fetch("/api/sales", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            customerId: selectedCustomer?.id || undefined,
-            items: saleItemsPayload,
-            paymentMethod,
-            amountPaid: finalAmountPaid,
-            dueDate: dueDate || undefined,
-            notes: saleNotes.trim() || undefined,
-            saleDate: new Date().toISOString(),
-          }),
-        });
+      if (!navigator.onLine) {
+        throw new Error(
+          "Online connection required. Sales must be verified by the authoritative server to prevent overselling and record financial authorization."
+        );
+      }
 
-        const json = await res.json();
-        if (json.success && json.data) {
-          // Immediately update customer cache with new debt & spend
-          if (selectedCustomer) {
-            await putCachedCustomer({
-              ...selectedCustomer,
-              totalDebt: (selectedCustomer.totalDebt || 0) + debtRemaining,
-              totalSpent: (selectedCustomer.totalSpent || 0) + totalAmount,
-              lastPurchaseDate: new Date().toISOString(),
-            });
-          }
-
-          setSaleSuccessData({
-            total: totalAmount,
-            receipt: json.data.receiptNumber || json.data.id?.substring(0, 8),
-            isOffline: false,
-          });
-
-          // Trigger background sync to refresh caches
-          syncManager.refreshCacheFromServer();
-          return;
-        } else {
-          throw new Error(json.error || "Server rejected sale");
-        }
-      } else {
-        // OFFLINE: Queue into IndexedDB
-        await addPendingSale({
-          offlineId,
-          customerId: selectedCustomer?.id,
-          customerName: selectedCustomer?.name,
-          items: cart.map((item) => ({
-            productId: item.product.id,
-            productName: item.product.name,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-          })),
-          totalAmount,
+      // ONLINE: Post to shared backend with idempotency key
+      const res = await fetch("/api/sales", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: selectedCustomer?.id || undefined,
+          items: saleItemsPayload,
+          paymentMethod,
           amountPaid: finalAmountPaid,
           dueDate: dueDate || undefined,
-          paymentMethod,
-          paymentStatus: finalAmountPaid >= totalAmount ? "PAID" : finalAmountPaid > 0 ? "PARTIAL" : "CREDIT",
           notes: saleNotes.trim() || undefined,
           saleDate: new Date().toISOString(),
-        });
-
-        if (selectedCustomer) {
-          await putCachedCustomer({
-            ...selectedCustomer,
-            totalDebt: (selectedCustomer.totalDebt || 0) + debtRemaining,
-            totalSpent: (selectedCustomer.totalSpent || 0) + totalAmount,
-            lastPurchaseDate: new Date().toISOString(),
-          });
-        }
-
-        setSaleSuccessData({
-          total: totalAmount,
-          isOffline: true,
-        });
-
-        toast.warning("Queued on your phone. Will sync automatically when connected.", "Sale Saved Offline");
-      }
-    } catch (err: any) {
-      console.warn("Online sale failed, falling back to offline queue:", err);
-
-      // Fallback to offline store
-      await addPendingSale({
-        offlineId,
-        customerId: selectedCustomer?.id,
-        customerName: selectedCustomer?.name,
-        items: cart.map((item) => ({
-          productId: item.product.id,
-          productName: item.product.name,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-        })),
-        totalAmount,
-        amountPaid: finalAmountPaid,
-        dueDate: dueDate || undefined,
-        paymentMethod,
-        paymentStatus: finalAmountPaid >= totalAmount ? "PAID" : finalAmountPaid > 0 ? "PARTIAL" : "CREDIT",
-        notes: saleNotes.trim() || undefined,
-        saleDate: new Date().toISOString(),
+          idempotencyKey,
+        }),
       });
 
+      const json = await res.json();
+      if (!res.ok || !json.success || !json.data) {
+        throw new Error(json.error || "Server rejected sale transaction");
+      }
+
+      // Immediately update customer cache with new debt & spend
       if (selectedCustomer) {
         await putCachedCustomer({
           ...selectedCustomer,
@@ -308,10 +236,17 @@ function MobileSellContent() {
 
       setSaleSuccessData({
         total: totalAmount,
-        isOffline: true,
+        receipt: json.data.receiptNumber || json.data.id?.substring(0, 8),
+        isOffline: false,
       });
 
-      toast.warning("Network issue. Sale stored locally and queued for auto-sync.", "Saved Locally");
+      // Trigger background sync to refresh caches
+      syncManager.refreshCacheFromServer();
+    } catch (err: any) {
+      toast.error(
+        err.message || "Failed to commit sale. Check connection and retry.",
+        "Transaction Failed"
+      );
     } finally {
       setSubmitting(false);
     }

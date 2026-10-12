@@ -1,15 +1,19 @@
 import { NextResponse } from "next/server";
 import { getFinancialSummary, allocateProfit, getAllocations } from "@/lib/services/profit";
-import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 import { AllocationType } from "@prisma/client";
 import { serializePlainObject } from "@/lib/utils";
+import { requireAuth } from "@/lib/auth/session";
+import { logAudit } from "@/lib/services/audit";
 
 const VALID_ALLOCATION_TYPES = new Set(Object.values(AllocationType));
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const summary = await getFinancialSummary(DEFAULT_BUSINESS_ID);
-    const allocations = await getAllocations(DEFAULT_BUSINESS_ID);
+    const { auth, errorResponse } = await requireAuth(request, { allowedRoles: ["OWNER"] });
+    if (errorResponse) return errorResponse;
+
+    const summary = await getFinancialSummary(auth!.businessId);
+    const allocations = await getAllocations(auth!.businessId);
     return NextResponse.json({
       success: true,
       data: serializePlainObject({
@@ -25,6 +29,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const { auth, errorResponse } = await requireAuth(request, { allowedRoles: ["OWNER"] });
+    if (errorResponse) return errorResponse;
+
     const body = await request.json();
 
     if (!body || typeof body !== "object") {
@@ -41,11 +48,20 @@ export async function POST(request: Request) {
     }
 
     const result = await allocateProfit({
-      businessId: DEFAULT_BUSINESS_ID,
+      businessId: auth!.businessId,
       amount,
       type: body.type,
       source: body.source ? String(body.source).trim() : undefined,
       notes: body.notes ? String(body.notes).trim() : undefined,
+    });
+
+    await logAudit({
+      businessId: auth!.businessId,
+      userId: auth!.user.id,
+      action: "PROFIT_ALLOCATED",
+      entityType: "PROFIT_ALLOCATION",
+      entityId: result.id,
+      details: { amount, type: body.type },
     });
 
     return NextResponse.json({ success: true, data: serializePlainObject(result) });

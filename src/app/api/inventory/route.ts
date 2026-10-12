@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server";
 import { getInventorySummary, getInventoryLedger } from "@/lib/services/inventory";
-import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 import { serializePlainObject } from "@/lib/utils";
+import { requireAuth } from "@/lib/auth/session";
 
 export async function GET(request: Request) {
   try {
+    const { auth, errorResponse } = await requireAuth(request, { allowedRoles: ["OWNER"] });
+    if (errorResponse) return errorResponse;
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type") as any;
     const search = searchParams.get("search") || undefined;
 
-    const summary = await getInventorySummary(DEFAULT_BUSINESS_ID);
-    const ledger = await getInventoryLedger(DEFAULT_BUSINESS_ID, type || undefined, search);
+    const summary = await getInventorySummary(auth!.businessId);
+    const ledger = await getInventoryLedger(auth!.businessId, type || undefined, search);
 
     return NextResponse.json({
       success: true,

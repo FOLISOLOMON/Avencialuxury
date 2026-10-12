@@ -3,18 +3,40 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { User, Settings, Lock, ChevronDown, Sun, Moon, Monitor } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { User, Settings, Lock, ChevronDown, Sun, Moon, Monitor, LogOut, ShieldCheck } from "lucide-react";
 import { useTheme } from "@/components/theme/ThemeProvider";
 
 export function ProfileDropdown() {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const [userData, setUserData] = useState<{ name: string; email: string; role: string } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { theme, setTheme } = useTheme();
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        const user = json?.user || json?.data?.user;
+        if (json?.success && user) {
+          setUserData(user);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleLockPin = () => {
     sessionStorage.removeItem("avencia_pin_unlocked");
     window.dispatchEvent(new CustomEvent("avencia:lock-pin"));
     setIsOpen(false);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (e) {}
+    window.location.href = "/login";
   };
 
   useEffect(() => {
@@ -50,11 +72,20 @@ export function ProfileDropdown() {
 
       {/* Popover Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-60 bg-card rounded-md border border-border shadow-lg py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150 space-y-1 text-foreground">
+        <div className="absolute right-0 mt-2 w-64 bg-card rounded-md border border-border shadow-lg py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150 space-y-1 text-foreground">
           {/* Header Info */}
-          <div className="px-3.5 py-2 border-b border-border">
-            <p className="text-xs font-semibold text-foreground truncate">Avencia Perfumes</p>
-            <p className="text-[11px] text-muted-foreground font-normal truncate">owner@avencialuxury.com</p>
+          <div className="px-3.5 py-2 border-b border-border space-y-0.5">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-foreground truncate">
+                {userData?.name || "Avencia Perfumes"}
+              </p>
+              <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30 uppercase">
+                {userData?.role || "OWNER"}
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground font-normal truncate">
+              {userData?.email || "owner@avencialuxury.com"}
+            </p>
           </div>
 
           {/* Compact Theme Selector Sub-Menu */}
@@ -124,7 +155,7 @@ export function ProfileDropdown() {
               className="flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             >
               <Settings className="w-4 h-4 text-primary" />
-              <span>Business Settings</span>
+              <span>Business Settings & Team</span>
             </Link>
 
             <button
@@ -133,6 +164,14 @@ export function ProfileDropdown() {
             >
               <Lock className="w-4 h-4 text-muted-foreground" />
               <span>Lock Session PIN</span>
+            </button>
+
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors text-left pt-2 border-t border-border mt-1"
+            >
+              <LogOut className="w-4 h-4 text-red-400" />
+              <span>Sign Out Session</span>
             </button>
           </div>
         </div>

@@ -1,62 +1,136 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Receipt, Search, Filter, Calendar, Clock, CheckCircle2, ChevronRight, AlertCircle, RefreshCw, MessageCircle } from "lucide-react";
+import {
+  Receipt,
+  Search,
+  Filter,
+  Calendar,
+  Clock,
+  CheckCircle2,
+  ChevronRight,
+  AlertCircle,
+  RefreshCw,
+  MessageCircle,
+  AlertOctagon,
+  Edit3,
+} from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { MobileSaleSummary } from "@/lib/mobile/types";
-import { getPendingSales } from "@/lib/mobile/db";
 import { getSaleReceiptWhatsAppUrl } from "@/lib/mobile/whatsapp";
 
 export default function MobileSalesPage() {
-  const [sales, setSales] = useState<MobileSaleSummary[]>([]);
+  const [sales, setSales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [selectedSale, setSelectedSale] = useState<MobileSaleSummary | null>(null);
+  const [selectedSale, setSelectedSale] = useState<any | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
 
-  useEffect(() => {
-    async function loadSales() {
-      try {
-        const pending = await getPendingSales();
-        const pendingMapped: MobileSaleSummary[] = pending.map((p) => ({
-          id: p.offlineId,
-          receiptNumber: "OFFLINE",
-          saleDate: p.saleDate,
-          totalAmount: p.totalAmount,
-          amountPaid: p.amountPaid,
-          paymentStatus: p.paymentStatus,
-          paymentMethod: p.paymentMethod,
-          customer: p.customerId ? { id: p.customerId, name: p.customerName || "Customer" } : null,
-          items: p.items.map((it) => ({
-            id: it.productId,
-            product: { name: it.productName },
-            quantity: it.quantity,
-            unitPrice: it.unitPrice,
-            subtotal: it.quantity * it.unitPrice,
-          })),
-        }));
+  // Cancellation request modal state
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [submittingCancel, setSubmittingCancel] = useState(false);
+  const [cancelMessage, setCancelMessage] = useState<string | null>(null);
 
-        const res = await fetch("/api/sales");
-        if (res.ok) {
-          const json = await res.json();
-          if (json.success && Array.isArray(json.data)) {
-            // Put pending items first
-            setSales([...pendingMapped, ...json.data]);
-          } else {
-            setSales(pendingMapped);
-          }
-        } else {
-          setSales(pendingMapped);
+  // Edit sale modal state
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editNotes, setEditNotes] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
+  const [submittingEdit, setSubmittingEdit] = useState(false);
+  const [editMessage, setEditMessage] = useState<string | null>(null);
+
+  const fetchSales = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/sales");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          setSales(json.data);
         }
-      } catch (e) {
-        console.warn("Failed to load sales history:", e);
-      } finally {
-        setLoading(false);
       }
+    } catch (e) {
+      console.warn("Failed to load sales history:", e);
+    } finally {
+      setLoading(false);
     }
-    loadSales();
+  };
+
+  useEffect(() => {
+    fetchSales();
   }, []);
+
+  const handleRequestCancellation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSale || !cancelReason.trim()) return;
+
+    setSubmittingCancel(true);
+    setCancelMessage(null);
+
+    try {
+      const res = await fetch(`/api/sales/${selectedSale.id}/cancel-request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: cancelReason.trim() }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Failed to submit cancellation request");
+      }
+
+      setCancelMessage("Cancellation request submitted to the Owner for review.");
+      setTimeout(() => {
+        setCancelModalOpen(false);
+        setCancelReason("");
+        setCancelMessage(null);
+        fetchSales();
+        setSelectedSale(null);
+      }, 2000);
+    } catch (err: any) {
+      setCancelMessage(err.message || "Error submitting request");
+    } finally {
+      setSubmittingCancel(false);
+    }
+  };
+
+  const handleEditSale = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSale) return;
+
+    setSubmittingEdit(true);
+    setEditMessage(null);
+
+    try {
+      const res = await fetch(`/api/sales/${selectedSale.id}/edit`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          notes: editNotes.trim() || undefined,
+          dueDate: editDueDate || undefined,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Failed to edit sale");
+      }
+
+      setEditMessage("Sale successfully updated!");
+      setTimeout(() => {
+        setEditModalOpen(false);
+        setEditMessage(null);
+        fetchSales();
+        setSelectedSale(null);
+      }, 1500);
+    } catch (err: any) {
+      setEditMessage(err.message || "Error editing sale");
+    } finally {
+      setSubmittingEdit(false);
+    }
+  };
 
   const filteredSales = sales.filter((s) => {
     if (filterStatus !== "ALL" && s.paymentStatus !== filterStatus) {
@@ -66,18 +140,27 @@ export default function MobileSalesPage() {
       const q = search.toLowerCase();
       const matchCustomer = s.customer?.name?.toLowerCase().includes(q);
       const matchReceipt = s.receiptNumber?.toLowerCase().includes(q) || s.id?.toLowerCase().includes(q);
-      const matchItem = s.items?.some((i) => i.product?.name?.toLowerCase().includes(q));
+      const matchItem = s.items?.some((i: any) => i.product?.name?.toLowerCase().includes(q));
       return matchCustomer || matchReceipt || matchItem;
     }
     return true;
   });
 
+  const isWithin30Mins = selectedSale
+    ? Date.now() - new Date(selectedSale.saleDate).getTime() < 30 * 60 * 1000
+    : false;
+
   return (
     <div className="space-y-4">
       {/* 1. Header */}
-      <div>
-        <h1 className="text-lg font-bold text-foreground tracking-tight">Sales History</h1>
-        <p className="text-xs text-muted-foreground">All perfume transactions & receipts</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-bold text-foreground tracking-tight">Sales History</h1>
+          <p className="text-xs text-muted-foreground">Authorized perfume sales & receipts</p>
+        </div>
+        <Button variant="ghost" size="sm" onClick={fetchSales} className="text-xs">
+          <RefreshCw className="w-3.5 h-3.5" />
+        </Button>
       </div>
 
       {/* 2. Filter Pills */}
@@ -124,21 +207,22 @@ export default function MobileSalesPage() {
                   <span className="text-xs font-bold text-foreground">
                     {sale.customer?.name || "Walk-in Customer"}
                   </span>
-                  {sale.receiptNumber === "OFFLINE" ? (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                      Offline Sync Pending
-                    </span>
-                  ) : (
-                    <span
-                      className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
-                        sale.paymentStatus === "PAID"
-                          ? "bg-emerald-500/10 text-emerald-400"
-                          : sale.paymentStatus === "PARTIAL"
-                          ? "bg-amber-500/10 text-amber-400"
-                          : "bg-red-500/10 text-red-400"
-                      }`}
-                    >
-                      {sale.paymentStatus}
+                  <span
+                    className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
+                      sale.paymentStatus === "PAID"
+                        ? "bg-emerald-500/10 text-emerald-400"
+                        : sale.paymentStatus === "PARTIAL"
+                        ? "bg-amber-500/10 text-amber-400"
+                        : sale.paymentStatus === "CANCELLED"
+                        ? "bg-neutral-500/15 text-neutral-400 line-through"
+                        : "bg-red-500/10 text-red-400"
+                    }`}
+                  >
+                    {sale.paymentStatus}
+                  </span>
+                  {sale.cancellationRequest?.status === "PENDING" && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                      Cancellation Pending
                     </span>
                   )}
                 </div>
@@ -176,6 +260,14 @@ export default function MobileSalesPage() {
       >
         {selectedSale && (
           <div className="space-y-4 pt-1">
+            {/* Status alerts */}
+            {selectedSale.cancellationRequest?.status === "PENDING" && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs font-medium flex items-center gap-2">
+                <Clock className="w-4 h-4 shrink-0" />
+                <span>Cancellation request submitted. Awaiting owner review.</span>
+              </div>
+            )}
+
             {/* Summary */}
             <div className="p-3.5 rounded-xl bg-muted/40 border border-border/80 flex justify-between items-center">
               <div>
@@ -202,7 +294,7 @@ export default function MobileSalesPage() {
             <div className="space-y-2">
               <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Items Sold</p>
               <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                {selectedSale.items?.map((it, idx) => (
+                {selectedSale.items?.map((it: any, idx: number) => (
                   <div
                     key={idx}
                     className="p-2.5 rounded-lg bg-card border border-border flex items-center justify-between text-xs"
@@ -251,7 +343,7 @@ export default function MobileSalesPage() {
                   receiptNo: selectedSale.receiptNumber || selectedSale.id.slice(-6),
                   customerName: selectedSale.customer?.name,
                   customerPhone: (selectedSale.customer as any)?.phone,
-                  items: (selectedSale.items || []).map((it) => ({
+                  items: (selectedSale.items || []).map((it: any) => ({
                     name: it.product?.name || "Perfume Item",
                     quantity: it.quantity,
                     unitPrice: it.unitPrice,
@@ -267,9 +359,153 @@ export default function MobileSalesPage() {
               <MessageCircle className="w-4 h-4 mr-2" />
               Send Receipt via WhatsApp
             </Button>
+
+            {/* Worker Actions: 30m Edit & Cancellation Request */}
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
+              {isWithin30Mins && selectedSale.paymentStatus !== "CANCELLED" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setEditNotes(selectedSale.notes || "");
+                    setEditDueDate(selectedSale.dueDate || "");
+                    setEditModalOpen(true);
+                  }}
+                  className="text-xs"
+                >
+                  <Edit3 className="w-3.5 h-3.5 mr-1 text-primary" />
+                  Edit Sale (30m)
+                </Button>
+              )}
+
+              {selectedSale.paymentStatus !== "CANCELLED" && !selectedSale.cancellationRequest && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCancelModalOpen(true)}
+                  className="text-xs text-muted-foreground hover:text-destructive"
+                >
+                  <AlertOctagon className="w-3.5 h-3.5 mr-1" />
+                  Request Cancel
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </Sheet>
+
+      {/* Cancellation Request Modal */}
+      {cancelModalOpen && selectedSale && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl p-5 max-w-sm w-full space-y-3">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <AlertOctagon className="w-4 h-4 text-amber-500" />
+              Request Sale Cancellation
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Submit a cancellation request for Receipt #{selectedSale.receiptNumber || selectedSale.id.slice(0, 8)}. The owner will review and reverse inventory.
+            </p>
+
+            {cancelMessage && (
+              <div className="p-2.5 rounded bg-muted/40 text-xs font-medium text-foreground">
+                {cancelMessage}
+              </div>
+            )}
+
+            <form onSubmit={handleRequestCancellation} className="space-y-3">
+              <textarea
+                required
+                rows={3}
+                placeholder="Reason for cancellation (e.g. Customer changed mind, accidental double scan)..."
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                className="w-full text-xs p-2.5 rounded bg-muted/40 border border-border text-foreground focus:outline-hidden"
+              />
+
+              <div className="flex gap-2 justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCancelModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="destructive"
+                  size="sm"
+                  isLoading={submittingCancel}
+                >
+                  Submit Request
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 30-Minute Edit Modal */}
+      {editModalOpen && selectedSale && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl p-5 max-w-sm w-full space-y-3">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Edit3 className="w-4 h-4 text-primary" />
+              Edit Sale Information
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Allowed within 30 minutes of sale creation. Authoritative server timestamp is enforced.
+            </p>
+
+            {editMessage && (
+              <div className="p-2.5 rounded bg-muted/40 text-xs font-medium text-foreground">
+                {editMessage}
+              </div>
+            )}
+
+            <form onSubmit={handleEditSale} className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">Sale Notes</label>
+                <Input
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  placeholder="Notes about delivery or transaction..."
+                  className="text-xs h-9"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">Agreed Due Date</label>
+                <Input
+                  type="date"
+                  value={editDueDate}
+                  onChange={(e) => setEditDueDate(e.target.value)}
+                  className="text-xs h-9"
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  isLoading={submittingEdit}
+                >
+                  Save Changes
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

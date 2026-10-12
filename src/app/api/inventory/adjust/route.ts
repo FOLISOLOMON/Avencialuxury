@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
 import { adjustStock } from "@/lib/services/inventory";
-import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 import { InventoryTransactionType } from "@prisma/client";
 import { serializePlainObject } from "@/lib/utils";
+import { requireAuth } from "@/lib/auth/session";
+import { logAudit } from "@/lib/services/audit";
 
 const VALID_TRANSACTION_TYPES = new Set(Object.values(InventoryTransactionType));
 
 export async function POST(request: Request) {
   try {
+    const { auth, errorResponse } = await requireAuth(request, { allowedRoles: ["OWNER"] });
+    if (errorResponse) return errorResponse;
+
     const body = await request.json();
 
     if (!body || typeof body !== "object") {
@@ -28,12 +32,21 @@ export async function POST(request: Request) {
     }
 
     const result = await adjustStock({
-      businessId: DEFAULT_BUSINESS_ID,
+      businessId: auth!.businessId,
       productId: body.productId.trim(),
       batchId: body.batchId ? String(body.batchId).trim() : undefined,
       type: body.type,
       quantity,
       note: body.note ? String(body.note).trim() : undefined,
+    });
+
+    await logAudit({
+      businessId: auth!.businessId,
+      userId: auth!.user.id,
+      action: "INVENTORY_ADJUSTED",
+      entityType: "PRODUCT",
+      entityId: body.productId.trim(),
+      details: { type: body.type, quantity, note: body.note },
     });
 
     return NextResponse.json({ success: true, data: serializePlainObject(result) });

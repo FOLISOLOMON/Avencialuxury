@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
 import { createSupplier, getSuppliers } from "@/lib/services/suppliers";
-import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 import { serializePlainObject } from "@/lib/utils";
+import { requireAuth } from "@/lib/auth/session";
+import { logAudit } from "@/lib/services/audit";
 
 export async function GET(request: Request) {
   try {
+    const { auth, errorResponse } = await requireAuth(request, { allowedRoles: ["OWNER"] });
+    if (errorResponse) return errorResponse;
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || undefined;
-    const suppliers = await getSuppliers(DEFAULT_BUSINESS_ID, search);
+    const suppliers = await getSuppliers(auth!.businessId, search);
     return NextResponse.json({ success: true, data: serializePlainObject(suppliers) });
   } catch (error: any) {
     console.error("GET /api/suppliers error:", error);
@@ -17,6 +21,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const { auth, errorResponse } = await requireAuth(request, { allowedRoles: ["OWNER"] });
+    if (errorResponse) return errorResponse;
+
     const body = await request.json();
 
     if (!body || typeof body !== "object") {
@@ -28,13 +35,22 @@ export async function POST(request: Request) {
     }
 
     const supplier = await createSupplier({
-      businessId: DEFAULT_BUSINESS_ID,
+      businessId: auth!.businessId,
       name: body.name.trim(),
       contactPerson: body.contactPerson ? String(body.contactPerson).trim() : undefined,
       phone: body.phone ? String(body.phone).trim() : undefined,
       email: body.email ? String(body.email).trim() : undefined,
       address: body.address ? String(body.address).trim() : undefined,
       notes: body.notes ? String(body.notes).trim() : undefined,
+    });
+
+    await logAudit({
+      businessId: auth!.businessId,
+      userId: auth!.user.id,
+      action: "SUPPLIER_CREATED",
+      entityType: "SUPPLIER",
+      entityId: supplier.id,
+      details: { name: supplier.name },
     });
 
     return NextResponse.json({ success: true, data: serializePlainObject(supplier) });

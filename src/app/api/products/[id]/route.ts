@@ -1,21 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { updateProduct, getProductById } from "@/lib/services/products";
-import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 import { serializePlainObject } from "@/lib/utils";
+import { requireAuth } from "@/lib/auth/session";
+import { logAudit } from "@/lib/services/audit";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { auth, errorResponse } = await requireAuth(req);
+    if (errorResponse) return errorResponse;
+
     const { id } = await params;
     if (!id || !id.trim()) {
       return NextResponse.json({ success: false, error: "Product ID is required" }, { status: 400 });
     }
 
-    const product = await getProductById(id, DEFAULT_BUSINESS_ID);
+    const product = await getProductById(id, auth!.businessId);
     if (!product) {
       return NextResponse.json({ success: false, error: "Product not found" }, { status: 404 });
+    }
+
+    if (auth!.user.role === "WORKER") {
+      const sanitized = {
+        id: product.id,
+        name: product.name,
+        barcode: product.barcode,
+        sku: product.sku,
+        description: product.description,
+        category: product.category,
+        brand: product.brand,
+        size: product.size,
+        sellingPrice: product.sellingPrice,
+        stock: (product as any).stock,
+        lowStockThreshold: product.lowStockThreshold,
+        isActive: product.isActive,
+      };
+      return NextResponse.json({ success: true, data: serializePlainObject(sanitized) });
     }
 
     return NextResponse.json({ success: true, data: serializePlainObject(product) });
@@ -30,6 +52,10 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Only OWNER can alter prices, costs, or product attributes
+    const { auth, errorResponse } = await requireAuth(req, { allowedRoles: ["OWNER"] });
+    if (errorResponse) return errorResponse;
+
     const { id } = await params;
     if (!id || !id.trim()) {
       return NextResponse.json({ success: false, error: "Product ID is required" }, { status: 400 });
@@ -64,14 +90,14 @@ export async function PATCH(
       }
     }
 
-    const existingProduct = await getProductById(id, DEFAULT_BUSINESS_ID);
+    const existingProduct = await getProductById(id, auth!.businessId);
     if (!existingProduct) {
       return NextResponse.json({ success: false, error: "Product not found" }, { status: 404 });
     }
 
     const updated = await updateProduct({
       id,
-      businessId: DEFAULT_BUSINESS_ID,
+      businessId: auth!.businessId,
       name: body.name !== undefined ? String(body.name).trim() : undefined,
       barcode: body.barcode !== undefined ? (body.barcode ? String(body.barcode).trim() : null) : undefined,
       sku: body.sku !== undefined ? (body.sku ? String(body.sku).trim() : null) : undefined,
@@ -83,6 +109,19 @@ export async function PATCH(
       defaultCostPrice,
       lowStockThreshold,
       isActive: body.isActive !== undefined ? Boolean(body.isActive) : undefined,
+    });
+
+    await logAudit({
+      businessId: auth!.businessId,
+      userId: auth!.user.id,
+      action: "PRODUCT_UPDATED",
+      entityType: "PRODUCT",
+      entityId: id,
+      details: {
+        priceChanged: sellingPrice !== undefined && sellingPrice !== existingProduct.sellingPrice.toNumber(),
+        newSellingPrice: sellingPrice,
+        previousSellingPrice: existingProduct.sellingPrice.toNumber(),
+      },
     });
 
     return NextResponse.json({ success: true, data: serializePlainObject(updated) });

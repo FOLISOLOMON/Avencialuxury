@@ -33,7 +33,9 @@ import {
   Sparkles,
 } from "lucide-react";
 import { NotificationSettingsCard } from "@/components/notifications/NotificationSettingsCard";
-
+import { TeamManagementCard } from "@/components/team/TeamManagementCard";
+import { CancellationQueueCard } from "@/components/sales/CancellationQueueCard";
+import { AuditLogCard } from "@/components/audit/AuditLogCard";
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
@@ -459,6 +461,15 @@ export default function SettingsPage() {
         <div className="p-5 space-y-4">
           <NotificationSettingsCard />
         </div>
+
+        {/* SECTION 6: WORKER TEAM & ACCESS MANAGEMENT */}
+        <TeamManagementCard />
+
+        {/* SECTION 7: SALE CANCELLATION REQUESTS QUEUE */}
+        <CancellationQueueCard />
+
+        {/* SECTION 8: IMMUTABLE AUDIT LOG & SECURITY ACTIVITY */}
+        <AuditLogCard />
       </div>
     </div>
   );

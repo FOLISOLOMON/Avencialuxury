@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
 import { createBatch, getBatches } from "@/lib/services/batches";
-import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 import { serializePlainObject } from "@/lib/utils";
+import { requireAuth } from "@/lib/auth/session";
+import { logAudit } from "@/lib/services/audit";
 
 export async function GET(request: Request) {
   try {
+    const { auth, errorResponse } = await requireAuth(request, { allowedRoles: ["OWNER"] });
+    if (errorResponse) return errorResponse;
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") as any;
-    const batches = await getBatches(DEFAULT_BUSINESS_ID, status || "ALL");
+    const batches = await getBatches(auth!.businessId, status || "ALL");
     return NextResponse.json({ success: true, data: serializePlainObject(batches) });
   } catch (error: any) {
     console.error("GET /api/batches error:", error);
@@ -17,6 +21,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const { auth, errorResponse } = await requireAuth(request, { allowedRoles: ["OWNER"] });
+    if (errorResponse) return errorResponse;
+
     const body = await request.json();
 
     if (!body || typeof body !== "object") {
@@ -38,10 +45,9 @@ export async function POST(request: Request) {
     let purchaseDate = new Date();
     if (body.purchaseDate) {
       const parsedDate = new Date(body.purchaseDate);
-      if (isNaN(parsedDate.getTime())) {
-        return NextResponse.json({ success: false, error: "Invalid purchase date format" }, { status: 400 });
+      if (!isNaN(parsedDate.getTime())) {
+        purchaseDate = parsedDate;
       }
-      purchaseDate = parsedDate;
     }
 
     const items: Array<{ productId: string; quantityPurchased: number; unitCost: number }> = [];
@@ -60,7 +66,7 @@ export async function POST(request: Request) {
           return NextResponse.json({ success: false, error: `Item at position ${index + 1} unit cost must be a non-negative number` }, { status: 400 });
         }
         items.push({
-          productId: item.productId,
+          productId: item.productId.trim(),
           quantityPurchased: qty,
           unitCost,
         });
@@ -68,13 +74,22 @@ export async function POST(request: Request) {
     }
 
     const batch = await createBatch({
-      businessId: DEFAULT_BUSINESS_ID,
+      businessId: auth!.businessId,
+      supplierId: body.supplierId ? String(body.supplierId).trim() : undefined,
       reference: body.reference.trim(),
       purchaseDate,
       additionalCosts,
       notes: body.notes ? String(body.notes).trim() : undefined,
-      supplierId: body.supplierId || undefined,
       items,
+    });
+
+    await logAudit({
+      businessId: auth!.businessId,
+      userId: auth!.user.id,
+      action: "BATCH_CREATED",
+      entityType: "BATCH",
+      entityId: batch.id,
+      details: { reference: batch.reference, itemsCount: items.length },
     });
 
     return NextResponse.json({ success: true, data: serializePlainObject(batch) });

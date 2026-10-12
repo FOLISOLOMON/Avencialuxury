@@ -3,14 +3,17 @@ import { Prisma, PaymentMethod, PaymentStatus } from "@prisma/client";
 import { createNotification } from "./notifications";
 import { automationEngine } from "@/lib/automation/engine";
 import { BusinessEventType } from "@/lib/automation/events";
+import { logAudit } from "./audit";
 
 export interface RecordDebtPaymentInput {
   businessId: string;
+  collectorId?: string | null;
   customerId: string;
   amount: number;
   paymentMethod: PaymentMethod;
   notes?: string | null;
   saleId?: string | null;
+  idempotencyKey?: string | null;
 }
 
 export async function emitCustomerDebtCreated(params: {
@@ -37,13 +40,93 @@ export async function emitCustomerDebtCreated(params: {
   }
 }
 
+/**
+ * Previews payment allocation across a customer's outstanding debts.
+ * Used to show an allocation breakdown before finalizing payment.
+ */
+export async function previewDebtPaymentAllocation(params: {
+  businessId: string;
+  customerId: string;
+  amount: number;
+  saleId?: string | null;
+}) {
+  await ensureDefaultBusiness(params.businessId);
+
+  const unpaidSales = await prisma.sale.findMany({
+    where: {
+      businessId: params.businessId,
+      customerId: params.customerId,
+      status: { notIn: ["VOIDED", "REFUNDED"] },
+      paymentStatus: { in: [PaymentStatus.PARTIAL, PaymentStatus.UNPAID] },
+      balanceDue: { gt: 0 },
+    },
+    orderBy: { saleDate: "asc" },
+  });
+
+  // Sort: specified sale first, then oldest first
+  const sortedSales = [...unpaidSales].sort((a, b) => {
+    if (params.saleId) {
+      if (a.id === params.saleId) return -1;
+      if (b.id === params.saleId) return 1;
+    }
+    return new Date(a.saleDate).getTime() - new Date(b.saleDate).getTime();
+  });
+
+  const totalOutstanding = Math.round(
+    unpaidSales.reduce((sum, s) => sum + s.balanceDue.toNumber(), 0) * 100
+  ) / 100;
+
+  let remaining = Math.round(params.amount * 100) / 100;
+  const allocations: Array<{
+    saleId: string;
+    saleDate: Date;
+    previousBalance: number;
+    allocatedAmount: number;
+    remainingBalance: number;
+  }> = [];
+
+  for (const sale of sortedSales) {
+    if (remaining <= 0) break;
+    const balance = sale.balanceDue.toNumber();
+    const applyAmount = Math.min(remaining, balance);
+    const newBalance = Math.max(0, Math.round((balance - applyAmount) * 100) / 100);
+
+    allocations.push({
+      saleId: sale.id,
+      saleDate: sale.saleDate,
+      previousBalance: balance,
+      allocatedAmount: applyAmount,
+      remainingBalance: newBalance,
+    });
+
+    remaining = Math.round((remaining - applyAmount) * 100) / 100;
+  }
+
+  return {
+    totalOutstanding,
+    paymentAmount: params.amount,
+    allocations,
+    remainingUnallocated: remaining,
+  };
+}
+
 export async function recordDebtPayment(input: RecordDebtPaymentInput) {
   await ensureDefaultBusiness(input.businessId);
 
-  const { businessId, customerId, amount, paymentMethod, notes, saleId } = input;
+  const { businessId, collectorId, customerId, amount, paymentMethod, notes, saleId, idempotencyKey } = input;
 
   if (amount <= 0) {
     throw new Error("Payment amount must be greater than 0");
+  }
+
+  // 1. Idempotency Check: Return existing payment if idempotencyKey was already processed
+  if (idempotencyKey) {
+    const existingPayment = await prisma.debtPayment.findUnique({
+      where: { idempotencyKey },
+    });
+    if (existingPayment) {
+      return existingPayment;
+    }
   }
 
   const customer = await prisma.customer.findFirst({
@@ -54,87 +137,113 @@ export async function recordDebtPayment(input: RecordDebtPaymentInput) {
     throw new Error("Customer not found");
   }
 
-  // Calculate customer previous balance
-  const activeSalesBefore = await prisma.sale.findMany({
-    where: { businessId, customerId, status: { notIn: ["VOIDED", "REFUNDED"] } },
-    select: { balanceDue: true },
-  });
-  const previousBalance = Math.round(
-    activeSalesBefore.reduce((sum, s) => sum + s.balanceDue.toNumber(), 0) * 100
-  ) / 100;
+  const cleanAmount = Math.round(amount * 100) / 100;
 
-  if (previousBalance <= 0) {
-    throw new Error(`${customer.name} has no outstanding debt to settle.`);
-  }
+  // 2. Interactive Database Transaction with Concurrency Control
+  const result = await prisma.$transaction(
+    async (tx) => {
+      // Re-fetch all unpaid/partial sales inside the transaction
+      const unpaidSales = await tx.sale.findMany({
+        where: {
+          businessId,
+          customerId,
+          status: { notIn: ["VOIDED", "REFUNDED"] },
+          paymentStatus: { in: [PaymentStatus.PARTIAL, PaymentStatus.UNPAID] },
+          balanceDue: { gt: 0 },
+        },
+        orderBy: { saleDate: "asc" },
+      });
 
-  if (amount > previousBalance) {
-    throw new Error(`Payment amount (GH₵${amount.toFixed(2)}) cannot exceed the outstanding debt of GH₵${previousBalance.toFixed(2)}.`);
-  }
+      const totalOutstanding = Math.round(
+        unpaidSales.reduce((sum, s) => sum + s.balanceDue.toNumber(), 0) * 100
+      ) / 100;
 
-  const result = await prisma.$transaction(async (tx) => {
-    // Log DebtPayment transaction
-    const debtPayment = await tx.debtPayment.create({
-      data: {
-        businessId,
-        customerId,
-        saleId: saleId || null,
-        amount: new Prisma.Decimal(amount),
-        paymentMethod,
-        notes: notes || `Debt repayment from ${customer.name}`,
-      },
-    });
+      if (totalOutstanding <= 0) {
+        throw new Error(`${customer.name} has no outstanding debt to settle.`);
+      }
 
-    // Fetch unpaid or partially paid sales for this customer (oldest first)
-    const salesWhere: any = {
-      businessId,
-      customerId,
-      status: { notIn: ["VOIDED", "REFUNDED"] },
-      paymentStatus: { in: [PaymentStatus.PARTIAL, PaymentStatus.UNPAID] },
-    };
+      if (cleanAmount > totalOutstanding) {
+        throw new Error(
+          `Payment amount (GH₵${cleanAmount.toFixed(2)}) cannot exceed the outstanding debt of GH₵${totalOutstanding.toFixed(2)}.`
+        );
+      }
 
-    if (saleId) {
-      salesWhere.id = saleId;
-    }
+      // Sort: specified sale first, then oldest first
+      const sortedSales = [...unpaidSales].sort((a, b) => {
+        if (saleId) {
+          if (a.id === saleId) return -1;
+          if (b.id === saleId) return 1;
+        }
+        return new Date(a.saleDate).getTime() - new Date(b.saleDate).getTime();
+      });
 
-    const unpaidSales = await tx.sale.findMany({
-      where: salesWhere,
-      orderBy: { saleDate: "asc" },
-    });
+      let remainingPaymentToApply = cleanAmount;
+      const allocationBreakdown: Array<{
+        saleId: string;
+        amountApplied: number;
+        previousBalance: number;
+        newBalance: number;
+      }> = [];
 
-    let remainingPaymentToApply = amount;
+      for (const sale of sortedSales) {
+        if (remainingPaymentToApply <= 0) break;
 
-    for (const sale of unpaidSales) {
-      if (remainingPaymentToApply <= 0) break;
+        const currentBalance = sale.balanceDue.toNumber();
+        const currentPaid = sale.amountPaid.toNumber();
+        const totalSaleAmount = sale.totalAmount.toNumber();
 
-      const currentBalance = sale.balanceDue.toNumber();
-      const currentPaid = sale.amountPaid.toNumber();
-      const totalAmount = sale.totalAmount.toNumber();
+        if (currentBalance <= 0) continue;
 
-      if (currentBalance <= 0) continue;
+        const applyAmount = Math.min(remainingPaymentToApply, currentBalance);
+        const newPaid = Math.round((currentPaid + applyAmount) * 100) / 100;
+        const newBalance = Math.max(0, Math.round((totalSaleAmount - newPaid) * 100) / 100);
+        const newPaymentStatus = newBalance === 0 ? PaymentStatus.PAID : PaymentStatus.PARTIAL;
+        const newSaleStatus = newBalance === 0 ? "COMPLETED" : "PARTIAL";
 
-      const applyAmount = Math.min(remainingPaymentToApply, currentBalance);
-      const newPaid = Math.round((currentPaid + applyAmount) * 100) / 100;
-      const newBalance = Math.max(0, Math.round((totalAmount - newPaid) * 100) / 100);
-      const newPaymentStatus = newBalance === 0 ? PaymentStatus.PAID : PaymentStatus.PARTIAL;
-      const newSaleStatus = newBalance === 0 ? "COMPLETED" : "PARTIAL";
+        await tx.sale.update({
+          where: { id: sale.id },
+          data: {
+            amountPaid: new Prisma.Decimal(newPaid),
+            balanceDue: new Prisma.Decimal(newBalance),
+            paymentStatus: newPaymentStatus,
+            status: newSaleStatus,
+          },
+        });
 
-      await tx.sale.update({
-        where: { id: sale.id },
+        allocationBreakdown.push({
+          saleId: sale.id,
+          amountApplied: applyAmount,
+          previousBalance: currentBalance,
+          newBalance,
+        });
+
+        remainingPaymentToApply = Math.round((remainingPaymentToApply - applyAmount) * 100) / 100;
+      }
+
+      // Record DebtPayment transaction
+      const debtPayment = await tx.debtPayment.create({
         data: {
-          amountPaid: new Prisma.Decimal(newPaid),
-          balanceDue: new Prisma.Decimal(newBalance),
-          paymentStatus: newPaymentStatus,
-          status: newSaleStatus,
+          businessId,
+          customerId,
+          collectorId: collectorId || null,
+          saleId: saleId || null,
+          amount: new Prisma.Decimal(cleanAmount),
+          paymentMethod,
+          idempotencyKey: idempotencyKey || null,
+          allocationBreakdown: allocationBreakdown as any,
+          notes: notes || `Debt repayment from ${customer.name}`,
+        },
+        include: {
+          customer: true,
+          collector: { select: { id: true, name: true, email: true } },
         },
       });
 
-      remainingPaymentToApply = Math.round((remainingPaymentToApply - applyAmount) * 100) / 100;
-    }
+      return { debtPayment, allocationBreakdown, previousBalance: totalOutstanding };
+    },
+    { maxWait: 10000, timeout: 20000 }
+  );
 
-    return debtPayment;
-  });
-
-  // Calculate customer new balance
   const activeSalesAfter = await prisma.sale.findMany({
     where: { businessId, customerId, status: { notIn: ["VOIDED", "REFUNDED"] } },
     select: { balanceDue: true },
@@ -142,6 +251,23 @@ export async function recordDebtPayment(input: RecordDebtPaymentInput) {
   const newBalance = Math.round(
     activeSalesAfter.reduce((sum, s) => sum + s.balanceDue.toNumber(), 0) * 100
   ) / 100;
+
+  // Log Audit Entry
+  await logAudit({
+    businessId,
+    userId: collectorId,
+    action: "PAYMENT_RECORDED",
+    entityType: "DEBT_PAYMENT",
+    entityId: result.debtPayment.id,
+    details: {
+      customerId,
+      amount: cleanAmount,
+      previousBalance: result.previousBalance,
+      newBalance,
+      allocationsCount: result.allocationBreakdown.length,
+      idempotencyKey,
+    },
+  });
 
   try {
     await createNotification({
@@ -162,9 +288,9 @@ export async function recordDebtPayment(input: RecordDebtPaymentInput) {
       businessId: input.businessId,
       entityType: "CUSTOMER",
       entityId: customer.id,
-      dedupeKey: `CUSTOMER_PAYMENT_RECEIVED:${result.id}`,
+      dedupeKey: `CUSTOMER_PAYMENT_RECEIVED:${result.debtPayment.id}`,
       metadata: {
-        paymentId: result.id,
+        paymentId: result.debtPayment.id,
         customerId: customer.id,
         customerName: customer.name,
         amount: input.amount,
@@ -173,7 +299,7 @@ export async function recordDebtPayment(input: RecordDebtPaymentInput) {
       },
     });
 
-    if (previousBalance > 0 && newBalance === 0) {
+    if (result.previousBalance > 0 && newBalance === 0) {
       await createNotification({
         businessId: input.businessId,
         type: "DEBT_SETTLED",
@@ -185,7 +311,7 @@ export async function recordDebtPayment(input: RecordDebtPaymentInput) {
         actionUrl: `/customers?id=${customer.id}`,
         entityType: "CUSTOMER",
         entityId: customer.id,
-        dedupeKey: `DEBT_SETTLED:${customer.id}:${result.id}`,
+        dedupeKey: `DEBT_SETTLED:${customer.id}:${result.debtPayment.id}`,
       });
 
       await automationEngine.emit({
@@ -193,11 +319,11 @@ export async function recordDebtPayment(input: RecordDebtPaymentInput) {
         businessId: input.businessId,
         entityType: "CUSTOMER",
         entityId: customer.id,
-        dedupeKey: `DEBT_SETTLED:${customer.id}:${result.id}`,
+        dedupeKey: `DEBT_SETTLED:${customer.id}:${result.debtPayment.id}`,
         metadata: {
           customerId: customer.id,
           customerName: customer.name,
-          previousBalance,
+          previousBalance: result.previousBalance,
           newBalance: 0,
         },
       });

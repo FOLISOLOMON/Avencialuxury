@@ -11,6 +11,7 @@ export interface ReportFilter {
   paymentMethod?: string;
   batchId?: string;
   productId?: string;
+  creatorId?: string;
   search?: string;
 }
 
@@ -47,6 +48,10 @@ export async function getSalesReport(businessId: string, filter?: ReportFilter) 
     businessId,
     ...(startDate || endDate ? { saleDate: dateCondition } : {}),
   };
+
+  if (filter?.creatorId) {
+    saleWhere.creatorId = filter.creatorId;
+  }
 
   if (filter?.customerId) {
     saleWhere.customerId = filter.customerId;
@@ -91,6 +96,9 @@ export async function getSalesReport(businessId: string, filter?: ReportFilter) 
     orderBy: { saleDate: "desc" },
     include: {
       customer: { select: { id: true, name: true, phone: true } },
+      creator: { select: { id: true, name: true, email: true } },
+      lastEditor: { select: { id: true, name: true, email: true } },
+      cancellationRequest: true,
       saleItems: {
         include: {
           product: { select: { id: true, name: true, sku: true, barcode: true } },

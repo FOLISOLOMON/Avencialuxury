@@ -49,6 +49,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               className
             )}
             {...props}
+            suppressHydrationWarning
           />
           {rightElement && (
             <div className="absolute right-3 flex items-center text-muted-foreground">

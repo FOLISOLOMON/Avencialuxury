@@ -1,22 +1,47 @@
 import { NextResponse } from "next/server";
 import { recordDebtPayment, getDebtorsList, getDebtDashboardSummary } from "@/lib/services/debt";
-import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 import { PaymentMethod } from "@prisma/client";
 import { serializePlainObject } from "@/lib/utils";
+import { requireAuth } from "@/lib/auth/session";
 
 const VALID_PAYMENT_METHODS = new Set(Object.values(PaymentMethod));
 
 export async function GET(request: Request) {
   try {
+    const { auth, errorResponse } = await requireAuth(request);
+    if (errorResponse) return errorResponse;
+
     const { searchParams } = new URL(request.url);
     const view = searchParams.get("view");
 
     if (view === "summary") {
-      const summary = await getDebtDashboardSummary(DEFAULT_BUSINESS_ID);
+      // Summary with overall revenue/debt is restricted to OWNER
+      if (auth!.user.role !== "OWNER") {
+        return NextResponse.json(
+          { success: false, error: "Forbidden: Overall debt summaries are restricted to the business owner." },
+          { status: 403 }
+        );
+      }
+      const summary = await getDebtDashboardSummary(auth!.businessId);
       return NextResponse.json({ success: true, data: serializePlainObject(summary) });
     }
 
-    const debtors = await getDebtorsList(DEFAULT_BUSINESS_ID);
+    const debtors = await getDebtorsList(auth!.businessId);
+
+    // Data minimization for worker: return only customer identity and outstanding debt balance
+    if (auth!.user.role === "WORKER") {
+      const sanitizedDebtors = debtors.map((d: any) => ({
+        id: d.id,
+        name: d.name,
+        phone: d.phone,
+        totalDebt: d.totalDebt,
+        activeCreditOrdersCount: d.activeCreditOrdersCount,
+        oldestDueDate: d.oldestDueDate,
+        // Detailed cross-worker purchase spending redacted
+      }));
+      return NextResponse.json({ success: true, data: serializePlainObject(sanitizedDebtors) });
+    }
+
     return NextResponse.json({ success: true, data: serializePlainObject(debtors) });
   } catch (error: any) {
     console.error("GET /api/debt error:", error);
@@ -26,6 +51,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const { auth, errorResponse } = await requireAuth(request);
+    if (errorResponse) return errorResponse;
+
     const body = await request.json();
 
     if (!body || typeof body !== "object") {
@@ -55,13 +83,20 @@ export async function POST(request: Request) {
       paymentMethod = body.paymentMethod;
     }
 
+    // Check idempotency header or body parameter
+    const idempotencyKey =
+      request.headers.get("x-idempotency-key") ||
+      (body.idempotencyKey ? String(body.idempotencyKey).trim() : undefined);
+
     const payment = await recordDebtPayment({
-      businessId: DEFAULT_BUSINESS_ID,
+      businessId: auth!.businessId,
+      collectorId: auth!.user.id, // Strictly bind authenticated collector
       customerId: body.customerId.trim(),
       amount,
       paymentMethod,
       notes: body.notes ? String(body.notes).trim() : undefined,
       saleId: body.saleId ? String(body.saleId).trim() : undefined,
+      idempotencyKey,
     });
 
     return NextResponse.json({ success: true, data: serializePlainObject(payment) });
@@ -73,6 +108,9 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const { auth, errorResponse } = await requireAuth(request);
+    if (errorResponse) return errorResponse;
+
     const body = await request.json();
     const { saleId, dueDate } = body;
 
@@ -84,7 +122,7 @@ export async function PATCH(request: Request) {
     const updated = await updateSaleDueDate({
       saleId,
       dueDate: dueDate ? new Date(dueDate) : null,
-      businessId: DEFAULT_BUSINESS_ID,
+      businessId: auth!.businessId,
     });
 
     return NextResponse.json({ success: true, data: serializePlainObject(updated) });
@@ -96,4 +134,3 @@ export async function PATCH(request: Request) {
     );
   }
 }
-

@@ -63,79 +63,32 @@ export function RecordPaymentModal({
     }
 
     setSubmitting(true);
+    const idempotencyKey = "debt_idemp_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9);
 
     try {
-      if (navigator.onLine) {
-        // Online: call /api/debt
-        const res = await fetch("/api/debt", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            customerId: customer.id,
-            amount: parsedAmount,
-            paymentMethod,
-            notes: notes.trim() || undefined,
-          }),
-        });
+      if (!navigator.onLine) {
+        throw new Error(
+          "Online connection required. Debt collections must be verified and authorized by the server."
+        );
+      }
 
-        const json = await res.json();
-        if (json.success) {
-          const newDebt = Math.max(0, currentDebt - parsedAmount);
-          await putCachedCustomer({
-            ...customer,
-            totalDebt: newDebt,
-          });
-
-          toast.success(
-            `Recorded GH₵${parsedAmount.toFixed(2)} payment for ${customer.name}. New balance: GH₵${newDebt.toFixed(2)}`,
-            "Payment Recorded"
-          );
-
-          syncManager.refreshCacheFromServer();
-          onPaymentRecorded();
-          setSuccessData({ amount: parsedAmount, remaining: newDebt });
-          return;
-        } else {
-          throw new Error(json.error || "Server rejected payment");
-        }
-      } else {
-        // Offline: save to pending queue & update local customer cache
-        const offlineId = "debt_off_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
-        await addPendingDebtPayment({
-          offlineId,
+      // Online: call /api/debt with idempotencyKey
+      const res = await fetch("/api/debt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           customerId: customer.id,
-          customerName: customer.name,
           amount: parsedAmount,
           paymentMethod,
           notes: notes.trim() || undefined,
-        });
-
-        const newDebt = Math.max(0, currentDebt - parsedAmount);
-        await putCachedCustomer({
-          ...customer,
-          totalDebt: newDebt,
-        });
-
-        toast.warning(
-          `Payment of GH₵${parsedAmount.toFixed(2)} saved offline. It will sync automatically when connected.`,
-          "Payment Saved Locally"
-        );
-
-        onPaymentRecorded();
-        setSuccessData({ amount: parsedAmount, remaining: newDebt });
-      }
-    } catch (err: any) {
-      console.warn("Online payment failed, falling back to offline queue:", err);
-
-      const offlineId = "debt_off_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
-      await addPendingDebtPayment({
-        offlineId,
-        customerId: customer.id,
-        customerName: customer.name,
-        amount: parsedAmount,
-        paymentMethod,
-        notes: notes.trim() || undefined,
+          idempotencyKey,
+        }),
       });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Server rejected payment");
+      }
 
       const newDebt = Math.max(0, currentDebt - parsedAmount);
       await putCachedCustomer({
@@ -143,13 +96,19 @@ export function RecordPaymentModal({
         totalDebt: newDebt,
       });
 
-      toast.warning(
-        `Network issue. Payment of GH₵${parsedAmount.toFixed(2)} saved locally and queued for auto-sync.`,
-        "Saved Locally"
+      toast.success(
+        `Recorded GH₵${parsedAmount.toFixed(2)} payment for ${customer.name}. New balance: GH₵${newDebt.toFixed(2)}`,
+        "Payment Recorded"
       );
 
+      syncManager.refreshCacheFromServer();
       onPaymentRecorded();
       setSuccessData({ amount: parsedAmount, remaining: newDebt });
+    } catch (err: any) {
+      toast.error(
+        err.message || "Failed to record payment. Please check your connection and retry.",
+        "Payment Failed"
+      );
     } finally {
       setSubmitting(false);
     }

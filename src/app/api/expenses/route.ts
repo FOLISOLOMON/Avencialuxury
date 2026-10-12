@@ -1,16 +1,20 @@
 import { NextResponse } from "next/server";
 import { createExpense, getExpenses } from "@/lib/services/expenses";
-import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 import { ExpenseCategory } from "@prisma/client";
 import { serializePlainObject } from "@/lib/utils";
+import { requireAuth } from "@/lib/auth/session";
+import { logAudit } from "@/lib/services/audit";
 
 const VALID_EXPENSE_CATEGORIES = new Set(Object.values(ExpenseCategory));
 
 export async function GET(request: Request) {
   try {
+    const { auth, errorResponse } = await requireAuth(request, { allowedRoles: ["OWNER"] });
+    if (errorResponse) return errorResponse;
+
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category") as any;
-    const expenses = await getExpenses(DEFAULT_BUSINESS_ID, category || undefined);
+    const expenses = await getExpenses(auth!.businessId, category || undefined);
     return NextResponse.json({ success: true, data: serializePlainObject(expenses) });
   } catch (error: any) {
     console.error("GET /api/expenses error:", error);
@@ -20,6 +24,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const { auth, errorResponse } = await requireAuth(request, { allowedRoles: ["OWNER"] });
+    if (errorResponse) return errorResponse;
+
     const body = await request.json();
 
     if (!body || typeof body !== "object") {
@@ -50,13 +57,22 @@ export async function POST(request: Request) {
     }
 
     const expense = await createExpense({
-      businessId: DEFAULT_BUSINESS_ID,
+      businessId: auth!.businessId,
       batchId: body.batchId ? String(body.batchId).trim() : undefined,
       category,
       description: body.description.trim(),
       amount,
       expenseDate,
       notes: body.notes ? String(body.notes).trim() : undefined,
+    });
+
+    await logAudit({
+      businessId: auth!.businessId,
+      userId: auth!.user.id,
+      action: "EXPENSE_CREATED",
+      entityType: "EXPENSE",
+      entityId: expense.id,
+      details: { amount, category, description: expense.description },
     });
 
     return NextResponse.json({ success: true, data: serializePlainObject(expense) });

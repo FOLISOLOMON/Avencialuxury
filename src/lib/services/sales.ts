@@ -1,10 +1,11 @@
 import { prisma, ensureDefaultBusiness } from "@/lib/db/prisma";
 import { allocateStockFIFO, AvailableBatchStock } from "@/lib/inventory/fifo";
 import { syncBatchStatus } from "./batches";
-import { PaymentMethod, Prisma } from "@prisma/client";
+import { PaymentMethod, Prisma, CancellationStatus, Role } from "@prisma/client";
 import { createNotification, evaluateInventoryTransitions } from "./notifications";
 import { automationEngine } from "@/lib/automation/engine";
 import { BusinessEventType } from "@/lib/automation/events";
+import { logAudit } from "./audit";
 
 export interface SaleProductInput {
   productId: string;
@@ -32,6 +33,7 @@ export function normalizePaymentMethod(method?: string | null): PaymentMethod {
 
 export interface CreateSaleInput {
   businessId: string;
+  creatorId?: string | null;
   customerId?: string | null;
   saleDate?: Date | null;
   dueDate?: Date | string | null;
@@ -251,6 +253,7 @@ export async function createSale(input: CreateSaleInput) {
       const sale = await tx.sale.create({
         data: {
           businessId: input.businessId,
+          creatorId: input.creatorId || null,
           customerId: input.customerId || null,
           saleDate: input.saleDate || new Date(),
           dueDate: input.dueDate ? new Date(input.dueDate) : null,
@@ -280,6 +283,9 @@ export async function createSale(input: CreateSaleInput) {
         },
         include: {
           customer: true,
+          creator: {
+            select: { id: true, name: true, email: true },
+          },
           saleItems: {
             include: {
               product: true,
@@ -417,6 +423,22 @@ export async function createSale(input: CreateSaleInput) {
     await Promise.all(
       soldProductIds.map((pId) => evaluateInventoryTransitions(pId, input.businessId))
     );
+
+    // 6. Record Audit Log Entry
+    await logAudit({
+      businessId: input.businessId,
+      userId: input.creatorId,
+      action: "SALE_CREATED",
+      entityType: "SALE",
+      entityId: createdSale.id,
+      details: {
+        totalAmount: Number(createdSale.totalAmount),
+        amountPaid: Number(createdSale.amountPaid),
+        balanceDue: Number(createdSale.balanceDue),
+        itemsCount: input.items.length,
+        paymentStatus: createdSale.paymentStatus,
+      },
+    });
   } catch (err) {
     console.error("Failed to trigger sale notification/automation event:", err);
   }
@@ -517,18 +539,400 @@ export async function voidSale(saleId: string, reason?: string) {
   return updatedSale;
 }
 
-export async function getSales(businessId: string) {
+export async function getSales(businessId: string, filter?: { creatorId?: string }) {
   await ensureDefaultBusiness(businessId);
 
+  const where: any = { businessId };
+  if (filter?.creatorId) {
+    where.creatorId = filter.creatorId;
+  }
+
   return await prisma.sale.findMany({
-    where: { businessId },
+    where,
     orderBy: { saleDate: "desc" },
     include: {
       customer: true,
+      creator: {
+        select: { id: true, name: true, email: true },
+      },
+      lastEditor: {
+        select: { id: true, name: true, email: true },
+      },
+      cancellationRequest: true,
       saleItems: {
         include: {
           product: true,
           batch: true,
+        },
+      },
+    },
+  });
+}
+
+/**
+ * 30-Minute Safe Sale Editing Engine.
+ * Workers may edit their own sales strictly within 30 minutes of creation.
+ * Server timestamp authoritative deadline: now - createdAt <= 30 mins.
+ */
+export async function editSale(params: {
+  saleId: string;
+  editor: { id: string; role: Role };
+  notes?: string | null;
+  dueDate?: Date | string | null;
+  customerId?: string | null;
+}) {
+  const sale = await prisma.sale.findUnique({
+    where: { id: params.saleId },
+    include: {
+      debtPayments: true,
+      cancellationRequest: true,
+    },
+  });
+
+  if (!sale) {
+    throw new Error("Sale record not found");
+  }
+  if (sale.status === "VOIDED") {
+    throw new Error("Voided sales cannot be edited");
+  }
+  if (sale.cancellationRequest?.status === "PENDING") {
+    throw new Error("Cannot edit a sale with a pending cancellation request");
+  }
+
+  // Worker role restrictions
+  if (params.editor.role === "WORKER") {
+    // 1. Worker can only edit their own sale
+    if (sale.creatorId !== params.editor.id) {
+      throw new Error("Unauthorized: You can only edit sales that you created.");
+    }
+
+    // 2. Server-side authoritative 30-minute window
+    const now = Date.now();
+    const createdAtMs = new Date(sale.createdAt).getTime();
+    const elapsedMinutes = (now - createdAtMs) / (1000 * 60);
+
+    if (elapsedMinutes > 30) {
+      throw new Error(
+        `Editing window expired. Sales can only be edited within 30 minutes of creation (${Math.round(elapsedMinutes)} minutes elapsed). Submit a cancellation request if corrections are required.`
+      );
+    }
+
+    // 3. Reject edits if customer payments have already been collected
+    if (sale.debtPayments.length > 0) {
+      throw new Error(
+        "This sale cannot be edited directly because payment transactions have already been recorded against it. Submit a cancellation request instead."
+      );
+    }
+  }
+
+  // Preserve edit history snapshot
+  const previousValues = {
+    notes: sale.notes,
+    dueDate: sale.dueDate,
+    customerId: sale.customerId,
+    editedAt: new Date().toISOString(),
+    editorId: params.editor.id,
+    editorRole: params.editor.role,
+  };
+
+  const existingHistory = Array.isArray(sale.editHistory) ? (sale.editHistory as any[]) : [];
+  const updatedHistory = [...existingHistory, previousValues];
+
+  const updateData: Prisma.SaleUpdateInput = {
+    lastEditor: { connect: { id: params.editor.id } },
+    lastEditedAt: new Date(),
+    editHistory: updatedHistory,
+  };
+
+  if (params.notes !== undefined) updateData.notes = params.notes?.trim() || null;
+  if (params.dueDate !== undefined) updateData.dueDate = params.dueDate ? new Date(params.dueDate) : null;
+  if (params.customerId !== undefined) {
+    updateData.customer = params.customerId ? { connect: { id: params.customerId } } : { disconnect: true };
+  }
+
+  const updatedSale = await prisma.sale.update({
+    where: { id: params.saleId },
+    data: updateData,
+    include: {
+      customer: true,
+      creator: { select: { id: true, name: true, email: true } },
+      lastEditor: { select: { id: true, name: true, email: true } },
+      saleItems: { include: { product: true } },
+    },
+  });
+
+  await logAudit({
+    businessId: sale.businessId,
+    userId: params.editor.id,
+    action: "SALE_EDITED",
+    entityType: "SALE",
+    entityId: sale.id,
+    details: {
+      editorRole: params.editor.role,
+      changes: {
+        notes: params.notes,
+        dueDate: params.dueDate,
+        customerId: params.customerId,
+      },
+    },
+  });
+
+  return updatedSale;
+}
+
+/**
+ * Worker submits cancellation request.
+ * Sale remains active until reviewed by Owner.
+ */
+export async function requestSaleCancellation(params: {
+  saleId: string;
+  requester: { id: string; role: Role };
+  reason: string;
+}) {
+  if (!params.reason || !params.reason.trim()) {
+    throw new Error("A clear cancellation reason is required.");
+  }
+
+  const sale = await prisma.sale.findUnique({
+    where: { id: params.saleId },
+    include: {
+      cancellationRequest: true,
+    },
+  });
+
+  if (!sale) {
+    throw new Error("Sale record not found.");
+  }
+  if (sale.status === "VOIDED") {
+    throw new Error("This sale is already voided.");
+  }
+
+  // Worker can only request cancellation for their own sale
+  if (params.requester.role === "WORKER" && sale.creatorId !== params.requester.id) {
+    throw new Error("Unauthorized: You can only request cancellation for sales you created.");
+  }
+
+  // Check if a request already exists
+  if (sale.cancellationRequest) {
+    if (sale.cancellationRequest.status === "PENDING") {
+      throw new Error("A cancellation request is already pending review by the owner for this sale.");
+    }
+    if (sale.cancellationRequest.status === "APPROVED") {
+      throw new Error("This sale has already been approved for cancellation.");
+    }
+  }
+
+  const cancellationRequest = await prisma.saleCancellationRequest.upsert({
+    where: { saleId: params.saleId },
+    create: {
+      businessId: sale.businessId,
+      saleId: sale.id,
+      requesterId: params.requester.id,
+      reason: params.reason.trim(),
+      status: "PENDING",
+    },
+    update: {
+      reason: params.reason.trim(),
+      status: "PENDING",
+      reviewerId: null,
+      reviewedAt: null,
+      rejectionReason: null,
+    },
+    include: {
+      requester: { select: { id: true, name: true, email: true } },
+      sale: true,
+    },
+  });
+
+  // Notify the owner
+  await createNotification({
+    businessId: sale.businessId,
+    type: "CANCELLATION_REQUESTED",
+    category: "SALES",
+    severity: "WARNING",
+    title: "Sale Cancellation Requested",
+    message: `${cancellationRequest.requester.name} requested cancellation of Sale #${sale.id.slice(-6)}: "${params.reason.trim()}".`,
+    actionLabel: "Review Queue",
+    actionUrl: "/sales",
+    entityType: "SALE",
+    entityId: sale.id,
+    dedupeKey: `CANCELLATION_REQ:${sale.id}`,
+  });
+
+  await logAudit({
+    businessId: sale.businessId,
+    userId: params.requester.id,
+    action: "CANCELLATION_REQUESTED",
+    entityType: "SALE",
+    entityId: sale.id,
+    details: { reason: params.reason.trim() },
+  });
+
+  return cancellationRequest;
+}
+
+/**
+ * Owner reviews pending cancellation request.
+ * Approves (atomically reverses stock & reconciles debt) or Rejects.
+ */
+export async function reviewSaleCancellation(params: {
+  requestId: string;
+  reviewerId: string;
+  decision: "APPROVE" | "REJECT";
+  rejectionReason?: string | null;
+}) {
+  const request = await prisma.saleCancellationRequest.findUnique({
+    where: { id: params.requestId },
+    include: {
+      sale: {
+        include: {
+          saleItems: true,
+          debtPayments: true,
+        },
+      },
+      requester: { select: { id: true, name: true, email: true } },
+    },
+  });
+
+  if (!request) {
+    throw new Error("Cancellation request not found.");
+  }
+  if (request.status !== "PENDING") {
+    throw new Error(`This request has already been ${request.status.toLowerCase()}.`);
+  }
+
+  if (params.decision === "REJECT") {
+    const updatedRequest = await prisma.saleCancellationRequest.update({
+      where: { id: params.requestId },
+      data: {
+        status: "REJECTED",
+        reviewerId: params.reviewerId,
+        reviewedAt: new Date(),
+        rejectionReason: params.rejectionReason?.trim() || "Rejected by owner",
+      },
+    });
+
+    await logAudit({
+      businessId: request.businessId,
+      userId: params.reviewerId,
+      action: "CANCELLATION_REJECTED",
+      entityType: "SALE_CANCELLATION_REQUEST",
+      entityId: request.id,
+      details: {
+        saleId: request.saleId,
+        rejectionReason: params.rejectionReason,
+      },
+    });
+
+    return { request: updatedRequest, sale: request.sale };
+  }
+
+  // APPROVE: Atomically mark sale VOIDED, restore inventory exactly once, update request
+  const sale = request.sale;
+  if (sale.status === "VOIDED") {
+    throw new Error("The associated sale is already voided.");
+  }
+
+  const result = await prisma.$transaction(
+    async (tx) => {
+      // 1. Mark cancellation request as APPROVED
+      const approvedRequest = await tx.saleCancellationRequest.update({
+        where: { id: params.requestId },
+        data: {
+          status: "APPROVED",
+          reviewerId: params.reviewerId,
+          reviewedAt: new Date(),
+        },
+      });
+
+      // 2. Mark Sale as VOIDED with note
+      const voidedSale = await tx.sale.update({
+        where: { id: sale.id },
+        data: {
+          status: "VOIDED",
+          notes: `[CANCELLED by Owner: ${request.reason}] ${sale.notes || ""}`.trim(),
+        },
+      });
+
+      // 3. Restore BatchItem stock & log RETURN inventory transactions exactly once
+      const restoredBatchIds = new Set<string>();
+
+      for (const item of sale.saleItems) {
+        restoredBatchIds.add(item.batchId);
+
+        const batchItem = await tx.batchItem.findFirst({
+          where: {
+            batchId: item.batchId,
+            productId: item.productId,
+          },
+        });
+
+        if (batchItem) {
+          await tx.batchItem.update({
+            where: { id: batchItem.id },
+            data: {
+              quantityRemaining: {
+                increment: item.quantity,
+              },
+            },
+          });
+        }
+
+        await tx.inventoryTransaction.create({
+          data: {
+            businessId: sale.businessId,
+            productId: item.productId,
+            batchId: item.batchId,
+            type: "RETURN",
+            quantity: item.quantity,
+            referenceId: sale.id,
+            note: `Approved Cancellation: Sale #${sale.id.slice(-6)} (${request.reason})`,
+          },
+        });
+      }
+
+      // 4. Reactivate batches if stock restored
+      for (const bId of restoredBatchIds) {
+        await syncBatchStatus(tx, bId);
+      }
+
+      return { request: approvedRequest, sale: voidedSale };
+    },
+    { maxWait: 10000, timeout: 20000 }
+  );
+
+  await logAudit({
+    businessId: request.businessId,
+    userId: params.reviewerId,
+    action: "CANCELLATION_APPROVED",
+    entityType: "SALE",
+    entityId: sale.id,
+    details: {
+      requesterId: request.requesterId,
+      reason: request.reason,
+      totalAmount: Number(sale.totalAmount),
+    },
+  });
+
+  return result;
+}
+
+export async function getCancellationRequests(businessId: string, status?: CancellationStatus) {
+  await ensureDefaultBusiness(businessId);
+
+  const where: any = { businessId };
+  if (status) where.status = status;
+
+  return await prisma.saleCancellationRequest.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    include: {
+      requester: { select: { id: true, name: true, email: true } },
+      reviewer: { select: { id: true, name: true, email: true } },
+      sale: {
+        include: {
+          customer: true,
+          saleItems: { include: { product: true } },
         },
       },
     },
