@@ -304,12 +304,8 @@ export async function syncBatchStatus(
       }
     }
 
-    if (totalRemaining > 0 && batch.status === "COMPLETED") {
-      return await tx.batch.update({
-        where: { id: batchId },
-        data: { status: "ACTIVE" },
-      });
-    }
+    // If totalRemaining > 0 and batch is COMPLETED, preserve COMPLETED status
+    // (closed for additions, but remaining stock will continue to be consumed by FIFO).
   }
 
   return batch;

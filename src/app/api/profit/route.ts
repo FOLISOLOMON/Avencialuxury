@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getFinancialSummary, allocateProfit, getAllocations } from "@/lib/services/profit";
+import { getFinancialSummary, allocateProfit, allocateProfit50_30_20, getAllocations } from "@/lib/services/profit";
 import { AllocationType } from "@prisma/client";
 import { serializePlainObject } from "@/lib/utils";
 import { requireAuth } from "@/lib/auth/session";
@@ -43,8 +43,43 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Allocation amount must be a positive number (> 0)" }, { status: 400 });
     }
 
-    if (!body.type || !VALID_ALLOCATION_TYPES.has(body.type)) {
-      return NextResponse.json({ success: false, error: `Invalid allocation type. Must be one of: ${Array.from(VALID_ALLOCATION_TYPES).join(", ")}` }, { status: 400 });
+    const is503020 = body.split === "50_30_20" || body.type === "50_30_20" || !body.type;
+
+    if (is503020) {
+      const confirmedEligible =
+        body.confirmedEligibleAmount !== undefined && body.confirmedEligibleAmount !== null
+          ? parseFloat(body.confirmedEligibleAmount)
+          : undefined;
+
+      const result = await allocateProfit50_30_20({
+        businessId: auth!.businessId,
+        amount,
+        confirmedEligibleAmount: isNaN(confirmedEligible as number) ? undefined : confirmedEligible,
+        idempotencyKey: body.idempotencyKey ? String(body.idempotencyKey).trim() : undefined,
+        source: body.source ? String(body.source).trim() : undefined,
+        notes: body.notes ? String(body.notes).trim() : undefined,
+      });
+
+      await logAudit({
+        businessId: auth!.businessId,
+        userId: auth!.user.id,
+        action: "PROFIT_ALLOCATED_503020",
+        entityType: "PROFIT_ALLOCATION",
+        entityId: (result as any).savings?.id || "503020",
+        details: { amount, split: (result as any).split },
+      });
+
+      return NextResponse.json({ success: true, data: serializePlainObject(result) });
+    }
+
+    if (!VALID_ALLOCATION_TYPES.has(body.type)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Invalid allocation type. Must be one of: ${Array.from(VALID_ALLOCATION_TYPES).join(", ")}, or 50_30_20`,
+        },
+        { status: 400 }
+      );
     }
 
     const result = await allocateProfit({

@@ -95,6 +95,16 @@ export const allocateProfitSchema = z.object({
   notes: z.string().optional().nullable(),
 });
 
+export const allocateProfit503020Schema = z.object({
+  businessId: z.string().min(1, "Business ID is required"),
+  amount: z.number().positive("Allocation amount must be greater than zero"),
+  confirmedEligibleAmount: z.number().optional().nullable(),
+  idempotencyKey: z.string().optional().nullable(),
+  source: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+});
+
+
 // Customer Schemas
 export const createCustomerSchema = z.object({
   businessId: z.string().min(1, "Business ID is required"),
@@ -129,6 +139,7 @@ export type SaleItemSchemaInput = z.infer<typeof saleItemSchema>;
 export type CreateSaleSchemaInput = z.infer<typeof createSaleSchema>;
 export type CreateExpenseSchemaInput = z.infer<typeof createExpenseSchema>;
 export type AllocateProfitSchemaInput = z.infer<typeof allocateProfitSchema>;
+export type AllocateProfit503020SchemaInput = z.infer<typeof allocateProfit503020Schema>;
 export type CreateCustomerSchemaInput = z.infer<typeof createCustomerSchema>;
 export type UpdateCustomerSchemaInput = z.infer<typeof updateCustomerSchema>;
 export type ReportDateFilterSchemaInput = z.infer<typeof reportDateFilterSchema>;

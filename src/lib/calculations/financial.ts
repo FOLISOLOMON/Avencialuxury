@@ -88,7 +88,8 @@ export function calculate50_30_20Allocation(totalProfitToAllocate: number): {
   const amount = Math.max(0, Math.round(totalProfitToAllocate * 100) / 100);
   const savings = Math.round(amount * 0.50 * 100) / 100;
   const needs = Math.round(amount * 0.30 * 100) / 100;
-  const wants = Math.round((amount - savings - needs) * 100) / 100;
+  const rawWants = Math.round((amount - savings - needs) * 100) / 100;
+  const wants = Object.is(rawWants, -0) || Math.abs(rawWants) < 0.0001 ? 0 : rawWants;
 
   return { savings, needs, wants };
 }
@@ -114,3 +115,130 @@ export function validateProfitAllocation(
     maxAllowed: remainingAllocatable,
   };
 }
+
+export interface SaleCashRealizationInput {
+  amountPaid: number;
+  totalCost: number;
+  totalAmount?: number;
+}
+
+export interface SaleCashRealizationResult {
+  costRecovered: number;
+  unrecoveredCost: number;
+  realizedGrossProfit: number;
+  isCostRecovered: boolean;
+}
+
+/**
+ * Calculates cash cost recovery and realized gross profit for a sale.
+ * Collected cash first recovers inventory cost up to totalCost.
+ * Profit is realized only on cash received in excess of totalCost.
+ */
+export function calculateSaleCashRealization(input: SaleCashRealizationInput): SaleCashRealizationResult {
+  const amountPaid = Math.max(0, Math.round((input.amountPaid || 0) * 100) / 100);
+  const totalCost = Math.max(0, Math.round((input.totalCost || 0) * 100) / 100);
+
+  const costRecovered = Math.min(amountPaid, totalCost);
+  const unrecoveredCost = Math.max(0, Math.round((totalCost - costRecovered) * 100) / 100);
+  const realizedGrossProfit = Math.max(0, Math.round((amountPaid - totalCost) * 100) / 100);
+  const isCostRecovered = amountPaid >= totalCost;
+
+  return {
+    costRecovered,
+    unrecoveredCost,
+    realizedGrossProfit,
+    isCostRecovered,
+  };
+}
+
+export interface CashBackedSummaryInput {
+  sales: Array<{
+    amountPaid: number;
+    totalCost: number;
+    totalAmount?: number;
+  }>;
+  totalExpenses: number;
+  totalAllocated: number;
+}
+
+export interface CashBackedSummaryResult {
+  verifiedCollectedCash: number;
+  costOfGoodsSold: number;
+  costRecovered: number;
+  unrecoveredCost: number;
+  realizedGrossProfit: number;
+  totalExpenses: number;
+  realizedNetProfit: number;
+  totalAllocated: number;
+  eligibleCashProfit: number;
+  isOverAllocated: boolean;
+  overAllocatedAmount: number;
+  warnings: string[];
+}
+
+/**
+ * Computes authoritative cash-backed profitability across verified sales and expenses.
+ */
+export function calculateCashBackedSummary(input: CashBackedSummaryInput): CashBackedSummaryResult {
+  let verifiedCollectedCash = 0;
+  let costOfGoodsSold = 0;
+  let totalCostRecovered = 0;
+  let totalRealizedGrossProfit = 0;
+
+  for (const s of input.sales) {
+    const paid = Math.max(0, Math.round((s.amountPaid || 0) * 100) / 100);
+    const cost = Math.max(0, Math.round((s.totalCost || 0) * 100) / 100);
+    verifiedCollectedCash += paid;
+    costOfGoodsSold += cost;
+
+    const realization = calculateSaleCashRealization({ amountPaid: paid, totalCost: cost });
+    totalCostRecovered += realization.costRecovered;
+    totalRealizedGrossProfit += realization.realizedGrossProfit;
+  }
+
+  verifiedCollectedCash = Math.round(verifiedCollectedCash * 100) / 100;
+  costOfGoodsSold = Math.round(costOfGoodsSold * 100) / 100;
+  const costRecovered = Math.round(totalCostRecovered * 100) / 100;
+  const unrecoveredCost = Math.max(0, Math.round((costOfGoodsSold - costRecovered) * 100) / 100);
+  const realizedGrossProfit = Math.round(totalRealizedGrossProfit * 100) / 100;
+  const totalExpenses = Math.max(0, Math.round((input.totalExpenses || 0) * 100) / 100);
+
+  // Conservative Cash-Backed Net Surplus:
+  // Protects the inventory replacement cost of ALL sold goods across the business.
+  // VerifiedCollectedCash - CostOfGoodsSold - TotalExpenses
+  // Identical to: RealizedGrossProfit - UnrecoveredCost - TotalExpenses
+  const realizedNetProfit = Math.round((verifiedCollectedCash - costOfGoodsSold - totalExpenses) * 100) / 100;
+  const totalAllocated = Math.max(0, Math.round((input.totalAllocated || 0) * 100) / 100);
+
+  const eligibleCashProfit = Math.max(0, Math.round((realizedNetProfit - totalAllocated) * 100) / 100);
+  const isOverAllocated = totalAllocated > 0 && totalAllocated > realizedNetProfit;
+  const overAllocatedAmount = isOverAllocated ? Math.round((totalAllocated - Math.max(0, realizedNetProfit)) * 100) / 100 : 0;
+
+  const warnings: string[] = [];
+  if (isOverAllocated) {
+    warnings.push(
+      `Historical allocations (GH₵${totalAllocated.toFixed(2)}) exceed conservative cash surplus (GH₵${Math.max(0, realizedNetProfit).toFixed(2)}) by GH₵${overAllocatedAmount.toFixed(2)}. No funds available for new allocation.`
+    );
+  }
+  if (unrecoveredCost > 0) {
+    warnings.push(
+      `GH₵${unrecoveredCost.toFixed(2)} of sold inventory costs remain unrecovered due to unpaid customer debt. Distributable profit is restricted by GH₵${unrecoveredCost.toFixed(2)} to protect restocking capital.`
+    );
+  }
+
+  return {
+    verifiedCollectedCash,
+    costOfGoodsSold,
+    costRecovered,
+    unrecoveredCost,
+    realizedGrossProfit,
+    totalExpenses,
+    realizedNetProfit,
+    totalAllocated,
+    eligibleCashProfit,
+    isOverAllocated,
+    overAllocatedAmount,
+    warnings,
+  };
+}
+

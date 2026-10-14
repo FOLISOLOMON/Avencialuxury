@@ -85,7 +85,7 @@ export async function createSale(input: CreateSaleInput) {
             quantityRemaining: { gt: 0 },
             batch: {
               businessId: input.businessId,
-              status: "ACTIVE",
+              status: { not: "ARCHIVED" },
             },
           },
           include: {
