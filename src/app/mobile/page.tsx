@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/Button";
 import { useMobileProducts, useSyncStatus } from "@/lib/mobile/hooks";
 import { MobileSaleSummary } from "@/lib/mobile/types";
 import { getPendingSales } from "@/lib/mobile/db";
+import { PwaInstallBanner } from "@/components/mobile/PwaInstallBanner";
 
 export default function MobileHomePage() {
   const { products, loading: productsLoading } = useMobileProducts();
@@ -219,6 +220,9 @@ export default function MobileHomePage() {
           </p>
         )}
       </div>
+
+      {/* PWA Mobile Installation Banner (Optional & Dismissible) */}
+      <PwaInstallBanner />
 
       {/* Due Date & Debt Reminder Banner */}
       {debtSummary && (debtSummary.overdue.count > 0 || debtSummary.dueToday.count > 0 || debtSummary.totalOutstandingDebt > 0) && (

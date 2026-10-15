@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/Button";
 import { useSyncStatus, usePendingQueue } from "@/lib/mobile/hooks";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { NotificationSettingsCard } from "@/components/notifications/NotificationSettingsCard";
+import { PwaSettingsCard } from "@/components/mobile/PwaSettingsCard";
 
 export default function MobileMorePage() {
   const router = useRouter();
@@ -96,7 +97,10 @@ export default function MobileMorePage() {
         </div>
       </div>
 
-      {/* 3. SYNC & OFFLINE CENTER */}
+      {/* 3. MOBILE PWA INSTALLATION & SHORTCUT */}
+      <PwaSettingsCard />
+
+      {/* 4. SYNC & OFFLINE CENTER */}
       <div className="p-4 rounded-2xl bg-card border border-border shadow-xs space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -139,7 +143,7 @@ export default function MobileMorePage() {
         </div>
       </div>
 
-      {/* 4. THEME SELECTOR */}
+      {/* 5. THEME SELECTOR */}
       <div className="p-4 rounded-2xl bg-card border border-border shadow-xs space-y-3">
         <h3 className="text-xs font-bold text-foreground">Appearance</h3>
 

@@ -26,12 +26,6 @@ export function ProfileDropdown() {
       .catch(() => {});
   }, []);
 
-  const handleLockPin = () => {
-    sessionStorage.removeItem("avencia_pin_unlocked");
-    window.dispatchEvent(new CustomEvent("avencia:lock-pin"));
-    setIsOpen(false);
-  };
-
   const handleLogout = async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
@@ -157,14 +151,6 @@ export function ProfileDropdown() {
               <Settings className="w-4 h-4 text-primary" />
               <span>Business Settings & Team</span>
             </Link>
-
-            <button
-              onClick={handleLockPin}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors text-left"
-            >
-              <Lock className="w-4 h-4 text-muted-foreground" />
-              <span>Lock Session PIN</span>
-            </button>
 
             <button
               onClick={handleLogout}

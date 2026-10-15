@@ -5,7 +5,6 @@ import { getSales } from "@/lib/services/sales";
 import { getCustomers } from "@/lib/services/customers";
 import { getSettings } from "@/lib/services/settings";
 import { InteractiveDashboard } from "@/components/dashboard/InteractiveDashboard";
-import { QuickPinLock } from "@/components/auth/QuickPinLock";
 import { serializePlainObject } from "@/lib/utils";
 
 export const revalidate = 0; // Fresh real-time data on every request
@@ -28,17 +27,15 @@ export default async function DashboardPage() {
   const settings = serializePlainObject(rawSettings);
 
   return (
-    <QuickPinLock>
-      <div className="space-y-8">
-        <InteractiveDashboard
-          summary={summary}
-          activeBatches={activeBatches}
-          products={products}
-          sales={sales}
-          customers={customers}
-          settings={settings}
-        />
-      </div>
-    </QuickPinLock>
+    <div className="space-y-8">
+      <InteractiveDashboard
+        summary={summary}
+        activeBatches={activeBatches}
+        products={products}
+        sales={sales}
+        customers={customers}
+        settings={settings}
+      />
+    </div>
   );
 }

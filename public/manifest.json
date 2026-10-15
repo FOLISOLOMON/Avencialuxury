@@ -2,6 +2,7 @@
   "name": "Avencia Perfumes",
   "short_name": "Avencia",
   "description": "Avencia Mobile Operations & Fast Sales Register",
+  "id": "/mobile",
   "start_url": "/mobile",
   "scope": "/",
   "display": "standalone",

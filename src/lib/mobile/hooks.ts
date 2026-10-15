@@ -215,3 +215,6 @@ export function usePendingQueue() {
     reloadQueue,
   };
 }
+
+export { usePwaInstall } from "@/lib/hooks/usePwaInstall";
+

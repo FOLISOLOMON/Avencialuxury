@@ -22,8 +22,6 @@ import {
   Phone,
   MapPin,
   Mail,
-  Lock,
-  KeyRound,
   Sparkles,
 } from "lucide-react";
 
@@ -53,7 +51,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<"BUSINESS" | "OWNER" | "SECURITY">("BUSINESS");
+  const [activeTab, setActiveTab] = useState<"BUSINESS" | "OWNER">("BUSINESS");
 
   // Business Form State
   const [busName, setBusName] = useState("");
@@ -70,14 +68,6 @@ export default function ProfilePage() {
   const [ownerSubmitting, setOwnerSubmitting] = useState(false);
   const [ownerError, setOwnerError] = useState<string | null>(null);
   const [ownerSuccess, setOwnerSuccess] = useState(false);
-
-  // Security / PIN Management State
-  const [storedPin, setStoredPin] = useState<string | null>(null);
-  const [pinMode, setPinMode] = useState<"view" | "set">("view");
-  const [newPin, setNewPin] = useState("");
-  const [confirmPin, setConfirmPin] = useState("");
-  const [pinError, setPinError] = useState<string | null>(null);
-  const [pinSuccess, setPinSuccess] = useState(false);
 
   const fetchProfileData = async () => {
     setLoading(true);
@@ -105,7 +95,6 @@ export default function ProfilePage() {
 
   useEffect(() => {
     fetchProfileData();
-    setStoredPin(localStorage.getItem("avencia_quick_pin"));
   }, []);
 
   const handleSaveBusiness = async (e: React.FormEvent) => {
@@ -181,37 +170,6 @@ export default function ProfilePage() {
     } finally {
       setOwnerSubmitting(false);
     }
-  };
-
-  const handleSavePin = () => {
-    setPinError(null);
-    if (newPin.length !== 4 || !/^\d{4}$/.test(newPin)) {
-      setPinError("PIN must be exactly 4 digits.");
-      return;
-    }
-    if (newPin !== confirmPin) {
-      setPinError("PIN codes do not match.");
-      return;
-    }
-    localStorage.setItem("avencia_quick_pin", newPin);
-    sessionStorage.removeItem("avencia_pin_unlocked");
-    setStoredPin(newPin);
-    setNewPin("");
-    setConfirmPin("");
-    setPinMode("view");
-    setPinSuccess(true);
-    setTimeout(() => setPinSuccess(false), 3000);
-  };
-
-  const handleRemovePin = () => {
-    localStorage.removeItem("avencia_quick_pin");
-    sessionStorage.removeItem("avencia_pin_unlocked");
-    setStoredPin(null);
-    setPinMode("view");
-    setNewPin("");
-    setConfirmPin("");
-    setPinSuccess(true);
-    setTimeout(() => setPinSuccess(false), 3000);
   };
 
   return (
@@ -291,17 +249,6 @@ export default function ProfilePage() {
           }`}
         >
           Owner Account
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("SECURITY")}
-          className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${
-            activeTab === "SECURITY"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          PIN Security
         </button>
       </div>
 
@@ -410,100 +357,6 @@ export default function ProfilePage() {
               </Button>
             </div>
           </form>
-        </Card>
-      )}
-
-      {/* TAB 3: PIN SECURITY */}
-      {activeTab === "SECURITY" && (
-        <Card className="p-5 space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-border">
-            <div className="flex items-center gap-2">
-              <Lock className="w-4 h-4 text-primary" />
-              <h3 className="font-bold text-sm text-foreground">Quick Screen Lock PIN</h3>
-            </div>
-            <Badge variant={storedPin ? "success" : "outline"}>
-              {storedPin ? "PIN Active" : "Not Configured"}
-            </Badge>
-          </div>
-
-          {pinSuccess && (
-            <div className="p-3 rounded-md bg-success/10 text-success text-xs font-semibold flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span>PIN security updated!</span>
-            </div>
-          )}
-
-          {pinError && (
-            <div className="p-3 rounded-md bg-destructive/10 text-destructive text-xs font-semibold flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-              <span>{pinError}</span>
-            </div>
-          )}
-
-          {pinMode === "view" ? (
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setNewPin("");
-                  setConfirmPin("");
-                  setPinMode("set");
-                }}
-              >
-                <KeyRound className="w-3.5 h-3.5 mr-1.5 text-primary" />
-                <span>{storedPin ? "Change PIN" : "Setup PIN"}</span>
-              </Button>
-
-              {storedPin && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleRemovePin}
-                  className="text-xs text-muted-foreground hover:text-destructive"
-                >
-                  Disable
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3 p-4 rounded-md bg-muted/20 border border-border max-w-sm">
-              <Input
-                label="Enter 4-Digit PIN"
-                type="password"
-                maxLength={4}
-                value={newPin}
-                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
-                placeholder="••••"
-              />
-              <Input
-                label="Confirm 4-Digit PIN"
-                type="password"
-                maxLength={4}
-                value={confirmPin}
-                onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
-                placeholder="••••"
-              />
-              <div className="flex gap-2 pt-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => setPinMode("view")}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  className="flex-1 font-black"
-                  onClick={handleSavePin}
-                >
-                  Save PIN
-                </Button>
-              </div>
-            </div>
-          )}
         </Card>
       )}
     </div>

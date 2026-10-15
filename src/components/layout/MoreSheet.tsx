@@ -53,12 +53,6 @@ const MORE_LINKS = [
 export function MoreSheet({ isOpen, onClose }: MoreSheetProps) {
   const pathname = usePathname();
 
-  const handleLockPin = () => {
-    sessionStorage.removeItem("avencia_pin_unlocked");
-    window.dispatchEvent(new CustomEvent("avencia:lock-pin"));
-    onClose();
-  };
-
   return (
     <Sheet
       isOpen={isOpen}
@@ -113,26 +107,6 @@ export function MoreSheet({ isOpen, onClose }: MoreSheetProps) {
             </div>
           </div>
         ))}
-
-        {/* Lock PIN Action */}
-        <div className="pt-2 border-t border-border/60">
-          <button
-            type="button"
-            onClick={handleLockPin}
-            className="w-full flex items-center justify-between p-3 rounded-lg border border-border/60 bg-card hover:bg-destructive/10 hover:border-destructive/30 text-muted-foreground hover:text-destructive transition-colors text-left"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-md bg-secondary text-muted-foreground">
-                <Lock className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-sm font-bold text-foreground">Lock Session</div>
-                <div className="text-xs text-muted-foreground">Require Quick PIN to re-enter</div>
-              </div>
-            </div>
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
       </div>
     </Sheet>
   );

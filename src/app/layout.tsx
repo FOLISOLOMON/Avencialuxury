@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ClientProviders } from "@/components/providers/ClientProviders";
@@ -6,15 +6,26 @@ import { ServiceWorkerRegister } from "@/components/providers/ServiceWorkerRegis
 
 const inter = Inter({ subsets: ["latin"] });
 
+export const viewport: Viewport = {
+  themeColor: "#C9A227",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
 
 export const metadata: Metadata = {
   title: "Avencia | Business Management & Sales Operating System",
   description: "Lightweight perfume business operating system",
   manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Avencia",
+  },
   icons: {
     icon: "/logo/Avencia gold icon logo.png",
     shortcut: "/logo/Avencia gold icon logo.png",
-    apple: "/logo/Avencia gold icon logo.png",
+    apple: "/apple-icon.png",
   },
 };
 
