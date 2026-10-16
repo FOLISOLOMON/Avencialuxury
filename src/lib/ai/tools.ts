@@ -178,7 +178,8 @@ function resolveFilterDates(timeframe?: string, startDateStr?: string, endDateSt
 export async function executeAITool(
   toolName: string,
   args: Record<string, any>,
-  businessId: string
+  businessId: string,
+  userRole: "OWNER" | "WORKER" = "OWNER"
 ): Promise<AIToolResult> {
   try {
     switch (toolName) {
@@ -202,10 +203,10 @@ export async function executeAITool(
             outstanding: report.summary.totalOutstanding,
             transactions: report.summary.totalTransactions,
             itemsSold: report.summary.totalItemsSold,
-            grossProfit: report.summary.totalGrossProfit,
-            netProfit: report.summary.netProfit,
+            grossProfit: userRole === "WORKER" ? undefined : report.summary.totalGrossProfit,
+            netProfit: userRole === "WORKER" ? undefined : report.summary.netProfit,
             averageOrderValue: report.summary.averageOrderValue,
-            profitMarginPct: report.summary.profitMargin,
+            profitMarginPct: userRole === "WORKER" ? undefined : report.summary.profitMargin,
           },
           sourceContext: `Based on ${report.summary.totalTransactions} sales records for ${tfLabel}`,
         };
@@ -362,17 +363,17 @@ export async function executeAITool(
           data: {
             totalProducts: productReport.totalProductsCount,
             totalStockUnits: productReport.totalStockCount,
-            totalInventoryValue: productReport.totalInventoryValue,
+            totalInventoryValue: userRole === "WORKER" ? undefined : productReport.totalInventoryValue,
             totalUnitsSold: productReport.totalUnitsSold,
             topSellingByRevenue: productReport.topSellingProducts.slice(0, 5).map((p) => ({
               name: p.name,
               sku: p.sku,
               unitsSold: p.unitsSold,
               revenue: p.revenue,
-              profit: p.profit,
+              profit: userRole === "WORKER" ? undefined : p.profit,
               currentStock: p.currentStock,
             })),
-            mostProfitable: productReport.mostProfitableProducts.slice(0, 5).map((p) => ({
+            mostProfitable: userRole === "WORKER" ? [] : productReport.mostProfitableProducts.slice(0, 5).map((p) => ({
               name: p.name,
               profit: p.profit,
               marginPct: p.margin,
@@ -410,6 +411,13 @@ export async function executeAITool(
       }
 
       case "get_expense_summary": {
+        if (userRole === "WORKER") {
+          return {
+            toolName,
+            success: false,
+            error: "Access Denied: Operational expenses and overhead records are confidential and restricted to the business owner.",
+          };
+        }
         const filter = resolveFilterDates(args.timeframe, args.startDate, args.endDate);
         const expReport = await getExpenseReport(businessId, filter);
 
@@ -428,6 +436,13 @@ export async function executeAITool(
       }
 
       case "get_batch_summary": {
+        if (userRole === "WORKER") {
+          return {
+            toolName,
+            success: false,
+            error: "Access Denied: Stock batch investment and purchase cost records are confidential and restricted to the business owner.",
+          };
+        }
         const batchReport = await getBatchReport(businessId);
         let batches = batchReport.batches;
 
@@ -473,9 +488,9 @@ export async function executeAITool(
             amountCollected: salesReport.summary.totalAmountCollected,
             outstandingDebt: Math.round(totalDebt * 100) / 100,
             debtorsCount,
-            grossProfit: salesReport.summary.totalGrossProfit,
-            totalExpenses: profitReport.totalExpenses,
-            netProfit: profitReport.totalNetProfit,
+            grossProfit: userRole === "WORKER" ? undefined : salesReport.summary.totalGrossProfit,
+            totalExpenses: userRole === "WORKER" ? undefined : profitReport.totalExpenses,
+            netProfit: userRole === "WORKER" ? undefined : profitReport.totalNetProfit,
             totalOrders: salesReport.summary.totalTransactions,
             totalProducts: productReport.totalProductsCount,
             lowStockCount: productReport.lowStockProducts.length,

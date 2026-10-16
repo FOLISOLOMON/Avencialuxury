@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { prisma, ensureDefaultBusiness, DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 import { signSessionToken, verifySessionToken, hashToken, SessionPayload } from "./token";
 import { Role, User } from "@prisma/client";
@@ -33,7 +34,8 @@ export async function createDatabaseSession(params: {
   ipAddress?: string | null;
 }): Promise<{ token: string; sessionId: string }> {
   const expiresAt = new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000);
-  const rawTokenEntropy = `${params.userId}-${Date.now()}-${Math.random()}`;
+  const randomEntropy = crypto.randomBytes(32).toString("hex");
+  const rawTokenEntropy = `${params.userId}-${Date.now()}-${randomEntropy}`;
   const tokenHash = await hashToken(rawTokenEntropy);
 
   const session = await prisma.session.create({

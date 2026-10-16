@@ -1,3 +1,4 @@
+import { getClientIp, checkForgotPasswordRateLimit, recordForgotPasswordAttempt } from "@/lib/auth/rate-limit";
 import { NextResponse } from "next/server";
 import { prisma, DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 import { hashToken } from "@/lib/auth/token";
@@ -9,6 +10,22 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { email } = body || {};
+
+    const ip = getClientIp(request);
+    const rateLimit = await checkForgotPasswordRateLimit(ip);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Too many password recovery requests. Please wait ${rateLimit.retryAfterSeconds} seconds before trying again.`,
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
+        }
+      );
+    }
+    await recordForgotPasswordAttempt(ip);
 
     if (!email || typeof email !== "string" || !email.includes("@")) {
       return NextResponse.json({

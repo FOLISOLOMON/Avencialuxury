@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
+import { requireAuth } from "@/lib/auth/session";
 import { Prisma } from "@prisma/client";
 import { serializePlainObject } from "@/lib/utils";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { auth, errorResponse } = await requireAuth(request, { allowedRoles: ["OWNER"] });
+    if (errorResponse) return errorResponse;
     const { id: batchId } = await params;
     if (!batchId || !batchId.trim()) {
       return NextResponse.json({ success: false, error: "Batch ID is required" }, { status: 400 });
@@ -34,7 +36,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     // Verify batch belongs to this business and is ACTIVE
     const batch = await prisma.batch.findFirst({
-      where: { id: batchId.trim(), businessId: DEFAULT_BUSINESS_ID },
+      where: { id: batchId.trim(), businessId: auth!.businessId },
     });
 
     if (!batch) {
@@ -73,7 +75,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
         await tx.inventoryTransaction.create({
           data: {
-            businessId: DEFAULT_BUSINESS_ID,
+            businessId: auth!.businessId,
             productId: productId.trim(),
             batchId: batch.id,
             type: "PURCHASE",
@@ -113,7 +115,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
         await tx.inventoryTransaction.create({
           data: {
-            businessId: DEFAULT_BUSINESS_ID,
+            businessId: auth!.businessId,
             productId: productId.trim(),
             batchId: batch.id,
             type: "PURCHASE",

@@ -7,8 +7,9 @@ import { logAudit } from "@/lib/services/audit";
 
 export async function GET(req: Request) {
   try {
-    const { auth } = await requireAuth(req);
-    const businessId = auth?.businessId || DEFAULT_BUSINESS_ID;
+    const { auth, errorResponse } = await requireAuth(req);
+    if (errorResponse) return errorResponse;
+    const businessId = auth!.businessId;
 
     const profile = await getProfile(businessId);
     return NextResponse.json({ success: true, data: serializePlainObject(profile) });

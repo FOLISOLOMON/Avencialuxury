@@ -101,20 +101,29 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const { auth, errorResponse } = await requireAuth(request);
+    const { auth, errorResponse } = await requireAuth(request, { allowedRoles: ["OWNER"] });
     if (errorResponse) return errorResponse;
 
     const body = await request.json();
-    const { saleId, dueDate } = body;
+    const { saleId, dueDate } = body || {};
 
-    if (!saleId) {
-      return NextResponse.json({ success: false, error: "saleId is required" }, { status: 400 });
+    if (!saleId || typeof saleId !== "string" || !saleId.trim()) {
+      return NextResponse.json({ success: false, error: "Valid saleId is required" }, { status: 400 });
+    }
+
+    let parsedDueDate: Date | null = null;
+    if (dueDate !== undefined && dueDate !== null) {
+      const parsed = new Date(dueDate);
+      if (isNaN(parsed.getTime())) {
+        return NextResponse.json({ success: false, error: "Invalid due date format" }, { status: 400 });
+      }
+      parsedDueDate = parsed;
     }
 
     const { updateSaleDueDate } = await import("@/lib/services/debt-reminder");
     const updated = await updateSaleDueDate({
-      saleId,
-      dueDate: dueDate ? new Date(dueDate) : null,
+      saleId: saleId.trim(),
+      dueDate: parsedDueDate,
       businessId: auth!.businessId,
     });
 

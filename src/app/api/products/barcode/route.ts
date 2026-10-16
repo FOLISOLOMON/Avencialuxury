@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getProductByBarcode } from "@/lib/services/products";
-import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
+import { requireAuth } from "@/lib/auth/session";
 import { serializePlainObject } from "@/lib/utils";
 
 // Server-side in-memory cache for external barcode lookups
@@ -192,6 +192,8 @@ async function fetchExternalBarcodeData(barcode: string) {
 
 export async function GET(request: Request) {
   try {
+    const { auth, errorResponse } = await requireAuth(request);
+    if (errorResponse) return errorResponse;
     const { searchParams } = new URL(request.url);
     const barcode = searchParams.get("code");
     if (!barcode || !barcode.trim()) {
@@ -203,7 +205,7 @@ export async function GET(request: Request) {
     console.log(`[BARCODE] Lookup query: ${cleanBarcode}`);
 
     // 1. Check local Avencia database first
-    const localProduct = await getProductByBarcode(cleanBarcode, DEFAULT_BUSINESS_ID);
+    const localProduct = await getProductByBarcode(cleanBarcode, auth!.businessId);
     if (localProduct) {
       console.log(`[BARCODE] Product found: true (Local: ${localProduct.name})`);
       return NextResponse.json({

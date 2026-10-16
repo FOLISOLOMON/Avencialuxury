@@ -32,6 +32,7 @@ export interface AIToolResult {
 export interface AIChatRequest {
   messages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
   businessId?: string;
+  role?: "OWNER" | "WORKER";
 }
 
 export interface AIChatResponse {

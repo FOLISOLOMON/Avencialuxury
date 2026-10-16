@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUnreadCount } from "@/lib/services/notifications";
-import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
+import { requireAuth } from "@/lib/auth/session";
 
 export async function GET(req: NextRequest) {
   try {
-    const count = await getUnreadCount(DEFAULT_BUSINESS_ID);
+    const { auth, errorResponse } = await requireAuth(req);
+    if (errorResponse) return errorResponse;
+
+    const count = await getUnreadCount(auth!.businessId);
     return NextResponse.json({ success: true, count });
   } catch (error: any) {
     console.error("GET /api/notifications/unread-count error:", error);

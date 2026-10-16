@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { askAvencia } from "@/lib/ai/service";
-import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
+import { requireAuth } from "@/lib/auth/session";
 
 // Simple in-memory rate limiting: max 20 requests per minute per IP / business
 const rateLimitMap = new Map<string, { count: number; expiresAt: number }>();
@@ -24,6 +24,8 @@ function checkRateLimit(key: string, limit = 20, windowMs = 60000): boolean {
 
 export async function POST(request: Request) {
   try {
+    const { auth, errorResponse } = await requireAuth(request);
+    if (errorResponse) return errorResponse;
     const ip = request.headers.get("x-forwarded-for") || "client_ip";
     if (!checkRateLimit(ip)) {
       return NextResponse.json(
@@ -54,14 +56,14 @@ export async function POST(request: Request) {
     // Truncate to maximum 10 past messages for cost/token control
     const slicedMessages = body.messages.slice(-10);
 
-    const businessId = body.businessId || DEFAULT_BUSINESS_ID;
 
     const result = await askAvencia(
       {
         messages: slicedMessages,
-        businessId,
+        businessId: auth!.businessId,
+        role: auth!.user.role,
       },
-      businessId
+      auth!.businessId
     );
 
     return NextResponse.json(result);

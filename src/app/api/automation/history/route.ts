@@ -2,16 +2,19 @@ import { NextResponse } from "next/server";
 import { prisma, DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 import { getWhatsAppLogs } from "@/lib/services/whatsapp";
 import { serializePlainObject } from "@/lib/utils";
+import { requireAuth } from "@/lib/auth/session";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { auth, errorResponse } = await requireAuth(request, { allowedRoles: ["OWNER"] });
+    if (errorResponse) return errorResponse;
     const executions = await prisma.automationExecution.findMany({
-      where: { businessId: DEFAULT_BUSINESS_ID },
+      where: { businessId: auth!.businessId },
       orderBy: { createdAt: "desc" },
       take: 50,
     });
 
-    const whatsAppLogs = await getWhatsAppLogs(DEFAULT_BUSINESS_ID, 50);
+    const whatsAppLogs = await getWhatsAppLogs(auth!.businessId, 50);
 
     return NextResponse.json({
       success: true,

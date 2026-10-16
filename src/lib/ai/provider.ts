@@ -542,7 +542,7 @@ export async function processAIChat(
 
         if (functionCalls && functionCalls.length > 0) {
           const call = functionCalls[0].functionCall;
-          const toolResult = await executeAITool(call.name, call.args || {}, businessId);
+          const toolResult = await executeAITool(call.name, call.args || {}, businessId, request.role || "OWNER");
 
           if (!toolResult.success) {
             return {
@@ -621,7 +621,7 @@ export async function processAIChat(
     };
   }
 
-  const toolResult = await executeAITool(intent.toolName, intent.args, businessId);
+  const toolResult = await executeAITool(intent.toolName, intent.args, businessId, request.role || "OWNER");
 
   if (!toolResult.success) {
     return {

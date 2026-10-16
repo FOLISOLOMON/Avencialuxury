@@ -30,7 +30,8 @@ export async function ensureDefaultBusiness(businessId = DEFAULT_BUSINESS_ID, re
             id: "user_default_owner",
             name: "Avencia Owner",
             email: "owner@avencia.com",
-            passwordHash: "$2a$10$defaultHashForAvenciaOwner12345",
+            passwordHash: "$2a$10$UNUSABLE_ACCOUNT_LOGIN_DISABLED_UNTIL_SETUP",
+            isActive: false,
           },
         });
       }

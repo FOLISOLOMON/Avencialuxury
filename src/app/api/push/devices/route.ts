@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDeviceSubscriptions } from "@/lib/services/push";
-import { prisma, DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
+import { prisma } from "@/lib/db/prisma";
+import { requireAuth } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const businessId = searchParams.get("businessId") || DEFAULT_BUSINESS_ID;
+    const { auth, errorResponse } = await requireAuth(req, { allowedRoles: ["OWNER"] });
+    if (errorResponse) return errorResponse;
+
+    const businessId = auth!.businessId;
 
     const [devices, logs] = await Promise.all([
       getDeviceSubscriptions(businessId),
@@ -37,7 +40,7 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     console.error("GET /api/push/devices error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to load device subscriptions" },
+      { success: false, error: "Failed to load device subscriptions" },
       { status: 500 }
     );
   }

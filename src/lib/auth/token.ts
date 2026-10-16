@@ -3,7 +3,23 @@
  * Usable across Next.js Middleware (Edge Runtime) and Node.js Server Handlers.
  */
 
-const AUTH_SECRET = process.env.AUTH_SECRET || "avencia_secret_key_2026_super_secure_98471923";
+export function getAuthSecret(): string {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "FATAL CONFIGURATION ERROR: AUTH_SECRET environment variable is missing. Server startup aborted to prevent insecure session forgery."
+      );
+    }
+    return "avencia_dev_secret_key_only_non_prod_do_not_use_in_prod";
+  }
+  if (process.env.NODE_ENV === "production" && secret.length < 32) {
+    throw new Error(
+      "FATAL CONFIGURATION ERROR: AUTH_SECRET must be at least 32 characters long in production."
+    );
+  }
+  return secret;
+}
 
 export interface SessionPayload {
   userId: string;
@@ -65,7 +81,7 @@ export function base64UrlToUtf8(base64Url: string): string {
 
 async function getCryptoKey(): Promise<CryptoKey> {
   const encoder = new TextEncoder();
-  const keyData = encoder.encode(AUTH_SECRET);
+  const keyData = encoder.encode(getAuthSecret());
   return crypto.subtle.importKey(
     "raw",
     keyData,
