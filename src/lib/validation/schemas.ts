@@ -51,6 +51,7 @@ export const createBatchSchema = z.object({
   purchaseDate: z.coerce.date().default(() => new Date()),
   additionalCosts: z.number().min(0, "Additional costs cannot be negative").optional().default(0),
   notes: z.string().optional().nullable(),
+  supplierId: z.string().optional().nullable(),
   items: z.array(batchItemSchema).min(0).optional().default([]),
 });
 

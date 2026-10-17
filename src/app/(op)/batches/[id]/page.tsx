@@ -87,9 +87,11 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [closing, setClosing] = useState(false);
 
-  // Edit Additional Landed Cost Sheet
+  // Edit Additional Landed Cost & Supplier Sheet
   const [isCostSheetOpen, setIsCostSheetOpen] = useState(false);
   const [additionalCostInput, setAdditionalCostInput] = useState("");
+  const [batchSupplierId, setBatchSupplierId] = useState("");
+  const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([]);
   const [costSubmitting, setCostSubmitting] = useState(false);
 
   // Add Item to Batch Sheet
@@ -128,6 +130,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
       if (json.success) {
         setBatch(json.data);
         setAdditionalCostInput(json.data.additionalCosts?.toString() || "0");
+        setBatchSupplierId(json.data.supplierId || json.data.supplier?.id || "");
       } else {
         setError(json.error || "Failed to load batch");
       }
@@ -140,6 +143,12 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
 
   useEffect(() => {
     fetchBatch();
+    fetch("/api/suppliers")
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.success) setSuppliers(j.data || []);
+      })
+      .catch(() => {});
   }, [fetchBatch]);
 
   // Search Catalog Products
@@ -165,14 +174,17 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
       const res = await fetch(`/api/batches/${batchId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ additionalCosts: parseFloat(additionalCostInput || "0") }),
+        body: JSON.stringify({
+          additionalCosts: parseFloat(additionalCostInput || "0"),
+          supplierId: batchSupplierId || null,
+        }),
       });
       const json = await res.json();
       if (json.success) {
         await fetchBatch();
         setIsCostSheetOpen(false);
       } else {
-        alert(json.error || "Failed to update cost");
+        alert(json.error || "Failed to update batch");
       }
     } catch {
       alert("Server error");
@@ -357,10 +369,21 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
             </h1>
             <Badge variant={isCompleted ? "secondary" : "success"}>{batch.status}</Badge>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Purchased {new Date(batch.purchaseDate).toLocaleDateString()}
-            {batch.supplier && ` • Vendor: ${batch.supplier.name}`}
-          </p>
+          <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+            <span>Purchased {new Date(batch.purchaseDate).toLocaleDateString()}</span>
+            <span>•</span>
+            {batch.supplier ? (
+              <span className="inline-flex items-center gap-1 font-medium text-foreground">
+                <Truck className="w-3.5 h-3.5 text-primary" />
+                <span>Vendor:</span>
+                <Link href="/suppliers" className="text-primary hover:underline font-bold">
+                  {batch.supplier.name}
+                </Link>
+              </span>
+            ) : (
+              <span className="text-muted-foreground italic">No vendor assigned</span>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -373,7 +396,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
                 className="gap-1.5"
               >
                 <Pencil className="w-3.5 h-3.5" />
-                <span>Edit Landed Cost</span>
+                <span>Edit Batch / Costs</span>
               </Button>
 
               <Button
@@ -578,12 +601,12 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
         )}
       </Card>
 
-      {/* EDIT LANDED COST SHEET */}
+      {/* EDIT LANDED COST & SUPPLIER SHEET */}
       <Sheet
         isOpen={isCostSheetOpen}
         onClose={() => setIsCostSheetOpen(false)}
-        title="Update Landed Costs"
-        description="Add air freight, shipping or customs clearance costs"
+        title="Update Batch & Landed Costs"
+        description="Add air freight/customs clearing costs and assign or reassign wholesale vendor"
       >
         <form onSubmit={handleSaveCost} className="space-y-4 pt-2">
           <Input
@@ -594,6 +617,16 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
             value={additionalCostInput}
             onChange={(e) => setAdditionalCostInput(e.target.value)}
             required
+          />
+
+          <Select
+            label="Assigned Supplier / Vendor"
+            value={batchSupplierId}
+            onChange={(e) => setBatchSupplierId(e.target.value)}
+            options={[
+              { value: "", label: "No vendor assigned (leave blank)" },
+              ...suppliers.map((s) => ({ value: s.id, label: s.name })),
+            ]}
           />
 
           <div className="pt-2 flex gap-3">
@@ -611,7 +644,7 @@ export default function BatchDetailPage({ params }: { params: Promise<{ id: stri
               className="flex-1 font-black"
               isLoading={costSubmitting}
             >
-              Save Costs
+              Save Changes
             </Button>
           </div>
         </form>

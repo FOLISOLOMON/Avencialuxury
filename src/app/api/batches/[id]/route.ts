@@ -72,7 +72,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         additionalCosts: updatedCost,
         totalInvestment: newTotalInvestment,
         notes: notes !== undefined ? notes : existing.notes,
-        supplierId: supplierId !== undefined ? supplierId : existing.supplierId,
+        supplierId: supplierId !== undefined ? (supplierId ? String(supplierId).trim() : null) : existing.supplierId,
+      },
+      include: {
+        supplier: true,
       },
     });
 

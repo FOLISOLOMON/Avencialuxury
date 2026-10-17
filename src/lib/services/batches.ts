@@ -70,6 +70,7 @@ export async function createBatch(input: CreateBatchInput) {
       },
 
       include: {
+        supplier: true,
         batchItems: {
           include: {
             product: true,
@@ -136,6 +137,7 @@ export async function getActiveBatches(businessId: string) {
     },
     orderBy: { purchaseDate: "asc" },
     include: {
+      supplier: true,
       batchItems: {
         include: {
           product: true,
@@ -157,6 +159,7 @@ export async function getBatches(businessId: string, statusFilter?: "ALL" | Batc
     where,
     orderBy: { purchaseDate: "desc" },
     include: {
+      supplier: true,
       batchItems: {
         include: {
           product: true,

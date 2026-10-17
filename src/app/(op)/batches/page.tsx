@@ -73,6 +73,60 @@ export default function BatchesPage() {
   const [supplierId, setSupplierId] = useState("");
   const [notes, setNotes] = useState("");
 
+  // Quick Add Supplier inline state
+  const [showQuickAddSupplier, setShowQuickAddSupplier] = useState(false);
+  const [quickSupplierName, setQuickSupplierName] = useState("");
+  const [quickSupplierContact, setQuickSupplierContact] = useState("");
+  const [quickSupplierPhone, setQuickSupplierPhone] = useState("");
+  const [quickSupplierSubmitting, setQuickSupplierSubmitting] = useState(false);
+  const [quickSupplierError, setQuickSupplierError] = useState<string | null>(null);
+
+  const fetchSuppliers = async () => {
+    try {
+      const res = await fetch("/api/suppliers");
+      const json = await res.json();
+      if (json.success) setSuppliers(json.data || []);
+    } catch (e) {}
+  };
+
+  const handleQuickCreateSupplier = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setQuickSupplierError(null);
+    if (!quickSupplierName.trim()) {
+      setQuickSupplierError("Supplier company/vendor name is required");
+      return;
+    }
+
+    setQuickSupplierSubmitting(true);
+    try {
+      const res = await fetch("/api/suppliers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: quickSupplierName.trim(),
+          contactPerson: quickSupplierContact.trim() || undefined,
+          phone: quickSupplierPhone.trim() || undefined,
+        }),
+      });
+
+      const json = await res.json();
+      if (json.success && json.data) {
+        setSuppliers((prev) => [json.data, ...prev.filter((s) => s.id !== json.data.id)]);
+        setSupplierId(json.data.id);
+        setShowQuickAddSupplier(false);
+        setQuickSupplierName("");
+        setQuickSupplierContact("");
+        setQuickSupplierPhone("");
+      } else {
+        setQuickSupplierError(json.error || "Failed to create supplier");
+      }
+    } catch (err: any) {
+      setQuickSupplierError(err.message || "Network error");
+    } finally {
+      setQuickSupplierSubmitting(false);
+    }
+  };
+
   const fetchBatches = async () => {
     setLoading(true);
     setError(null);
@@ -91,6 +145,7 @@ export default function BatchesPage() {
 
   useEffect(() => {
     fetchBatches();
+    fetchSuppliers();
   }, [statusFilter]);
 
   // Global Header Event Listener
@@ -109,13 +164,14 @@ export default function BatchesPage() {
     setSupplierId("");
     setNotes("");
     setFormError(null);
+    setShowQuickAddSupplier(false);
+    setQuickSupplierName("");
+    setQuickSupplierContact("");
+    setQuickSupplierPhone("");
+    setQuickSupplierError(null);
     setIsModalOpen(true);
 
-    try {
-      const res = await fetch("/api/suppliers");
-      const json = await res.json();
-      if (json.success) setSuppliers(json.data || []);
-    } catch (e) {}
+    fetchSuppliers();
   };
 
   // Real-time synchronization: instantly refresh batches when inventory, batches, or sales update
@@ -475,17 +531,96 @@ export default function BatchesPage() {
             placeholder="0.00"
           />
 
-          {suppliers.length > 0 && (
-            <Select
-              label="Supplier / Vendor (Optional)"
-              value={supplierId}
-              onChange={(e) => setSupplierId(e.target.value)}
-              options={[
-                { value: "", label: "Select vendor (or leave blank)" },
-                ...suppliers.map((s) => ({ value: s.id, label: s.name })),
-              ]}
-            />
-          )}
+          {/* Supplier Assignment */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-foreground">
+                Supplier / Vendor (Optional)
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowQuickAddSupplier(!showQuickAddSupplier);
+                  setQuickSupplierError(null);
+                }}
+                className="text-xs text-primary hover:underline font-semibold flex items-center gap-1"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{showQuickAddSupplier ? "Select Existing Vendor" : "New Supplier"}</span>
+              </button>
+            </div>
+
+            {showQuickAddSupplier ? (
+              <div className="p-3.5 bg-muted/40 rounded-xl border border-border space-y-3">
+                <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <Truck className="w-4 h-4 text-primary" />
+                  <span>Register & Assign Vendor</span>
+                </div>
+                <Input
+                  label="Vendor Company Name *"
+                  placeholder="e.g. Lattafa Perfumes Dubai"
+                  value={quickSupplierName}
+                  onChange={(e) => setQuickSupplierName(e.target.value)}
+                  autoFocus
+                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <Input
+                    label="Contact Person"
+                    placeholder="e.g. Tariq Ahmad"
+                    value={quickSupplierContact}
+                    onChange={(e) => setQuickSupplierContact(e.target.value)}
+                  />
+                  <Input
+                    label="Phone / WhatsApp"
+                    placeholder="e.g. +971 50 123 4567"
+                    value={quickSupplierPhone}
+                    onChange={(e) => setQuickSupplierPhone(e.target.value)}
+                  />
+                </div>
+                {quickSupplierError && (
+                  <p className="text-xs text-destructive font-medium">{quickSupplierError}</p>
+                )}
+                <div className="flex justify-end gap-2 pt-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowQuickAddSupplier(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="primary"
+                    isLoading={quickSupplierSubmitting}
+                    onClick={handleQuickCreateSupplier}
+                  >
+                    Save & Select
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <Select
+                  value={supplierId}
+                  onChange={(e) => setSupplierId(e.target.value)}
+                  options={[
+                    {
+                      value: "",
+                      label: suppliers.length > 0 ? "Select vendor (or leave blank)" : "No suppliers registered yet",
+                    },
+                    ...suppliers.map((s) => ({ value: s.id, label: s.name })),
+                  ]}
+                />
+                {suppliers.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Tip: Click <span className="font-semibold text-foreground">&quot;New Supplier&quot;</span> above to register a vendor without leaving this page.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
 
           <Textarea
             label="Shipment Notes"
