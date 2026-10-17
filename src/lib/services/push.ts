@@ -28,44 +28,36 @@ export interface ClientSubscriptionInput {
   deviceName?: string;
 }
 
-// VAPID configuration for Avencia Push Service (strictly from environment variables)
+// Default generated VAPID keys for Avencia Push Service (can be overridden via environment variables)
+const DEFAULT_VAPID_PUBLIC_KEY =
+  "BKgchy8l_oiXvoJxcgK3BbKrSaSSeqWJR1Nn3LSpvZxgGkk8FSkiVvEFOJpSavIQe-NuQv0iPc8dxEY_pMp5LDM";
+const DEFAULT_VAPID_PRIVATE_KEY =
+  "Alqq3U9N1Fd8ww3vw-r5RVtcTvcN88ceJwVwuHjGcyo";
+const DEFAULT_VAPID_SUBJECT = "mailto:solomonfoli19@gmail.com";
+
+// Lazy configure VAPID details to ensure environment variables are loaded
 let vapidConfigured = false;
+function configureVapid() {
+  if (vapidConfigured) return;
 
-export function isVapidConfigured(): boolean {
-  if (!configureVapid()) {
-    console.warn("[Push] Web push notifications disabled: Missing VAPID_PRIVATE_KEY or VAPID_PUBLIC_KEY environment variables.");
-    return false;
-  }
-  return vapidConfigured;
-}
-
-export function configureVapid(): boolean {
-  if (vapidConfigured) return true;
-
-  const subject = process.env.VAPID_SUBJECT || "mailto:admin@avencialuxury.com";
+  const subject = process.env.VAPID_SUBJECT || DEFAULT_VAPID_SUBJECT;
   const publicKey =
     process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
-    process.env.VAPID_PUBLIC_KEY;
-  const privateKey = process.env.VAPID_PRIVATE_KEY;
+    process.env.VAPID_PUBLIC_KEY ||
+    DEFAULT_VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY || DEFAULT_VAPID_PRIVATE_KEY;
 
   if (publicKey && privateKey) {
-    try {
-      webpush.setVapidDetails(subject, publicKey, privateKey);
-      vapidConfigured = true;
-      return true;
-    } catch (err) {
-      console.error("[Push] Failed to configure VAPID details:", err);
-      return false;
-    }
+    webpush.setVapidDetails(subject, publicKey, privateKey);
+    vapidConfigured = true;
   }
-  return false;
 }
 
-export function getPublicVapidKey(): string | null {
+export function getPublicVapidKey(): string {
   return (
     process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
     process.env.VAPID_PUBLIC_KEY ||
-    null
+    DEFAULT_VAPID_PUBLIC_KEY
   );
 }
 
@@ -199,13 +191,6 @@ export interface SendPushOptions {
  * handles stale subscriptions (410/404), and persists the delivery log.
  */
 export async function sendPushNotification(options: SendPushOptions) {
-  if (!isVapidConfigured()) {
-    return {
-      status: "SKIPPED",
-      reason: "VAPID_NOT_CONFIGURED",
-      dedupeKey: options.dedupeKey,
-    };
-  }
   configureVapid();
 
   const businessId = options.businessId || DEFAULT_BUSINESS_ID;

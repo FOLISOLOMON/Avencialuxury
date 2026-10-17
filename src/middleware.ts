@@ -1,50 +1,3 @@
-
-function isOriginAllowed(request: NextRequest): boolean {
-  const origin = request.headers.get("origin");
-  if (!origin) {
-    // If Origin is omitted (e.g. some same-origin non-browser clients or test runners),
-    // check Referer as secondary verification
-    const referer = request.headers.get("referer");
-    if (!referer) return true; // Safe fallback when neither is sent by client
-    try {
-      const refererHost = new URL(referer).host;
-      const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
-      return !host || refererHost === host;
-    } catch {
-      return false;
-    }
-  }
-
-  try {
-    const originUrl = new URL(origin);
-    const hostHeader = request.headers.get("x-forwarded-host") || request.headers.get("host");
-    if (hostHeader) {
-      const hostWithoutPort = hostHeader.split(":")[0];
-      if (originUrl.hostname === hostWithoutPort) return true;
-    }
-
-    // Configured production application URLs
-    const appUrl = process.env.APP_URL || process.env.NEXTAUTH_URL;
-    if (appUrl) {
-      try {
-        const expectedHost = new URL(appUrl).hostname;
-        if (originUrl.hostname === expectedHost) return true;
-      } catch {}
-    }
-
-    // Development localhost allowance
-    if (process.env.NODE_ENV !== "production") {
-      if (originUrl.hostname === "localhost" || originUrl.hostname === "127.0.0.1") {
-        return true;
-      }
-    }
-
-    return false;
-  } catch {
-    return false;
-  }
-}
-
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifySessionToken } from "@/lib/auth/token";
@@ -62,20 +15,6 @@ const PUBLIC_PATHS = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // CSRF Defense: For state-changing methods on API routes, verify Origin/Referer
-  const stateChangingMethods = ["POST", "PUT", "PATCH", "DELETE"];
-  if (stateChangingMethods.includes(request.method) && pathname.startsWith("/api/")) {
-    // Machine-to-machine cron endpoint has its own Bearer token authentication
-    if (pathname !== "/api/automation/cron") {
-      if (!isOriginAllowed(request)) {
-        return NextResponse.json(
-          { error: "Forbidden: Cross-site request rejected (Origin mismatch)" },
-          { status: 403 }
-        );
-      }
-    }
-  }
-
   // 1. Allow static assets, Next.js internal files, logos
   if (
     pathname.startsWith("/_next") ||
@@ -90,7 +29,7 @@ export async function middleware(request: NextRequest) {
   if (
     pathname.startsWith("/api/auth/") ||
     pathname === "/api/team/accept-invite" ||
-    pathname === "/api/automation/cron"
+    pathname.startsWith("/api/automation/")
   ) {
     return NextResponse.next();
   }

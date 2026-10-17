@@ -225,33 +225,3 @@ export function parseNaturalDateRange(phrase?: string): { quickRange?: string; s
 
   return {};
 }
-
-
-
-
-/**
- * Sanitize and escape CSV values to prevent CSV formula injection (SEC-09)
- * Handles leading formula characters and leading whitespace without altering cell content.
- */
-export function escapeCSV(val: any): string {
-  if (val === null || val === undefined) return "";
-  let str = String(val);
-
-  // Check for formula trigger characters after stripping leading whitespace,
-  // without modifying the original string itself
-  const trimmedLeading = str.replace(/^[\s\uFEFF\xA0]+/, "");
-
-  if (/^[=\+\-@\t\r]/.test(trimmedLeading)) {
-    // Only prefix if it's not a standalone standard signed number (e.g., -5, +3.2, " -45.50")
-    const isStrictNumber = /^[-+]?\d+(\.\d+)?$/.test(trimmedLeading);
-    if (!isStrictNumber) {
-      str = "'" + str;
-    }
-  }
-
-  // If the value contains commas, quotes, or newlines, wrap in quotes and escape internal quotes
-  if (/[",\n\r]/.test(str)) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}

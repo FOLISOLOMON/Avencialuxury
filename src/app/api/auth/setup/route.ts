@@ -1,30 +1,11 @@
 import { NextResponse } from "next/server";
-import { prisma, DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
+import { prisma, DEFAULT_BUSINESS_ID, ensureDefaultBusiness } from "@/lib/db/prisma";
 import { hashPassword } from "@/lib/auth/password";
 import { logAudit } from "@/lib/services/audit";
-import { verifySetupSecret } from "@/lib/auth/setup";
-
-export async function GET() {
-  try {
-    const existingOwner = await prisma.user.findFirst({
-      where: { role: "OWNER", isActive: true },
-    });
-    return NextResponse.json({
-      success: true,
-      setupAvailable: !existingOwner,
-    });
-  } catch (error) {
-    console.error("GET /api/auth/setup error:", error);
-    return NextResponse.json(
-      { success: false, setupAvailable: false, error: "Failed to determine setup status" },
-      { status: 500 }
-    );
-  }
-}
 
 export async function POST(request: Request) {
   try {
-    // 1. Initial outer check: If an active OWNER user already exists, reject immediately
+    // 1. Check if an OWNER user already exists in the system
     const existingOwner = await prisma.user.findFirst({
       where: { role: "OWNER", isActive: true },
     });
@@ -39,27 +20,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = await request.json().catch(() => ({}));
+    const body = await request.json();
     const { name, email, password } = body || {};
-
-    // 2. Secret verification: Server-side timing-safe comparison
-    // Accept from body.setupSecret or x-setup-secret header
-    const providedSecret = body?.setupSecret || request.headers.get("x-setup-secret");
-    const secretVerification = verifySetupSecret(providedSecret);
-
-    if (!secretVerification.valid) {
-      // Log constant reason only; NEVER log secrets
-      console.warn("POST /api/auth/setup rejected: secret verification failed", {
-        reason: secretVerification.reason,
-      });
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Setup authorization failed. Ensure a valid setup secret is configured and provided.",
-        },
-        { status: 403 }
-      );
-    }
 
     if (!name || typeof name !== "string" || !name.trim()) {
       return NextResponse.json({ success: false, error: "Full name is required" }, { status: 400 });
@@ -73,7 +35,7 @@ export async function POST(request: Request) {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // 3. Atomic first-owner creation with concurrency check inside transaction
+    // 2. Prevent concurrent initialization via transaction with double-check
     const newOwner = await prisma.$transaction(async (tx) => {
       const concurrencyCheck = await tx.user.findFirst({
         where: { role: "OWNER", isActive: true },

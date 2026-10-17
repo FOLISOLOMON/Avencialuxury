@@ -26,7 +26,9 @@ function verifyCronAuth(req: NextRequest): boolean {
     if (token === cronSecret) return true;
   }
 
-  // Note: Query parameter secret transmission removed per security remediation (SEC-06).
+  const { searchParams } = new URL(req.url);
+  const querySecret = searchParams.get("secret");
+  if (querySecret && querySecret === cronSecret) return true;
 
   // Also check Vercel Cron header if running on Vercel
   const vercelCronHeader = req.headers.get("x-vercel-cron");

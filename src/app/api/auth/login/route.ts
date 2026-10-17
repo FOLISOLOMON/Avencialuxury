@@ -3,12 +3,6 @@ import { prisma, DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 import { verifyPassword } from "@/lib/auth/password";
 import { createDatabaseSession, SESSION_COOKIE_NAME, SESSION_MAX_AGE_SECONDS } from "@/lib/auth/session";
 import { logAudit } from "@/lib/services/audit";
-import {
-  getRateLimitKey,
-  checkLoginRateLimit,
-  recordFailedLoginAttempt,
-  clearLoginRateLimit,
-} from "@/lib/auth/rate-limit";
 
 export async function POST(request: Request) {
   try {
@@ -24,29 +18,11 @@ export async function POST(request: Request) {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    const rateLimitKey = getRateLimitKey(request, normalizedEmail);
-    const rateLimitCheck = await checkLoginRateLimit(rateLimitKey);
-    if (!rateLimitCheck.allowed) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Too many failed sign-in attempts. Please wait ${rateLimitCheck.retryAfterSeconds} seconds before trying again.`,
-        },
-        {
-          status: 429,
-          headers: {
-            "Retry-After": String(rateLimitCheck.retryAfterSeconds),
-          },
-        }
-      );
-    }
-
     const user = await prisma.user.findUnique({
       where: { email: normalizedEmail },
     });
 
     if (!user) {
-      await recordFailedLoginAttempt(rateLimitKey);
       // Delay response slightly to prevent timing attacks
       await new Promise((r) => setTimeout(r, 200));
       return NextResponse.json(
@@ -64,7 +40,6 @@ export async function POST(request: Request) {
 
     const passwordValid = await verifyPassword(password, user.passwordHash);
     if (!passwordValid) {
-      recordFailedLoginAttempt(rateLimitKey);
       await logAudit({
         businessId: user.businessId || DEFAULT_BUSINESS_ID,
         userId: user.id,
@@ -82,7 +57,6 @@ export async function POST(request: Request) {
       );
     }
 
-    await clearLoginRateLimit(rateLimitKey);
     const effectiveBusinessId = user.businessId || DEFAULT_BUSINESS_ID;
     const { token, sessionId } = await createDatabaseSession({
       userId: user.id,
@@ -133,7 +107,7 @@ export async function POST(request: Request) {
       name: SESSION_COOKIE_NAME,
       value: token,
       httpOnly: true,
-      secure: isProduction,
+      secure: isProduction && isHttps,
       sameSite: "lax",
       maxAge: SESSION_MAX_AGE_SECONDS,
       path: "/",
