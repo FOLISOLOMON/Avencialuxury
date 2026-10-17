@@ -13,9 +13,18 @@ export async function GET(request: Request) {
 
     const requests = await getCancellationRequests(auth!.businessId, statusParam || undefined);
 
+    const mapped = requests.map((req) => ({
+      ...req,
+      requestedBy: req.requester,
+      sale: {
+        ...req.sale,
+        items: req.sale.saleItems,
+      },
+    }));
+
     return NextResponse.json({
       success: true,
-      data: serializePlainObject(requests),
+      data: serializePlainObject(mapped),
     });
   } catch (error: any) {
     console.error("GET /api/sales/cancellations error:", error);
@@ -29,7 +38,10 @@ export async function POST(request: Request) {
     if (errorResponse) return errorResponse;
 
     const body = await request.json();
-    const { requestId, decision, rejectionReason } = body || {};
+    const requestId = body?.requestId;
+    const rawDecision = body?.decision || body?.action;
+    const decision = typeof rawDecision === "string" ? rawDecision.toUpperCase() : undefined;
+    const rejectionReason = body?.rejectionReason || body?.reviewNotes || undefined;
 
     if (!requestId || typeof requestId !== "string") {
       return NextResponse.json({ success: false, error: "Cancellation request ID is required" }, { status: 400 });

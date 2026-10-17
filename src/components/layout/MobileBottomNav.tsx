@@ -16,10 +16,34 @@ import { cn } from "@/lib/utils";
 export function MobileBottomNav() {
   const pathname = usePathname();
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [pendingCancellations, setPendingCancellations] = useState(0);
+
+  React.useEffect(() => {
+    const fetchPending = async () => {
+      try {
+        const res = await fetch("/api/sales/cancellations?status=PENDING");
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          setPendingCancellations(json.data.length);
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    fetchPending();
+
+    const handleSync = () => fetchPending();
+    window.addEventListener("avencia:sync:cancellations", handleSync);
+    window.addEventListener("avencia:sync:sales", handleSync);
+    return () => {
+      window.removeEventListener("avencia:sync:cancellations", handleSync);
+      window.removeEventListener("avencia:sync:sales", handleSync);
+    };
+  }, []);
 
   const navItems = [
     { label: "Home", href: "/", icon: LayoutDashboard },
-    { label: "Sell", href: "/sales", icon: ShoppingBag },
+    { label: "Sell", href: "/sales", icon: ShoppingBag, hasBadge: pendingCancellations > 0 },
     { label: "Products", href: "/products", icon: Package },
     { label: "Customers", href: "/customers", icon: Users },
   ];
@@ -40,13 +64,18 @@ export function MobileBottomNav() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center justify-center h-full min-h-[44px] rounded-md transition-colors",
+                  "relative flex flex-col items-center justify-center h-full min-h-[44px] rounded-md transition-colors",
                   isActive
                     ? "text-primary font-semibold"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <Icon className="w-5 h-5" />
+                <div className="relative">
+                  <Icon className="w-5 h-5" />
+                  {item.hasBadge && (
+                    <span className="absolute -top-1 -right-1.5 w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse border border-card" />
+                  )}
+                </div>
                 <span className="text-[11px] tracking-tight mt-0.5 leading-none">
                   {item.label}
                 </span>

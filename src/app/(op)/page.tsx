@@ -1,7 +1,7 @@
 import { getFinancialSummary } from "@/lib/services/profit";
 import { getActiveBatches } from "@/lib/services/batches";
 import { getProducts } from "@/lib/services/products";
-import { getSales } from "@/lib/services/sales";
+import { getSales, getCancellationRequests } from "@/lib/services/sales";
 import { getCustomers } from "@/lib/services/customers";
 import { getSettings } from "@/lib/services/settings";
 import { InteractiveDashboard } from "@/components/dashboard/InteractiveDashboard";
@@ -18,6 +18,7 @@ export default async function DashboardPage() {
   const rawSales = await getSales(businessId);
   const rawCustomers = await getCustomers(businessId);
   const rawSettings = await getSettings(businessId);
+  const rawCancellationRequests = await getCancellationRequests(businessId, "PENDING");
 
   const summary = serializePlainObject(rawSummary);
   const activeBatches = serializePlainObject(rawActiveBatches);
@@ -25,6 +26,7 @@ export default async function DashboardPage() {
   const sales = serializePlainObject(rawSales);
   const customers = serializePlainObject(rawCustomers);
   const settings = serializePlainObject(rawSettings);
+  const cancellationRequests = serializePlainObject(rawCancellationRequests);
 
   return (
     <div className="space-y-8">
@@ -35,6 +37,7 @@ export default async function DashboardPage() {
         sales={sales}
         customers={customers}
         settings={settings}
+        cancellationRequests={cancellationRequests}
       />
     </div>
   );

@@ -73,6 +73,30 @@ const SIDEBAR_GROUPS: SidebarGroup[] = [
 
 export function DesktopSidebar() {
   const pathname = usePathname();
+  const [pendingCancellations, setPendingCancellations] = React.useState(0);
+
+  React.useEffect(() => {
+    const fetchPending = async () => {
+      try {
+        const res = await fetch("/api/sales/cancellations?status=PENDING");
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          setPendingCancellations(json.data.length);
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    fetchPending();
+
+    const handleSync = () => fetchPending();
+    window.addEventListener("avencia:sync:cancellations", handleSync);
+    window.addEventListener("avencia:sync:sales", handleSync);
+    return () => {
+      window.removeEventListener("avencia:sync:cancellations", handleSync);
+      window.removeEventListener("avencia:sync:sales", handleSync);
+    };
+  }, []);
 
   return (
     <aside
@@ -114,6 +138,7 @@ export function DesktopSidebar() {
               {group.items.map((item) => {
                 const isActive = pathname === item.href;
                 const Icon = item.icon;
+                const isSales = item.href === "/sales";
 
                 return (
                   <Link
@@ -136,11 +161,15 @@ export function DesktopSidebar() {
                       <span className="truncate">{item.name}</span>
                     </div>
 
-                    {item.badge && (
+                    {isSales && pendingCancellations > 0 ? (
+                      <span className="text-[10px] font-black px-1.5 py-0.2 rounded-full bg-amber-500 text-black animate-pulse">
+                        {pendingCancellations}
+                      </span>
+                    ) : item.badge ? (
                       <span className="text-[10px] font-medium px-1.5 py-0.2 rounded bg-secondary text-muted-foreground border border-border">
                         {item.badge}
                       </span>
-                    )}
+                    ) : null}
                   </Link>
                 );
               })}

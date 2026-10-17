@@ -11,6 +11,7 @@ import {
   Users,
   Clock,
   Calendar,
+  AlertOctagon,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
@@ -20,6 +21,7 @@ import { TrendBarChart } from "@/components/ui/SvgCharts";
 import { Sheet } from "@/components/ui/Sheet";
 import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/ToastProvider";
+import { CancellationQueueCard } from "@/components/sales/CancellationQueueCard";
 
 interface InteractiveDashboardProps {
   summary: any;
@@ -28,6 +30,7 @@ interface InteractiveDashboardProps {
   sales?: any[];
   customers?: any[];
   settings?: any;
+  cancellationRequests?: any[];
 }
 
 export function InteractiveDashboard({
@@ -37,6 +40,7 @@ export function InteractiveDashboard({
   sales = [],
   customers = [],
   settings,
+  cancellationRequests = [],
 }: InteractiveDashboardProps) {
   const router = useRouter();
   const toast = useToast();
@@ -48,8 +52,12 @@ export function InteractiveDashboard({
       router.refresh();
     };
     window.addEventListener("avencia:sync", handleSync);
+    window.addEventListener("avencia:sync:cancellations", handleSync);
+    window.addEventListener("avencia:sync:sales", handleSync);
     return () => {
       window.removeEventListener("avencia:sync", handleSync);
+      window.removeEventListener("avencia:sync:cancellations", handleSync);
+      window.removeEventListener("avencia:sync:sales", handleSync);
     };
   }, [router]);
 
@@ -255,6 +263,13 @@ export function InteractiveDashboard({
           </Button>
         </div>
       </div>
+
+      {/* ⚠️ PENDING CANCELLATION REQUESTS QUEUE - OWNER ACTION REQUIRED */}
+      {cancellationRequests && cancellationRequests.length > 0 && (
+        <div className="rounded-2xl border-2 border-amber-500/50 bg-card overflow-hidden shadow-xl animate-in fade-in duration-300">
+          <CancellationQueueCard compact={false} onProcessed={() => router.refresh()} />
+        </div>
+      )}
 
       {/* 2. Unified Financial Ledger Bar (Architecture over fragmented floating cards) */}
       <div className="rounded-lg border border-border bg-card grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border">

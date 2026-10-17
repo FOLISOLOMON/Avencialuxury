@@ -13,14 +13,21 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { triggerClientSync } from "@/lib/sync/client-sync";
+import { formatCurrency } from "@/lib/utils";
 
-interface CancellationRequest {
+export interface CancellationRequestItem {
   id: string;
   saleId: string;
   reason: string;
   status: "PENDING" | "APPROVED" | "REJECTED";
   createdAt: string;
-  requestedBy: {
+  requester?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  requestedBy?: {
     id: string;
     name: string;
     email: string;
@@ -32,8 +39,15 @@ interface CancellationRequest {
     amountPaid: number;
     customer?: {
       name: string;
-    };
-    items: Array<{
+    } | null;
+    items?: Array<{
+      quantity: number;
+      unitPrice: number;
+      product: {
+        name: string;
+      };
+    }>;
+    saleItems?: Array<{
       quantity: number;
       unitPrice: number;
       product: {
@@ -43,8 +57,13 @@ interface CancellationRequest {
   };
 }
 
-export function CancellationQueueCard() {
-  const [requests, setRequests] = useState<CancellationRequest[]>([]);
+interface CancellationQueueCardProps {
+  onProcessed?: () => void;
+  compact?: boolean;
+}
+
+export function CancellationQueueCard({ onProcessed, compact = false }: CancellationQueueCardProps) {
+  const [requests, setRequests] = useState<CancellationRequestItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -88,13 +107,16 @@ export function CancellationQueueCard() {
     setError(null);
 
     try {
+      const reasonText = rejectNotes[requestId]?.trim() || undefined;
       const res = await fetch("/api/sales/cancellations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           requestId,
+          decision: action,
           action,
-          reviewNotes: rejectNotes[requestId] || undefined,
+          rejectionReason: reasonText,
+          reviewNotes: reasonText,
         }),
       });
 
@@ -103,14 +125,13 @@ export function CancellationQueueCard() {
         throw new Error(json.error || "Failed to process review");
       }
 
-      // Broadcast instant live update to worker mobile devices
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("avencia:sync:cancellations"));
-        window.dispatchEvent(new CustomEvent("avencia:sync:sales"));
-        window.dispatchEvent(new CustomEvent("avencia:sync:inventory"));
-      }
+      // Broadcast instant live update to worker mobile devices and OP tabs
+      triggerClientSync("cancellations");
+      triggerClientSync("sales");
+      triggerClientSync("inventory");
 
-      fetchQueue();
+      await fetchQueue();
+      if (onProcessed) onProcessed();
     } catch (err: any) {
       setError(err.message || "Error processing cancellation review");
     } finally {
@@ -119,15 +140,20 @@ export function CancellationQueueCard() {
   };
 
   return (
-    <div className="p-5 space-y-4">
+    <div className={compact ? "p-3 space-y-3" : "p-5 space-y-4"}>
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <AlertOctagon className="w-4 h-4 text-amber-500" />
-            Sale Cancellation Requests Queue
+          <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+            <AlertOctagon className="w-4 h-4 text-amber-500 animate-pulse" />
+            Worker Sale Cancellation Requests
+            {requests.length > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-amber-500 text-black text-[11px] font-black">
+                {requests.length} pending
+              </span>
+            )}
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Owner-only authorization queue for worker-requested transaction cancellations with automated inventory reversal
+            Authorize or reject cancellations. Approving voids the transaction and immediately restores all items back into batch stock.
           </p>
         </div>
 
@@ -147,119 +173,151 @@ export function CancellationQueueCard() {
       {loading ? (
         <div className="p-4 text-center text-xs text-muted-foreground">Loading queue...</div>
       ) : requests.length === 0 ? (
-        <div className="p-4 rounded-md border border-dashed border-border text-center text-xs text-muted-foreground">
+        <div className="p-5 rounded-xl border border-dashed border-border bg-card/50 text-center text-xs text-muted-foreground">
           No pending worker cancellation requests. All sales are clear.
         </div>
       ) : (
         <div className="space-y-3">
-          {requests.map((req) => (
-            <div
-              key={req.id}
-              className="p-4 rounded-lg border border-amber-500/30 bg-amber-500/5 space-y-3 text-xs"
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-2">
-                <div>
-                  <span className="font-bold text-foreground">
-                    Receipt #{req.sale.receiptNumber || req.saleId.slice(0, 8)}
-                  </span>
-                  <span className="text-muted-foreground ml-2">
-                    Customer: {req.sale.customer?.name || "Walk-in"}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground text-[11px]">
-                  <User className="w-3 h-3 text-amber-500" />
-                  <span>Requested by: {req.requestedBy.name}</span>
-                  <span>•</span>
-                  <Clock className="w-3 h-3" />
-                  <span>{new Date(req.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-                </div>
-              </div>
+          {requests.map((req) => {
+            const items = req.sale.saleItems || req.sale.items || [];
+            const requesterName = req.requester?.name || req.requestedBy?.name || "Worker";
+            const receiptIdentifier = req.sale.receiptNumber || req.saleId.slice(-6).toUpperCase();
+            const total = Number(req.sale.totalAmount || 0);
+            const paid = Number(req.sale.amountPaid || 0);
+            const debt = total - paid;
 
-              {/* Items in sale */}
-              <div className="space-y-1">
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase">Items in Sale:</p>
-                <div className="flex flex-wrap gap-2">
-                  {req.sale.items.map((it, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2 py-0.5 rounded bg-muted/60 text-[11px] text-foreground font-medium"
-                    >
-                      {it.quantity}x {it.product.name} (GH₵{(it.quantity * it.unitPrice).toFixed(2)})
+            return (
+              <div
+                key={req.id}
+                className="p-4 rounded-xl border-2 border-amber-500/40 bg-gradient-to-br from-amber-500/10 via-card to-card space-y-3 text-xs shadow-sm"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/80 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-500 font-mono font-bold text-xs">
+                      #{receiptIdentifier}
                     </span>
-                  ))}
+                    <span className="text-foreground font-semibold">
+                      Client: {req.sale.customer?.name || "Walk-in Customer"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground text-[11px]">
+                    <User className="w-3.5 h-3.5 text-amber-500" />
+                    <span className="font-medium text-foreground">Requested by: {requesterName}</span>
+                    <span>•</span>
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>{new Date(req.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                  </div>
                 </div>
-              </div>
 
-              {/* Reason */}
-              <div className="p-2.5 rounded bg-black/40 border border-border">
-                <p className="text-[11px] text-neutral-400 font-semibold">Worker Reason:</p>
-                <p className="text-xs text-neutral-200 mt-0.5 italic">&quot;{req.reason}&quot;</p>
-              </div>
+                {/* Items in sale to restore */}
+                <div className="space-y-1.5">
+                  <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
+                    Items To Be Returned To Stock:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {items.map((it, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2.5 py-1 rounded-md bg-secondary border border-border text-xs text-foreground font-semibold flex items-center gap-1.5"
+                      >
+                        <Package className="w-3.5 h-3.5 text-primary" />
+                        <span>{it.quantity}x {it.product?.name || "Product"}</span>
+                        <span className="text-muted-foreground text-[11px]">
+                          ({formatCurrency(Number(it.quantity) * Number(it.unitPrice || 0))})
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
 
-              {/* Financial summary */}
-              <div className="flex items-center gap-4 text-xs font-semibold">
-                <span>Total Sale: GH₵{req.sale.totalAmount.toFixed(2)}</span>
-                <span className="text-emerald-400">Paid: GH₵{req.sale.amountPaid.toFixed(2)}</span>
-                {req.sale.totalAmount > req.sale.amountPaid && (
-                  <span className="text-destructive">
-                    Debt: GH₵{(req.sale.totalAmount - req.sale.amountPaid).toFixed(2)}
-                  </span>
+                {/* Worker's Reason */}
+                <div className="p-3 rounded-lg bg-card/90 border border-amber-500/30">
+                  <p className="text-[11px] text-amber-400 font-bold uppercase tracking-wider">
+                    Worker&apos;s Stated Reason:
+                  </p>
+                  <p className="text-sm text-foreground mt-1 font-medium italic">
+                    &ldquo;{req.reason}&rdquo;
+                  </p>
+                </div>
+
+                {/* Financial summary */}
+                <div className="flex flex-wrap items-center gap-4 text-xs font-semibold pt-1">
+                  <span className="text-foreground">Total Sale: {formatCurrency(total)}</span>
+                  <span className="text-emerald-500">Paid: {formatCurrency(paid)}</span>
+                  {debt > 0 && (
+                    <span className="text-rose-500">
+                      Unpaid Debt to Reconcile: {formatCurrency(debt)}
+                    </span>
+                  )}
+                </div>
+
+                {/* Rejection input toggle */}
+                {showRejectInput[req.id] && (
+                  <div className="space-y-1.5 pt-1">
+                    <input
+                      type="text"
+                      placeholder="Optional notes explaining rejection to worker..."
+                      value={rejectNotes[req.id] || ""}
+                      onChange={(e) =>
+                        setRejectNotes({ ...rejectNotes, [req.id]: e.target.value })
+                      }
+                      className="w-full text-xs p-2.5 rounded-lg bg-background border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
                 )}
-              </div>
 
-              {/* Rejection input toggle */}
-              {showRejectInput[req.id] && (
-                <div className="space-y-1.5 pt-1">
-                  <input
-                    type="text"
-                    placeholder="Enter reason for rejection..."
-                    value={rejectNotes[req.id] || ""}
-                    onChange={(e) =>
-                      setRejectNotes({ ...rejectNotes, [req.id]: e.target.value })
-                    }
-                    className="w-full text-xs p-2 rounded bg-card border border-border text-foreground"
-                  />
-                </div>
-              )}
+                {/* Actions */}
+                <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-border/60">
+                  {!showRejectInput[req.id] ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setShowRejectInput({ ...showRejectInput, [req.id]: true })
+                      }
+                      className="text-xs text-muted-foreground hover:text-destructive"
+                    >
+                      <XCircle className="w-3.5 h-3.5 mr-1" />
+                      Reject Request...
+                    </Button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setShowRejectInput({ ...showRejectInput, [req.id]: false })
+                        }
+                        className="text-xs"
+                      >
+                        Back
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        isLoading={processingId === req.id}
+                        onClick={() => handleReview(req.id, "REJECT")}
+                        className="text-xs"
+                      >
+                        Confirm Rejection
+                      </Button>
+                    </div>
+                  )}
 
-              {/* Actions */}
-              <div className="flex justify-end gap-2 pt-1">
-                {!showRejectInput[req.id] ? (
                   <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setShowRejectInput({ ...showRejectInput, [req.id]: true })
-                    }
-                    className="text-xs text-muted-foreground hover:text-destructive"
-                  >
-                    Reject...
-                  </Button>
-                ) : (
-                  <Button
-                    variant="destructive"
+                    variant="primary"
                     size="sm"
                     isLoading={processingId === req.id}
-                    onClick={() => handleReview(req.id, "REJECT")}
-                    className="text-xs"
+                    onClick={() => handleReview(req.id, "APPROVE")}
+                    className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white border-0 shadow-md hover:shadow-emerald-900/30"
                   >
-                    Confirm Rejection
+                    <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                    Accept & Restore Stock
                   </Button>
-                )}
-
-                <Button
-                  variant="primary"
-                  size="sm"
-                  isLoading={processingId === req.id}
-                  onClick={() => handleReview(req.id, "APPROVE")}
-                  className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white border-0"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                  Approve & Reverse Inventory
-                </Button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

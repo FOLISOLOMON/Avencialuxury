@@ -45,7 +45,9 @@ import {
   X,
   Search,
   Sparkles,
+  AlertOctagon,
 } from "lucide-react";
+import { CancellationQueueCard } from "@/components/sales/CancellationQueueCard";
 
 const CameraScanner = dynamic(() => import("@/components/scanner/CameraScanner"), { ssr: false });
 
@@ -94,6 +96,12 @@ interface Sale {
   notes: string | null;
   customerId?: string | null;
   customer: { id?: string; name: string; phone?: string | null } | null;
+  cancellationRequest?: {
+    id: string;
+    status: string;
+    reason: string;
+    requester?: { name: string; email: string };
+  } | null;
   saleItems: SaleItem[];
 }
 
@@ -120,10 +128,24 @@ interface CartItem {
 
 export default function SalesPage() {
   // Navigation / View Tabs
-  const [activeTab, setActiveTab] = useState<"pos" | "history">("pos");
+  const [activeTab, setActiveTab] = useState<"pos" | "history" | "cancellations">("pos");
+
+  // Read URL query parameter for tab selection (e.g. from notification clicks)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search).get("tab");
+      if (p === "cancellations" || p === "history" || p === "pos") {
+        setActiveTab(p as any);
+      }
+    }
+  }, []);
 
   // Core Data
   const [sales, setSales] = useState<Sale[]>([]);
+
+  const pendingCancellationsCount = useMemo(() => {
+    return sales.filter((s) => s.cancellationRequest?.status === "PENDING").length;
+  }, [sales]);
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [summary, setSummary] = useState<SalesSummary>({
@@ -557,7 +579,7 @@ export default function SalesPage() {
         </div>
 
         {/* View Switcher */}
-        <div className="inline-flex p-1 bg-muted rounded-2xl border border-border self-start sm:self-auto">
+        <div className="inline-flex p-1 bg-muted rounded-2xl border border-border self-start sm:self-auto flex-wrap">
           <button
             type="button"
             onClick={() => setActiveTab("pos")}
@@ -587,8 +609,59 @@ export default function SalesPage() {
             <History className="w-4 h-4 text-primary" />
             <span>Sales History ({sales.length})</span>
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("cancellations")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === "cancellations"
+                ? "bg-card text-foreground shadow-sm border border-border/80"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <AlertOctagon className="w-4 h-4 text-amber-500" />
+            <span>Cancellation Requests</span>
+            {pendingCancellationsCount > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-black text-[10px] font-black animate-pulse">
+                {pendingCancellationsCount}
+              </span>
+            )}
+          </button>
         </div>
       </div>
+
+      {/* Prominent Pending Cancellations Banner */}
+      {pendingCancellationsCount > 0 && activeTab !== "cancellations" && (
+        <div className="p-4 rounded-xl border-2 border-amber-500/50 bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-card flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-md animate-in fade-in">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0">
+              <AlertOctagon className="w-4 h-4 text-amber-500 animate-pulse" />
+            </div>
+            <div>
+              <p className="font-bold text-foreground text-sm">
+                {pendingCancellationsCount} worker cancellation {pendingCancellationsCount === 1 ? "request requires" : "requests require"} your authorization
+              </p>
+              <p className="text-muted-foreground text-xs mt-0.5">
+                Worker reported customer returns. Approving will automatically void the sale and restore all items back to inventory stock.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={() => setActiveTab("cancellations")}
+            className="text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold shrink-0 shadow-sm"
+          >
+            Review & Accept ({pendingCancellationsCount})
+          </Button>
+        </div>
+      )}
+
+      {/* CANCELLATION REQUESTS VIEW */}
+      {activeTab === "cancellations" && (
+        <Card className="overflow-hidden border border-border shadow-md">
+          <CancellationQueueCard onProcessed={fetchData} />
+        </Card>
+      )}
 
       {/* POS VIEW */}
       {activeTab === "pos" && (
@@ -1027,7 +1100,17 @@ export default function SalesPage() {
                           </td>
 
                           <td className="py-3 px-4">
-                            {isVoided ? (
+                            {s.cancellationRequest?.status === "PENDING" ? (
+                              <div className="space-y-1">
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-500 border border-amber-500/30 animate-pulse">
+                                  <AlertOctagon className="w-3 h-3" />
+                                  Cancellation Pending
+                                </span>
+                                <span className="text-[10px] text-muted-foreground block truncate max-w-[140px]" title={s.cancellationRequest.reason}>
+                                  &quot;{s.cancellationRequest.reason}&quot;
+                                </span>
+                              </div>
+                            ) : isVoided ? (
                               <span className="text-destructive font-medium text-xs">Voided</span>
                             ) : isPartial ? (
                               <div className="space-y-0.5">
@@ -1062,6 +1145,18 @@ export default function SalesPage() {
 
                           <td className="py-3 px-4 text-right">
                             <div className="inline-flex items-center gap-1.5">
+                              {s.cancellationRequest?.status === "PENDING" && (
+                                <Button
+                                  size="sm"
+                                  variant="primary"
+                                  className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs"
+                                  onClick={() => setActiveTab("cancellations")}
+                                >
+                                  <AlertOctagon className="w-3.5 h-3.5 mr-1" />
+                                  Review Request
+                                </Button>
+                              )}
+
                               <Button
                                 size="sm"
                                 variant="outline"

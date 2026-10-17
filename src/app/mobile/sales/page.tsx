@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { MobileSaleSummary } from "@/lib/mobile/types";
 import { getSaleReceiptWhatsAppUrl } from "@/lib/mobile/whatsapp";
+import { triggerClientSync } from "@/lib/sync/client-sync";
 
 export default function MobileSalesPage() {
   const [sales, setSales] = useState<any[]>([]);
@@ -102,11 +103,9 @@ export default function MobileSalesPage() {
         },
       });
 
-      // Broadcast instant live sync to owner OP dashboard & cancellation queue
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("avencia:sync:cancellations"));
-        window.dispatchEvent(new CustomEvent("avencia:sync:sales"));
-      }
+      // Broadcast instant live sync to owner OP dashboard & cancellation queue across all tabs & devices
+      triggerClientSync("cancellations");
+      triggerClientSync("sales");
 
       setTimeout(() => {
         setCancelModalOpen(false);

@@ -707,11 +707,6 @@ export async function requestSaleCancellation(params: {
     throw new Error("This sale is already voided.");
   }
 
-  // Worker can request cancellation for their own sales or sales where creatorId was not explicitly set
-  if (params.requester.role === "WORKER" && sale.creatorId && sale.creatorId !== params.requester.id) {
-    throw new Error("Unauthorized: You can only request cancellation for sales you created.");
-  }
-
   // If creatorId was unassigned, attribute this sale to the requesting worker
   if (!sale.creatorId && params.requester.role === "WORKER") {
     await prisma.sale.update({
@@ -762,7 +757,7 @@ export async function requestSaleCancellation(params: {
     title: "Sale Cancellation Requested",
     message: `${requesterName} requested cancellation of Sale #${sale.id.slice(-6)}: "${params.reason.trim()}".`,
     actionLabel: "Review Queue",
-    actionUrl: "/sales",
+    actionUrl: "/sales?tab=cancellations",
     entityType: "SALE",
     entityId: sale.id,
     dedupeKey: `CANCELLATION_REQ:${sale.id}`,
