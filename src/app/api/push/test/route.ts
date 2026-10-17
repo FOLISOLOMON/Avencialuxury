@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendPushNotification } from "@/lib/services/push";
-import { requireAuth } from "@/lib/auth/session";
+import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 
 export async function POST(req: NextRequest) {
   try {
-    const { auth, errorResponse } = await requireAuth(req, { allowedRoles: ["OWNER"] });
-    if (errorResponse) return errorResponse;
+    const body = await req.json().catch(() => ({}));
+    const businessId = body.businessId || DEFAULT_BUSINESS_ID;
 
-    const businessId = auth!.businessId;
     const dedupeKey = `TEST_PUSH:${businessId}:${Date.now()}`;
 
     const result = await sendPushNotification({
@@ -29,13 +28,6 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (result.status === "SKIPPED") {
-      return NextResponse.json({
-        success: false,
-        error: "Push service is unconfigured or unavailable.",
-      }, { status: 503 });
-    }
-
     return NextResponse.json({
       success: result.status === "SENT",
       result,
@@ -46,7 +38,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error("POST /api/push/test error:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to dispatch test notification" },
+      { success: false, error: error.message || "Failed to dispatch test notification" },
       { status: 500 }
     );
   }

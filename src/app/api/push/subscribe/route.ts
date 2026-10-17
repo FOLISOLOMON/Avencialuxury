@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { registerPushSubscription } from "@/lib/services/push";
-import { requireAuth } from "@/lib/auth/session";
+import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 
 export async function POST(req: NextRequest) {
   try {
-    const { auth, errorResponse } = await requireAuth(req);
-    if (errorResponse) return errorResponse;
-
     const body = await req.json();
-    const { subscription, deviceName } = body || {};
+    const { subscription, deviceName, businessId } = body;
 
     if (!subscription || !subscription.endpoint || !subscription.keys) {
       return NextResponse.json(
@@ -20,7 +17,7 @@ export async function POST(req: NextRequest) {
     const userAgent = req.headers.get("user-agent") || undefined;
 
     const registered = await registerPushSubscription({
-      businessId: auth!.businessId,
+      businessId: businessId || DEFAULT_BUSINESS_ID,
       subscription: {
         ...subscription,
         userAgent,

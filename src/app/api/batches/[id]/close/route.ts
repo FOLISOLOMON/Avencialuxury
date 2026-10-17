@@ -1,20 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 import { serializePlainObject } from "@/lib/utils";
-import { requireAuth } from "@/lib/auth/session";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { auth, errorResponse } = await requireAuth(request, { allowedRoles: ["OWNER"] });
-    if (errorResponse) return errorResponse;
-
     const { id } = await params;
     if (!id || !id.trim()) {
       return NextResponse.json({ success: false, error: "Batch ID is required" }, { status: 400 });
     }
 
     const batch = await prisma.batch.findFirst({
-      where: { id: id.trim(), businessId: auth!.businessId },
+      where: { id: id.trim(), businessId: DEFAULT_BUSINESS_ID },
     });
 
     if (!batch) {

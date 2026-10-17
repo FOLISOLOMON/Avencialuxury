@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
-import { escapeCSV } from "@/lib/utils";
 import { prisma } from "@/lib/db/prisma";
 import { requireAuth } from "@/lib/auth/session";
 import { logAudit } from "@/lib/services/audit";
+
+function escapeCSV(val: any): string {
+  if (val === null || val === undefined) return '""';
+  const str = String(val).replace(/"/g, '""');
+  return `"${str}"`;
+}
 
 export async function GET(request: Request) {
   try {

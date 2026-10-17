@@ -1,4 +1,3 @@
-import { getClientIp, checkResetPasswordRateLimit, recordResetPasswordAttempt } from "@/lib/auth/rate-limit";
 import { NextResponse } from "next/server";
 import { prisma, DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 import { hashToken } from "@/lib/auth/token";
@@ -10,22 +9,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { token, newPassword } = body || {};
-
-    const ip = getClientIp(request);
-    const rateLimit = await checkResetPasswordRateLimit(ip);
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Too many password reset attempts. Please wait ${rateLimit.retryAfterSeconds} seconds before trying again.`,
-        },
-        {
-          status: 429,
-          headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
-        }
-      );
-    }
-    await recordResetPasswordAttempt(ip);
 
     if (!token || typeof token !== "string") {
       return NextResponse.json({ success: false, error: "Invalid or missing reset token" }, { status: 400 });

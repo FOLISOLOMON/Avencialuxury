@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { markAllNotificationsAsRead } from "@/lib/services/notifications";
-import { requireAuth } from "@/lib/auth/session";
+import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 
-export async function POST(req: NextRequest) {
+export async function PATCH(req: NextRequest) {
   try {
-    const { auth, errorResponse } = await requireAuth(req);
-    if (errorResponse) return errorResponse;
-
-    const count = await markAllNotificationsAsRead(auth!.businessId);
+    const count = await markAllNotificationsAsRead(DEFAULT_BUSINESS_ID);
     return NextResponse.json({ success: true, count });
   } catch (error: any) {
-    console.error("POST /api/notifications/read-all error:", error);
+    console.error("PATCH /api/notifications/read-all error:", error);
     return NextResponse.json(
       { success: false, error: error.message || "Failed to mark all as read" },
       { status: 500 }

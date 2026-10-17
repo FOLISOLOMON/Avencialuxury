@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import { sendOrQueueWhatsAppMessage } from "@/lib/services/whatsapp";
-import { requireAuth } from "@/lib/auth/session";
+import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 
 export async function POST(request: Request) {
   try {
-    const { auth, errorResponse } = await requireAuth(request, { allowedRoles: ["OWNER"] });
-    if (errorResponse) return errorResponse;
-
     const body = await request.json();
     if (!body || typeof body !== "object") {
       return NextResponse.json({ success: false, error: "Invalid JSON payload" }, { status: 400 });
@@ -15,11 +12,11 @@ export async function POST(request: Request) {
     const { customerId, messageType, phone, customMessage, forceSend } = body;
 
     const result = await sendOrQueueWhatsAppMessage({
-      businessId: auth!.businessId,
-      customerId: customerId && typeof customerId === "string" ? customerId.trim() : null,
+      businessId: DEFAULT_BUSINESS_ID,
+      customerId: customerId ? String(customerId).trim() : null,
       messageType: messageType || "PAYMENT_REMINDER",
-      phone: phone && typeof phone === "string" ? phone.trim() : null,
-      customMessage: customMessage && typeof customMessage === "string" ? customMessage.trim() : undefined,
+      phone: phone ? String(phone).trim() : null,
+      customMessage: customMessage ? String(customMessage).trim() : undefined,
       forceSend: Boolean(forceSend),
     });
 

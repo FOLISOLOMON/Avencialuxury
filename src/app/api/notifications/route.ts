@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getNotifications, NotificationCategory } from "@/lib/services/notifications";
-import { requireAuth } from "@/lib/auth/session";
+import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 
 export async function GET(req: NextRequest) {
   try {
-    const { auth, errorResponse } = await requireAuth(req);
-    if (errorResponse) return errorResponse;
-
     const { searchParams } = new URL(req.url);
     const unreadOnly = searchParams.get("unreadOnly") === "true";
     const category = (searchParams.get("category") || "ALL") as NotificationCategory | "ALL";
@@ -14,7 +11,7 @@ export async function GET(req: NextRequest) {
     const cursor = searchParams.get("cursor") || undefined;
 
     const result = await getNotifications({
-      businessId: auth!.businessId,
+      businessId: DEFAULT_BUSINESS_ID,
       unreadOnly,
       category,
       limit,

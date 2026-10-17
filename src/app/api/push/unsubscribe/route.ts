@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { unregisterPushSubscription } from "@/lib/services/push";
-import { requireAuth } from "@/lib/auth/session";
+import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 
 export async function POST(req: NextRequest) {
   try {
-    const { auth, errorResponse } = await requireAuth(req);
-    if (errorResponse) return errorResponse;
-
     const body = await req.json();
-    const { endpoint } = body || {};
+    const { endpoint, businessId } = body;
 
     if (!endpoint) {
       return NextResponse.json(
@@ -19,7 +16,7 @@ export async function POST(req: NextRequest) {
 
     const removed = await unregisterPushSubscription(
       endpoint,
-      auth!.businessId
+      businessId || DEFAULT_BUSINESS_ID
     );
 
     return NextResponse.json({
