@@ -8,6 +8,7 @@ const PUBLIC_PATHS = [
   "/setup",
   "/forgot-password",
   "/manifest.json",
+  "/manifest-mobile.json",
   "/favicon.ico",
   "/sw.js",
 ];

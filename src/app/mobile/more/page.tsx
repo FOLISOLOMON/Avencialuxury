@@ -217,13 +217,13 @@ export default function MobileMorePage() {
 
       {/* 7. SWITCH TO DESKTOP AVENCIA OP (OWNER ONLY) */}
       {user?.role === "OWNER" && (
-        <div className="p-4 rounded-2xl bg-card border border-border shadow-xs space-y-2">
+        <div className="p-4 rounded-2xl bg-card border border-amber-500/30 shadow-xs space-y-2">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center">
               <Laptop className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-xs font-bold text-foreground">Avencia OP (Full System)</h3>
+              <h3 className="text-xs font-bold text-foreground">Avencia OP (Main Desktop System)</h3>
               <p className="text-[11px] text-muted-foreground">
                 Batches, inventory ledger, 50/30/20 profit & reports
               </p>
@@ -232,7 +232,7 @@ export default function MobileMorePage() {
 
           <Link
             href="/"
-            className="w-full mt-2 h-10 px-3 rounded-xl bg-muted/60 hover:bg-muted text-xs font-semibold text-primary inline-flex items-center justify-center gap-1.5 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40"
+            className="w-full mt-2 h-10 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-xs font-semibold text-amber-400 inline-flex items-center justify-center gap-1.5 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40"
           >
             <span>Open Desktop Business System</span>
             <ExternalLink className="w-3.5 h-3.5" />

@@ -1,10 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { SyncStatusBadge } from "./SyncStatusBadge";
-import { Menu, Sparkles } from "lucide-react";
+import { Menu, Laptop } from "lucide-react";
 
 interface MobileHeaderProps {
   title?: string;
@@ -12,6 +12,20 @@ interface MobileHeaderProps {
 }
 
 export function MobileHeader({ title, subtitle }: MobileHeaderProps) {
+  const [isOwner, setIsOwner] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        const role = json?.user?.role || json?.data?.user?.role;
+        if (role === "OWNER") {
+          setIsOwner(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <header className="sticky top-0 z-30 w-full bg-background/95 backdrop-blur-md border-b border-border/80 px-4 py-2.5 transition-colors">
       <div className="flex items-center justify-between max-w-md mx-auto w-full">
@@ -39,6 +53,16 @@ export function MobileHeader({ title, subtitle }: MobileHeaderProps) {
 
         {/* Right Action: Sync Badge & More */}
         <div className="flex items-center gap-2">
+          {isOwner && (
+            <Link
+              href="/"
+              className="h-8 px-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1 text-[11px] font-semibold transition-all active:scale-95"
+              title="Switch to Avencia OP Desktop Dashboard"
+            >
+              <Laptop className="w-3.5 h-3.5" />
+              <span>OP</span>
+            </Link>
+          )}
           <SyncStatusBadge />
           <Link
             href="/mobile/more"

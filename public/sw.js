@@ -7,6 +7,7 @@ const SHELL_ASSETS = [
   "/mobile/sales",
   "/mobile/more",
   "/manifest.json",
+  "/manifest-mobile.json",
   "/logo/Avencia gold icon logo.png",
   "/apple-icon.png",
   "/icon.png",
