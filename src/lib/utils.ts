@@ -162,8 +162,15 @@ export function getBusinessDayBounds(
       const dayOfWeek = now.getDay(); // 0 is Sunday
       const diffToMonday = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek;
       const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday, 0, 0, 0, 0);
-      const endOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      const endOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday + 6, 23, 59, 59, 999);
       return { startDate: startOfWeek, endDate: endOfWeek };
+    }
+    if (rangeUpper === "LAST_WEEK") {
+      const dayOfWeek = now.getDay(); // 0 is Sunday
+      const diffToMonday = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek;
+      const startOfLastWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday - 7, 0, 0, 0, 0);
+      const endOfLastWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday - 1, 23, 59, 59, 999);
+      return { startDate: startOfLastWeek, endDate: endOfLastWeek };
     }
     if (rangeUpper === "LAST_7_DAYS") {
       const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 0, 0, 0, 0);

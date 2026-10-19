@@ -4,7 +4,21 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import { Calendar } from "lucide-react";
 
-export type QuickDateRange = "TODAY" | "YESTERDAY" | "LAST_7_DAYS" | "THIS_MONTH" | "LAST_MONTH" | "THIS_YEAR" | "CUSTOM";
+export type QuickDateRange =
+  | "TODAY"
+  | "YESTERDAY"
+  | "THIS_WEEK"
+  | "LAST_WEEK"
+  | "LAST_7_DAYS"
+  | "THIS_MONTH"
+  | "LAST_MONTH"
+  | "THIS_YEAR"
+  | "CUSTOM";
+
+export interface DateRangePreset {
+  id: QuickDateRange;
+  label: string;
+}
 
 export interface DateRangeBarProps {
   value: QuickDateRange;
@@ -13,12 +27,13 @@ export interface DateRangeBarProps {
   endDate?: string;
   onCustomDateChange?: (start: string, end: string) => void;
   className?: string;
+  presets?: DateRangePreset[];
 }
 
-const PRESETS: Array<{ id: QuickDateRange; label: string }> = [
+const DEFAULT_PRESETS: DateRangePreset[] = [
   { id: "TODAY", label: "Today" },
-  { id: "YESTERDAY", label: "Yesterday" },
-  { id: "LAST_7_DAYS", label: "7 Days" },
+  { id: "THIS_WEEK", label: "This Week" },
+  { id: "LAST_WEEK", label: "Last Week" },
   { id: "THIS_MONTH", label: "This Month" },
   { id: "LAST_MONTH", label: "Last Month" },
   { id: "THIS_YEAR", label: "Year" },
@@ -31,12 +46,13 @@ export function DateRangeBar({
   endDate,
   onCustomDateChange,
   className,
+  presets = DEFAULT_PRESETS,
 }: DateRangeBarProps) {
   return (
     <div className={cn("space-y-2", className)}>
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar select-none">
         <div className="flex items-center p-1 rounded-lg bg-card border border-border shadow-xs gap-1">
-          {PRESETS.map((p) => {
+          {presets.map((p) => {
             const isActive = value === p.id;
             return (
               <button

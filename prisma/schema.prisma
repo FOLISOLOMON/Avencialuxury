@@ -100,6 +100,7 @@ model User {
   reviewedCancellations SaleCancellationRequest[] @relation("CancellationReviewer")
   auditLogs            AuditLog[]
   sentInvitations      WorkerInvitation[]       @relation("WorkerInviter")
+  createdBankDeposits  BankDeposit[]            @relation("BankDepositCreator")
 
   @@index([businessId])
   @@index([role])
@@ -138,6 +139,8 @@ model Business {
   workerInvitations    WorkerInvitation[]
   cancellationRequests SaleCancellationRequest[]
   auditLogs            AuditLog[]
+  bankDeposits         BankDeposit[]
+  depositAllocations   DepositAllocation[]
 }
 
 
@@ -662,6 +665,44 @@ model PasswordResetToken {
 
   @@index([email])
   @@index([tokenHash])
+}
+
+model BankDeposit {
+  id             String              @id @default(cuid())
+  businessId     String
+  business       Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdById    String?
+  createdBy      User?               @relation("BankDepositCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  amount         Decimal             @db.Decimal(12, 2)
+  depositDate    DateTime            @default(now())
+  reference      String?
+  notes          String?
+  idempotencyKey String?             @unique
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  allocations    DepositAllocation[]
+
+  @@index([businessId])
+  @@index([businessId, depositDate])
+  @@index([businessId, createdAt])
+}
+
+model DepositAllocation {
+  id             String      @id @default(cuid())
+  businessId     String
+  business       Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  depositId      String
+  deposit        BankDeposit @relation(fields: [depositId], references: [id], onDelete: Cascade)
+  amount         Decimal     @db.Decimal(12, 2)
+  collectionType String
+  collectionId   String
+  collectionDate DateTime
+  createdAt      DateTime    @default(now())
+
+  @@index([businessId])
+  @@index([depositId])
+  @@index([collectionType, collectionId])
+  @@index([businessId, collectionDate])
 }
 
 

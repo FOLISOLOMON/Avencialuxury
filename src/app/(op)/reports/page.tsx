@@ -28,7 +28,9 @@ import {
   TrendingDown,
   Boxes,
   Percent,
+  Landmark,
 } from "lucide-react";
+import { WeeklyCollectionsSection } from "@/components/reports/WeeklyCollectionsSection";
 
 interface SaleItem {
   id: string;
@@ -68,6 +70,7 @@ interface Expense {
 }
 
 export default function ReportsPage() {
+  const [activeTab, setActiveTab] = useState<"overview" | "collections">("overview");
   const [dateRange, setDateRange] = useState<QuickDateRange>("THIS_MONTH");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -246,8 +249,41 @@ export default function ReportsPage() {
         </Button>
       </div>
 
-      {/* Date Range Selector Bar */}
-      <Card className="p-3">
+      {/* Report Section Tabs */}
+      <div className="flex items-center gap-2 border-b border-border pb-2">
+        <button
+          type="button"
+          onClick={() => setActiveTab("overview")}
+          className={`px-3 py-1.5 rounded-md text-xs font-semibold inline-flex items-center gap-1.5 transition-all cursor-pointer ${
+            activeTab === "overview"
+              ? "bg-primary text-primary-foreground shadow-xs font-bold"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+          }`}
+        >
+          <BarChart3 className="w-3.5 h-3.5" />
+          Executive Overview
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("collections")}
+          className={`px-3 py-1.5 rounded-md text-xs font-semibold inline-flex items-center gap-1.5 transition-all cursor-pointer ${
+            activeTab === "collections"
+              ? "bg-primary text-primary-foreground shadow-xs font-bold"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+          }`}
+        >
+          <Landmark className="w-3.5 h-3.5" />
+          Weekly Collections & Bank Deposits
+        </button>
+      </div>
+
+      {activeTab === "collections" ? (
+        <WeeklyCollectionsSection />
+      ) : (
+        <>
+          {/* Date Range Selector Bar */}
+          <Card className="p-3">
         <DateRangeBar
           value={dateRange}
           onChange={setDateRange}
@@ -386,6 +422,8 @@ export default function ReportsPage() {
           </div>
         </div>
       </Card>
+        </>
+      )}
     </div>
   );
 }
