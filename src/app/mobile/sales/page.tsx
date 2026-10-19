@@ -346,6 +346,20 @@ export default function MobileSalesPage() {
 
             {/* Total Financials */}
             <div className="p-3.5 rounded-xl bg-card border border-border space-y-1.5 text-xs">
+              {Number(selectedSale.discount) > 0 && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Subtotal:</span>
+                    <span className="font-medium text-foreground">
+                      GH₵{(selectedSale.totalAmount + Number(selectedSale.discount)).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-emerald-400 font-semibold">
+                    <span>Discount:</span>
+                    <span>-GH₵{Number(selectedSale.discount).toFixed(2)}</span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Total Sale:</span>
                 <span className="font-bold text-foreground">GH₵{selectedSale.totalAmount.toFixed(2)}</span>
@@ -381,6 +395,7 @@ export default function MobileSalesPage() {
                     quantity: it.quantity,
                     unitPrice: it.unitPrice,
                   })),
+                  discount: Number(selectedSale.discount) || 0,
                   totalAmount: selectedSale.totalAmount,
                   amountPaid: selectedSale.amountPaid,
                   balanceDue: Math.max(0, selectedSale.totalAmount - selectedSale.amountPaid),

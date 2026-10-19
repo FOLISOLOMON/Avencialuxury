@@ -20,6 +20,7 @@ import {
   ArrowLeft,
   MessageCircle,
   Calendar,
+  Tag,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -55,6 +56,7 @@ function MobileSellContent() {
   const [paymentMethod, setPaymentMethod] = useState<string>("CASH");
   const [paymentType, setPaymentType] = useState<"FULL" | "PARTIAL" | "CREDIT">("FULL");
   const [amountPaidCustom, setAmountPaidCustom] = useState<string>("");
+  const [discountCustom, setDiscountCustom] = useState<string>("");
   const [dueDate, setDueDate] = useState<string>("");
   const [noAgreedDueDate, setNoAgreedDueDate] = useState<boolean>(false);
   const [saleNotes, setSaleNotes] = useState<string>("");
@@ -64,6 +66,8 @@ function MobileSellContent() {
   const [customerDropdownOpen, setCustomerDropdownOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [saleSuccessData, setSaleSuccessData] = useState<{
+    subtotal: number;
+    discount: number;
     total: number;
     receipt?: string;
     isOffline: boolean;
@@ -148,9 +152,18 @@ function MobileSellContent() {
   };
 
   // Calculations
-  const totalAmount = useMemo(() => {
+  const subtotal = useMemo(() => {
     return cart.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
   }, [cart]);
+
+  const discountVal = useMemo(() => {
+    const parsed = parseFloat(discountCustom);
+    return isNaN(parsed) || parsed < 0 ? 0 : parsed;
+  }, [discountCustom]);
+
+  const totalAmount = useMemo(() => {
+    return Math.max(0, Math.round((subtotal - discountVal) * 100) / 100);
+  }, [subtotal, discountVal]);
 
   const finalAmountPaid = useMemo(() => {
     if (paymentType === "FULL") return totalAmount;
@@ -174,6 +187,11 @@ function MobileSellContent() {
   const handleCompleteSale = async () => {
     if (cart.length === 0) {
       toast.error("Select at least one perfume to sell", "Cart empty");
+      return;
+    }
+
+    if (discountVal > subtotal) {
+      toast.error("Discount cannot exceed the sale subtotal", "Invalid Discount");
       return;
     }
 
@@ -211,6 +229,7 @@ function MobileSellContent() {
           customerId: selectedCustomer?.id || undefined,
           items: saleItemsPayload,
           paymentMethod,
+          discount: discountVal,
           amountPaid: finalAmountPaid,
           dueDate: dueDate || undefined,
           notes: saleNotes.trim() || undefined,
@@ -235,6 +254,8 @@ function MobileSellContent() {
       }
 
       setSaleSuccessData({
+        subtotal,
+        discount: discountVal,
         total: totalAmount,
         receipt: json.data.receiptNumber || json.data.id?.substring(0, 8),
         isOffline: false,
@@ -265,6 +286,7 @@ function MobileSellContent() {
     setPaymentMethod("CASH");
     setPaymentType("FULL");
     setAmountPaidCustom("");
+    setDiscountCustom("");
     setSaleNotes("");
     setSaleSuccessData(null);
     setProductSearch("");
@@ -288,6 +310,18 @@ function MobileSellContent() {
         </div>
 
         <div className="p-4 rounded-2xl bg-card border border-border max-w-xs mx-auto space-y-2 text-left">
+          {saleSuccessData.discount > 0 && (
+            <>
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Subtotal:</span>
+                <span className="font-semibold text-foreground">GH₵{saleSuccessData.subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-xs text-emerald-400">
+                <span>Discount:</span>
+                <span className="font-bold">-GH₵{saleSuccessData.discount.toFixed(2)}</span>
+              </div>
+            </>
+          )}
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>Total Amount:</span>
             <span className="font-bold text-foreground">GH₵{saleSuccessData.total.toFixed(2)}</span>
@@ -315,6 +349,7 @@ function MobileSellContent() {
                 quantity: i.quantity,
                 unitPrice: i.unitPrice,
               })),
+              discount: saleSuccessData.discount,
               totalAmount: saleSuccessData.total,
               amountPaid: finalAmountPaid,
               balanceDue: Math.max(0, saleSuccessData.total - finalAmountPaid),
@@ -499,6 +534,56 @@ function MobileSellContent() {
       ) : (
         <div className="p-4 rounded-xl border border-dashed border-border text-center text-xs text-muted-foreground">
           Type perfume name above to add to this sale
+        </div>
+      )}
+
+      {/* 3.1 SALES DISCOUNT (When cart has items) */}
+      {cart.length > 0 && (
+        <div className="p-3.5 rounded-2xl bg-card border border-border shadow-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+              <Tag className="w-3.5 h-3.5 text-primary" />
+              Sales Discount (GH₵)
+            </span>
+            {discountVal > 0 && (
+              <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                -GH₵{discountVal.toFixed(2)} off
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground">
+                GH₵
+              </span>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={discountCustom}
+                onChange={(e) => setDiscountCustom(e.target.value)}
+                placeholder="0.00"
+                className="pl-10 text-xs h-10 rounded-xl bg-muted/40 font-semibold"
+              />
+            </div>
+            {discountVal > 0 && (
+              <button
+                type="button"
+                onClick={() => setDiscountCustom("")}
+                className="h-10 px-3 rounded-xl bg-muted text-xs font-medium text-muted-foreground hover:text-foreground active:scale-95 transition-all"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          {discountVal > subtotal && (
+            <p className="text-[11px] text-destructive font-semibold flex items-center gap-1">
+              <AlertCircle className="w-3.5 h-3.5" />
+              Discount cannot exceed subtotal (GH₵{subtotal.toFixed(2)})
+            </p>
+          )}
         </div>
       )}
 
@@ -776,13 +861,20 @@ function MobileSellContent() {
       <div className="fixed bottom-0 left-0 right-0 p-3.5 bg-card/95 backdrop-blur-xl border-t border-border z-40 max-w-md mx-auto pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.15)]">
         <Button
           onClick={handleCompleteSale}
-          disabled={cart.length === 0 || submitting}
+          disabled={cart.length === 0 || submitting || discountVal > subtotal}
           size="lg"
           variant="primary"
           className="w-full h-12 flex items-center justify-between px-5 font-bold shadow-lg shadow-primary/25 rounded-xl"
         >
           <span className="tracking-wide uppercase">{submitting ? "Recording..." : "Complete Sale"}</span>
-          <span className="text-base font-extrabold tracking-tight">GH₵{totalAmount.toFixed(2)}</span>
+          <div className="flex items-center gap-2">
+            {discountVal > 0 && (
+              <span className="text-xs line-through opacity-70 font-normal">
+                GH₵{subtotal.toFixed(2)}
+              </span>
+            )}
+            <span className="text-base font-extrabold tracking-tight">GH₵{totalAmount.toFixed(2)}</span>
+          </div>
         </Button>
       </div>
 

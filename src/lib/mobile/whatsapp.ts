@@ -74,6 +74,7 @@ export function getSaleReceiptWhatsAppUrl(params: {
   customerName?: string;
   customerPhone?: string | null;
   items: Array<{ name: string; quantity: number; unitPrice: number }>;
+  discount?: number;
   totalAmount: number;
   amountPaid: number;
   balanceDue: number;
@@ -102,6 +103,11 @@ export function getSaleReceiptWhatsAppUrl(params: {
   }
 
   text += `----------------------------------------\n`;
+  if (params.discount && params.discount > 0) {
+    const subtotal = params.totalAmount + params.discount;
+    text += `Subtotal: GH₵ ${subtotal.toFixed(2)}\n`;
+    text += `Discount: -GH₵ ${params.discount.toFixed(2)}\n`;
+  }
   text += `*Total Amount:* GH₵ ${params.totalAmount.toFixed(2)}\n`;
   text += `*Amount Paid:* GH₵ ${params.amountPaid.toFixed(2)}\n`;
 

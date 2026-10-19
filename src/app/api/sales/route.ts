@@ -38,6 +38,8 @@ export async function GET(request: Request) {
       const sanitizedSales = result.sales.map((s) => ({
         id: s.id,
         saleDate: s.saleDate,
+        subtotal: s.subtotal,
+        discount: s.discount,
         totalAmount: s.totalAmount,
         amountPaid: s.amountPaid,
         balanceDue: s.balanceDue,
@@ -161,9 +163,9 @@ export async function POST(request: Request) {
       });
     }
 
-    // Workers cannot give unauthorized custom discounts
+    // Sales discount (validated by sales service to ensure discount <= subtotal)
     let discount = 0;
-    if (auth!.user.role === "OWNER" && body.discount !== undefined && body.discount !== null) {
+    if (body.discount !== undefined && body.discount !== null) {
       discount = parseFloat(body.discount);
       if (isNaN(discount) || discount < 0) {
         return NextResponse.json({ success: false, error: "Discount must be a valid non-negative number" }, { status: 400 });
