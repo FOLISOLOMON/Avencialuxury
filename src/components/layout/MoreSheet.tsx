@@ -10,6 +10,7 @@ import {
   BarChart3,
   Boxes,
   Truck,
+  MessageSquare,
   PiggyBank,
   Settings,
   User,
@@ -30,6 +31,7 @@ const MORE_LINKS = [
       { name: "Batches & Supply", href: "/batches", icon: Layers, desc: "Purchase shipments & batch profits" },
       { name: "Inventory Ledger", href: "/inventory", icon: Boxes, desc: "Stock transactions & adjustments" },
       { name: "Suppliers", href: "/suppliers", icon: Truck, desc: "Wholesale vendors & contacts" },
+      { name: "Customer Feedback", href: "/feedback", icon: MessageSquare, desc: "Customer reviews, praise & follow-ups" },
     ],
   },
   {

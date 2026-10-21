@@ -13,6 +13,7 @@ import {
   PiggyBank,
   Users,
   Truck,
+  MessageSquare,
   BarChart3,
   Sparkles,
   type LucideIcon,
@@ -57,6 +58,7 @@ export const navigationSections: NavSection[] = [
     title: "CUSTOMERS",
     items: [
       { name: "Customers", href: "/customers", icon: Users },
+      { name: "Customer Feedback", href: "/feedback", icon: MessageSquare },
       { name: "Suppliers", href: "/suppliers", icon: Truck },
     ],
   },

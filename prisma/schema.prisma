@@ -101,6 +101,7 @@ model User {
   auditLogs            AuditLog[]
   sentInvitations      WorkerInvitation[]       @relation("WorkerInviter")
   createdBankDeposits  BankDeposit[]            @relation("BankDepositCreator")
+  createdFeedbacks     CustomerFeedback[]       @relation("FeedbackCreator")
 
   @@index([businessId])
   @@index([role])
@@ -141,6 +142,7 @@ model Business {
   auditLogs            AuditLog[]
   bankDeposits         BankDeposit[]
   depositAllocations   DepositAllocation[]
+  feedbacks            CustomerFeedback[]
 }
 
 
@@ -164,6 +166,7 @@ model Product {
   batchItems          BatchItem[]
   saleItems           SaleItem[]
   inventoryTxns       InventoryTransaction[]
+  feedbacks           CustomerFeedback[]
 
   @@index([businessId])
   @@index([businessId, sku])
@@ -190,6 +193,7 @@ model Batch {
   saleItems       SaleItem[]
   expenses        Expense[]
   inventoryTxns   InventoryTransaction[]
+  feedbacks       CustomerFeedback[]
 
   @@index([businessId])
   @@index([businessId, status])
@@ -265,6 +269,7 @@ model Customer {
   sales        Sale[]
   debtPayments DebtPayment[]
   whatsAppLogs WhatsAppLog[]
+  feedbacks    CustomerFeedback[]
 
   @@index([businessId])
   @@index([businessId, name])
@@ -300,6 +305,7 @@ model Sale {
   saleItems           SaleItem[]
   debtPayments        DebtPayment[]
   cancellationRequest SaleCancellationRequest?
+  feedbacks           CustomerFeedback[]
 
   @@index([businessId])
   @@index([businessId, saleDate])
@@ -703,6 +709,65 @@ model DepositAllocation {
   @@index([depositId])
   @@index([collectionType, collectionId])
   @@index([businessId, collectionDate])
+}
+
+enum FeedbackSource {
+  PHONE
+  WHATSAPP
+  IN_PERSON
+  OTHER
+}
+
+enum FeedbackCategory {
+  LONGEVITY
+  FRAGRANCE_SCENT
+  PROJECTION
+  PACKAGING
+  VALUE_FOR_MONEY
+  DELIVERY_SERVICE
+  POSITIVE_GENERAL
+  COMPLAINT
+  OTHER
+}
+
+enum FeedbackStatus {
+  NEW
+  REVIEWING
+  FOLLOW_UP_NEEDED
+  RESOLVED
+}
+
+model CustomerFeedback {
+  id            String           @id @default(cuid())
+  businessId    String
+  business      Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId    String?
+  customer      Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  productId     String?
+  product       Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
+  saleId        String?
+  sale          Sale?            @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  batchId       String?
+  batch         Batch?           @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  createdById   String?
+  createdBy     User?            @relation("FeedbackCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  source        FeedbackSource   @default(OTHER)
+  category      FeedbackCategory @default(OTHER)
+  comments      String
+  rating        Int?
+  feedbackDate  DateTime         @default(now())
+  status        FeedbackStatus   @default(NEW)
+  internalNotes String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([businessId])
+  @@index([businessId, feedbackDate])
+  @@index([businessId, productId])
+  @@index([businessId, customerId])
+  @@index([businessId, status])
+  @@index([businessId, createdById])
+  @@index([businessId, category])
 }
 
 

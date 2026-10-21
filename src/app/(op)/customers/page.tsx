@@ -1020,6 +1020,23 @@ function CustomersContent() {
                 </div>
               )}
             </div>
+
+            {/* Record Feedback entry point */}
+            <div className="pt-2 border-t border-border">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full flex items-center justify-center gap-1.5"
+                onClick={() => {
+                  const c = selectedCustomer;
+                  setSelectedCustomer(null);
+                  window.location.href = `/feedback?customerId=${c.id}&record=true`;
+                }}
+              >
+                <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
+                Record Feedback for this Customer
+              </Button>
+            </div>
           </div>
         )}
       </Sheet>

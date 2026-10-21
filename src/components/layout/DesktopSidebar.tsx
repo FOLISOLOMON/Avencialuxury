@@ -15,6 +15,7 @@ import {
   PiggyBank,
   Users,
   Truck,
+  MessageSquare,
   BarChart3,
   Settings,
   type LucideIcon,
@@ -59,6 +60,7 @@ const SIDEBAR_GROUPS: SidebarGroup[] = [
     label: "Relationships",
     items: [
       { name: "Customers", href: "/customers", icon: Users },
+      { name: "Customer Feedback", href: "/feedback", icon: MessageSquare },
       { name: "Suppliers", href: "/suppliers", icon: Truck },
     ],
   },

@@ -46,6 +46,7 @@ import {
   Search,
   Sparkles,
   AlertOctagon,
+  MessageSquare,
 } from "lucide-react";
 import { CancellationQueueCard } from "@/components/sales/CancellationQueueCard";
 
@@ -69,6 +70,7 @@ interface Customer {
 
 interface SaleItem {
   id: string;
+  productId?: string;
   quantity: number;
   unitPrice: number;
   unitCost: number;
@@ -1869,6 +1871,25 @@ export default function SalesPage() {
                   Void Sale
                 </Button>
               )}
+            </div>
+
+            {/* Record Feedback entry point */}
+            <div className="pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full flex items-center justify-center gap-1.5"
+                onClick={() => {
+                  const s = selectedSaleDetail;
+                  setSelectedSaleDetail(null);
+                  const custParam = s.customerId ? `customerId=${s.customerId}&` : "";
+                  const prodParam = s.saleItems?.[0]?.productId ? `productId=${s.saleItems[0].productId}&` : "";
+                  window.location.href = `/feedback?${custParam}${prodParam}saleId=${s.id}&record=true`;
+                }}
+              >
+                <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
+                Record Customer Feedback for this Sale
+              </Button>
             </div>
           </div>
         )}
