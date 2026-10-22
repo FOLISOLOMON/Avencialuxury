@@ -137,7 +137,7 @@ describe("1. Gemini API Key Configuration & Protection", () => {
   it("resolves configurable GEMINI_MODEL with default free-tier model", () => {
     const originalModel = process.env.GEMINI_MODEL;
     delete process.env.GEMINI_MODEL;
-    assert.equal(getGeminiModel(), "gemini-2.5-flash");
+    assert.equal(getGeminiModel(), "gemini-3.8-flash");
 
     process.env.GEMINI_MODEL = "gemini-2.0-flash";
     assert.equal(getGeminiModel(), "gemini-2.0-flash");

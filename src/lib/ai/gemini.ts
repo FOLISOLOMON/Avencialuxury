@@ -11,8 +11,8 @@ export function getGeminiApiKey(): string | undefined {
 }
 
 export function getGeminiModel(): string {
-  // Free-tier eligible model by default: gemini-2.5-flash or gemini-2.0-flash
-  return process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
+  // Free-tier eligible model by default: gemini-3.8-flash
+  return process.env.GEMINI_MODEL?.trim() || "gemini-3.8-flash";
 }
 
 export function isGeminiConfigured(): boolean {

@@ -57,7 +57,7 @@ export async function processAIChat(
         "2. Add the following to your server `.env.local` file:\n" +
         "   ```bash\n" +
         "   GEMINI_API_KEY=your_gemini_api_key_here\n" +
-        "   GEMINI_MODEL=gemini-2.5-flash\n" +
+        "   GEMINI_MODEL=gemini-3.8-flash\n" +
         "   ```\n" +
         "3. Restart the development server (`npm run dev`).",
       code: "MISSING_API_KEY",

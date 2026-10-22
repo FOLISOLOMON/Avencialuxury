@@ -22,7 +22,7 @@ Create or edit `.env.local` in the project root (`C:\Users\MYPC1\Desktop\Avencia
 GEMINI_API_KEY=your_gemini_api_key_here
 
 # Configurable Gemini Model (Default is free-tier eligible)
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-3.8-flash
 
 # Real Business Data AI Transmission Opt-In (Default: false)
 # When set to false, Ask Avencia operates in Privacy Guard mode using synthetic demonstration fixtures.
@@ -33,7 +33,7 @@ ALLOW_REAL_DATA_AI_TRANSMISSION=false
 ---
 
 ## 4. Free-Tier Rate Limits & Quotas
-For `gemini-2.5-flash` and `gemini-2.0-flash` on the Google AI Studio Free Tier:
+For `gemini-3.8-flash` on the Google AI Studio Free Tier:
 - **Requests Per Minute (RPM):** 15 RPM
 - **Tokens Per Minute (TPM):** 1,000,000 TPM
 - **Requests Per Day (RPD):** 1,500 RPD
