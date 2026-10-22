@@ -14,6 +14,7 @@ import {
   ShoppingBag,
   DollarSign,
   Package,
+  Square,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -35,6 +36,7 @@ interface Message {
   };
   sourcesUsed?: string[];
   isError?: boolean;
+  code?: string;
 }
 
 const SUGGESTIONS = [
@@ -59,6 +61,7 @@ export default function AskAvenciaPage() {
   const [loading, setLoading] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -67,6 +70,14 @@ export default function AskAvenciaPage() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, loading]);
+
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setLoading(false);
+    }
+  };
 
   const handleSend = async (textToSend?: string) => {
     const query = (textToSend || input).trim();
@@ -83,6 +94,9 @@ export default function AskAvenciaPage() {
     if (!textToSend) setInput("");
     setLoading(true);
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       const apiMessages = [...messages, userMsg].map((m) => ({
         role: m.role,
@@ -93,6 +107,7 @@ export default function AskAvenciaPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: apiMessages }),
+        signal: controller.signal,
       });
 
       const data = await res.json();
@@ -111,27 +126,43 @@ export default function AskAvenciaPage() {
         const errorMsg: Message = {
           id: `err-${Date.now()}`,
           role: "assistant",
-          content: data.error || "Avencia AI is temporarily busy. Please try again.",
+          content: data.message || data.error || "Avencia AI is temporarily busy. Please try again.",
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          isError: true,
+          code: data.code,
+        };
+        setMessages((prev) => [...prev, errorMsg]);
+      }
+    } catch (err: any) {
+      if (err.name === "AbortError") {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `err-${Date.now()}`,
+            role: "assistant",
+            content: "Response generation was stopped.",
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            isError: false,
+          },
+        ]);
+      } else {
+        const errorMsg: Message = {
+          id: `err-${Date.now()}`,
+          role: "assistant",
+          content: "Network error connecting to Ask Avencia. Please verify your connection.",
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           isError: true,
         };
         setMessages((prev) => [...prev, errorMsg]);
       }
-    } catch (err: any) {
-      const errorMsg: Message = {
-        id: `err-${Date.now()}`,
-        role: "assistant",
-        content: "Network error connecting to Ask Avencia. Please verify your connection.",
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        isError: true,
-      };
-      setMessages((prev) => [...prev, errorMsg]);
     } finally {
+      abortControllerRef.current = null;
       setLoading(false);
     }
   };
 
   const handleClearHistory = () => {
+    if (loading) handleStop();
     setMessages([
       {
         id: "welcome-1",
@@ -358,6 +389,54 @@ export default function AskAvenciaPage() {
           </div>
         );
 
+      case "collections_summary":
+        return (
+          <div className="mt-3 p-3 rounded-md bg-card border border-primary/20 space-y-2">
+            <div className="flex items-center justify-between text-xs font-semibold text-primary">
+              <span className="flex items-center gap-1.5">
+                <DollarSign className="w-3.5 h-3.5" />
+                <span>Collections & Bank Deposits</span>
+              </span>
+              <Badge variant="gold">{d.timeframe || "Report"}</Badge>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div className="p-2 rounded-md bg-muted/40 border border-border">
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold">Total Collections</span>
+                <div className="text-xs font-bold text-foreground">{formatCurrency(d.totalCollections ?? 0)}</div>
+              </div>
+              <div className="p-2 rounded-md bg-muted/40 border border-border">
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold">Sales Cash</span>
+                <div className="text-xs font-bold text-success">{formatCurrency(d.salesCashCollected ?? 0)}</div>
+              </div>
+              <div className="p-2 rounded-md bg-muted/40 border border-border">
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold">Debt Payments</span>
+                <div className="text-xs font-bold text-primary">{formatCurrency(d.debtPaymentsCollected ?? 0)}</div>
+              </div>
+              <div className="p-2 rounded-md bg-muted/40 border border-border">
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold">Awaiting Deposit</span>
+                <div className="text-xs font-bold text-warning">{formatCurrency(d.awaitingDeposit ?? 0)}</div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case "customer_feedback_summary":
+        return (
+          <div className="mt-3 p-3 rounded-md bg-card border border-primary/20 space-y-2 text-xs">
+            <div className="flex items-center justify-between font-semibold text-foreground">
+              <span className="flex items-center gap-1.5 text-primary">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Customer Feedback Intelligence</span>
+              </span>
+              {d.satisfactionRate !== undefined && <Badge variant="success">{d.satisfactionRate}% Satisfied</Badge>}
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              {d.totalFeedbackCount ?? d.totalFeedbackRecorded ?? 0} verified customer feedback record(s) analyzed
+              {d.averageRating ? ` • Average Rating: ${d.averageRating} / 5` : ""}
+            </div>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -434,8 +513,18 @@ export default function AskAvenciaPage() {
               </div>
               <div className="p-2.5 rounded-md bg-muted/40 border border-border flex items-center gap-2">
                 <Sparkles className="w-3.5 h-3.5 text-primary" />
-                <span>Consulting Avencia business database...</span>
+                <span>Consulting Gemini AI & Avencia records...</span>
               </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleStop}
+                className="text-destructive font-semibold text-xs gap-1 ml-2"
+              >
+                <Square className="w-3 h-3 fill-current" />
+                <span>Stop</span>
+              </Button>
             </div>
           )}
 
@@ -470,19 +559,32 @@ export default function AskAvenciaPage() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask anything about sales, debtors, stock, or profit..."
+              placeholder="Ask anything about sales, debtors, stock, or business metrics..."
               disabled={loading}
               className="flex-1 bg-muted/40 border border-border rounded-xl px-3.5 py-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             />
-            <Button
-              type="submit"
-              size="md"
-              disabled={!input.trim() || loading}
-              className="font-bold px-4 shrink-0"
-            >
-              <Send className="w-4 h-4 mr-1" />
-              <span>Ask</span>
-            </Button>
+            {loading ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="md"
+                onClick={handleStop}
+                className="font-bold px-4 shrink-0 text-destructive border-destructive/40 hover:bg-destructive/10"
+              >
+                <Square className="w-4 h-4 mr-1 fill-current" />
+                <span>Stop</span>
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                size="md"
+                disabled={!input.trim()}
+                className="font-bold px-4 shrink-0"
+              >
+                <Send className="w-4 h-4 mr-1" />
+                <span>Ask</span>
+              </Button>
+            )}
           </form>
         </div>
       </Card>

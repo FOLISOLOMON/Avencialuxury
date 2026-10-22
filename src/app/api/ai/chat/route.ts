@@ -1,45 +1,66 @@
 import { NextResponse } from "next/server";
 import { askAvencia } from "@/lib/ai/service";
-import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
+import { requireAuth } from "@/lib/auth/session";
 
-// Simple in-memory rate limiting: max 20 requests per minute per IP / business
-const rateLimitMap = new Map<string, { count: number; expiresAt: number }>();
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-function checkRateLimit(key: string, limit = 20, windowMs = 60000): boolean {
+// Rate limiter: Max 15 requests per minute per authenticated user (matching Gemini free tier limits)
+const userRateLimits = new Map<string, { count: number; resetAt: number }>();
+
+function checkUserRateLimit(userId: string, limit = 15, windowMs = 60000): { allowed: boolean; retryAfterSeconds?: number } {
   const now = Date.now();
-  const entry = rateLimitMap.get(key);
+  const entry = userRateLimits.get(userId);
 
-  if (!entry || entry.expiresAt < now) {
-    rateLimitMap.set(key, { count: 1, expiresAt: now + windowMs });
-    return true;
+  if (!entry || entry.resetAt <= now) {
+    userRateLimits.set(userId, { count: 1, resetAt: now + windowMs });
+    return { allowed: true };
   }
 
   if (entry.count >= limit) {
-    return false;
+    const retryAfterSeconds = Math.ceil((entry.resetAt - now) / 1000);
+    return { allowed: false, retryAfterSeconds };
   }
 
   entry.count += 1;
-  return true;
+  return { allowed: true };
 }
 
 export async function POST(request: Request) {
   try {
-    const ip = request.headers.get("x-forwarded-for") || "client_ip";
-    if (!checkRateLimit(ip)) {
+    // 1. Mandatory Server-Side Authentication
+    const { auth, errorResponse } = await requireAuth(request);
+    if (errorResponse) {
+      return errorResponse;
+    }
+
+    const authUser = auth!.user;
+    const businessId = auth!.businessId;
+
+    // 2. Per-User Rate Limiting
+    const rateCheck = checkUserRateLimit(authUser.id);
+    if (!rateCheck.allowed) {
       return NextResponse.json(
         {
           success: false,
-          error: "Rate limit exceeded. Please wait a moment before sending another AI query.",
+          error: "You have reached the temporary rate limit. Please wait a moment before asking another question.",
+          code: "RATE_LIMITED",
         },
-        { status: 429 }
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(rateCheck.retryAfterSeconds || 60),
+          },
+        }
       );
     }
 
+    // 3. Payload Validation
     const body = await request.json();
 
     if (!body || typeof body !== "object" || !Array.isArray(body.messages)) {
       return NextResponse.json(
-        { success: false, error: "Invalid payload format. 'messages' array is required." },
+        { success: false, error: "Invalid request payload. 'messages' array is required." },
         { status: 400 }
       );
     }
@@ -51,26 +72,48 @@ export async function POST(request: Request) {
       );
     }
 
-    // Truncate to maximum 10 past messages for cost/token control
-    const slicedMessages = body.messages.slice(-10);
+    // Sanitize and validate messages
+    const validMessages: Array<{ role: "user" | "assistant" | "system"; content: string }> = [];
+    for (const m of body.messages) {
+      if (m && typeof m === "object" && typeof m.content === "string") {
+        const role = m.role === "assistant" || m.role === "system" ? m.role : "user";
+        // Trim and enforce max 2,000 characters per message
+        const content = m.content.trim().slice(0, 2000);
+        if (content.length > 0) {
+          validMessages.push({ role, content });
+        }
+      }
+    }
 
-    const businessId = body.businessId || DEFAULT_BUSINESS_ID;
+    if (validMessages.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "No valid text content found in messages." },
+        { status: 400 }
+      );
+    }
 
+    // Limit conversation context to the 10 most recent messages
+    const slicedMessages = validMessages.slice(-10);
+
+    // 4. Delegate to Ask Avencia with Authoritative Context
     const result = await askAvencia(
       {
         messages: slicedMessages,
         businessId,
+        authUser,
       },
-      businessId
+      businessId,
+      authUser
     );
 
     return NextResponse.json(result);
   } catch (error: any) {
-    console.error("POST /api/ai/chat error:", error);
+    console.error("POST /api/ai/chat unexpected error:", error);
     return NextResponse.json(
       {
         success: false,
-        error: "Avencia AI is temporarily unavailable. Please try again.",
+        error: "Ask Avencia is temporarily unable to process your request. Please try again.",
+        code: "SERVER_ERROR",
       },
       { status: 500 }
     );

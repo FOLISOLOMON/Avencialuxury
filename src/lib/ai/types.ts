@@ -1,3 +1,5 @@
+import { Role } from "@prisma/client";
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant" | "system";
@@ -9,6 +11,7 @@ export interface ChatMessage {
   };
   sourcesUsed?: string[];
   isError?: boolean;
+  code?: string;
 }
 
 export interface AIToolDefinition {
@@ -27,11 +30,21 @@ export interface AIToolResult {
   data?: any;
   error?: string;
   sourceContext?: string;
+  requiresOwnerApproval?: boolean;
+}
+
+export interface AuthUserContext {
+  id: string;
+  name?: string;
+  email?: string;
+  role: Role;
+  businessId: string;
 }
 
 export interface AIChatRequest {
   messages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
   businessId?: string;
+  authUser?: AuthUserContext;
 }
 
 export interface AIChatResponse {
@@ -43,4 +56,7 @@ export interface AIChatResponse {
   };
   sourcesUsed?: string[];
   error?: string;
+  code?: "MISSING_API_KEY" | "QUOTA_EXCEEDED" | "RATE_LIMITED" | "UNAUTHORIZED" | "FORBIDDEN" | "TIMEOUT" | "SERVER_ERROR";
+  isConfigured?: boolean;
 }
+

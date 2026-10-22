@@ -71,7 +71,7 @@ export function AiFloatingOrb() {
           ...prev,
           {
             role: "assistant",
-            content: data.error || "I could not retrieve that information right now. Please try again.",
+            content: data.message || data.error || "I could not retrieve that information right now. Please try again.",
           },
         ]);
       }

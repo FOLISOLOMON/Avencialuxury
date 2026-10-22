@@ -70,7 +70,7 @@ export function MobileAiOrb() {
       } else {
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: json.error || "Sorry, I couldn't process that question right now." },
+          { role: "assistant", content: json.message || json.error || "Sorry, I couldn't process that question right now." },
         ]);
       }
     } catch (err: any) {
