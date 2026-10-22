@@ -6,11 +6,26 @@ import { getCustomers } from "@/lib/services/customers";
 import { getSettings } from "@/lib/services/settings";
 import { InteractiveDashboard } from "@/components/dashboard/InteractiveDashboard";
 import { serializePlainObject } from "@/lib/utils";
+import { cookies } from "next/headers";
+import { verifySessionToken } from "@/lib/auth/token";
+import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
 
 export const revalidate = 0; // Fresh real-time data on every request
 
 export default async function DashboardPage() {
-  const businessId = "biz_default_avencia";
+  let businessId = DEFAULT_BUSINESS_ID;
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("avencia_session")?.value;
+    if (token) {
+      const payload = await verifySessionToken(token);
+      if (payload?.businessId) {
+        businessId = payload.businessId;
+      }
+    }
+  } catch (e) {
+    // fallback to default
+  }
 
   const rawSummary = await getFinancialSummary(businessId);
   const rawActiveBatches = await getActiveBatches(businessId);

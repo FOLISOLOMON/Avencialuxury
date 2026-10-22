@@ -144,10 +144,9 @@ export default function SalesPage() {
 
   // Core Data
   const [sales, setSales] = useState<Sale[]>([]);
+  const [pendingCancellationRequests, setPendingCancellationRequests] = useState<any[]>([]);
 
-  const pendingCancellationsCount = useMemo(() => {
-    return sales.filter((s) => s.cancellationRequest?.status === "PENDING").length;
-  }, [sales]);
+  const pendingCancellationsCount = pendingCancellationRequests.length;
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [summary, setSummary] = useState<SalesSummary>({
@@ -226,16 +225,18 @@ export default function SalesPage() {
       if (historyPaymentStatus !== "ALL") q.set("paymentStatus", historyPaymentStatus);
       if (historySearch.trim()) q.set("search", historySearch.trim());
 
-      const [salesRes, prodRes, custRes] = await Promise.all([
+      const [salesRes, prodRes, custRes, cancelRes] = await Promise.all([
         fetch(`/api/sales?${q.toString()}`),
         fetch("/api/products"),
         fetch("/api/customers"),
+        fetch("/api/sales/cancellations?status=PENDING"),
       ]);
 
-      const [salesJson, prodJson, custJson] = await Promise.all([
+      const [salesJson, prodJson, custJson, cancelJson] = await Promise.all([
         salesRes.json(),
         prodRes.json(),
         custRes.json(),
+        cancelRes.json().catch(() => ({ success: false })),
       ]);
 
       if (salesJson.success) {
@@ -244,6 +245,9 @@ export default function SalesPage() {
       }
       if (prodJson.success) setProducts(prodJson.data || []);
       if (custJson.success) setCustomers(custJson.data || []);
+      if (cancelJson && cancelJson.success && Array.isArray(cancelJson.data)) {
+        setPendingCancellationRequests(cancelJson.data);
+      }
     } catch (err: any) {
       setError(err.message || "Failed to load sales data");
     } finally {
@@ -638,12 +642,26 @@ export default function SalesPage() {
             <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0">
               <AlertOctagon className="w-4 h-4 text-amber-500 animate-pulse" />
             </div>
-            <div>
-              <p className="font-bold text-foreground text-sm">
-                {pendingCancellationsCount} worker cancellation {pendingCancellationsCount === 1 ? "request requires" : "requests require"} your authorization
+            <div className="min-w-0">
+              <p className="font-bold text-foreground text-sm truncate">
+                {pendingCancellationsCount === 1 ? (
+                  <>
+                    Worker <span className="text-amber-500 font-black">{pendingCancellationRequests[0]?.requester?.name || pendingCancellationRequests[0]?.requestedBy?.name || "Worker"}</span> requested cancellation
+                  </>
+                ) : (
+                  <>
+                    {pendingCancellationsCount} worker cancellation requests require your authorization
+                  </>
+                )}
               </p>
-              <p className="text-muted-foreground text-xs mt-0.5">
-                Worker reported customer returns. Approving will automatically void the sale and restore all items back to inventory stock.
+              <p className="text-muted-foreground text-xs mt-0.5 truncate">
+                {pendingCancellationRequests[0]?.reason ? (
+                  <>
+                    Worker reason: <span className="italic font-medium text-foreground">&quot;{pendingCancellationRequests[0].reason}&quot;</span> • Approving voids the sale & returns stock.
+                  </>
+                ) : (
+                  "Worker reported customer returns. Approving will automatically void the sale and restore all items back to inventory stock."
+                )}
               </p>
             </div>
           </div>
@@ -651,9 +669,9 @@ export default function SalesPage() {
             size="sm"
             variant="primary"
             onClick={() => setActiveTab("cancellations")}
-            className="text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold shrink-0 shadow-sm"
+            className="text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold shrink-0 shadow-sm cursor-pointer"
           >
-            Review & Accept ({pendingCancellationsCount})
+            Review & Authorize ({pendingCancellationsCount})
           </Button>
         </div>
       )}
@@ -1108,7 +1126,12 @@ export default function SalesPage() {
                                   <AlertOctagon className="w-3 h-3" />
                                   Cancellation Pending
                                 </span>
-                                <span className="text-[10px] text-muted-foreground block truncate max-w-[140px]" title={s.cancellationRequest.reason}>
+                                {s.cancellationRequest.requester?.name && (
+                                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold block truncate max-w-[150px]">
+                                    By: {s.cancellationRequest.requester.name}
+                                  </span>
+                                )}
+                                <span className="text-[10px] text-muted-foreground block truncate max-w-[150px]" title={s.cancellationRequest.reason}>
                                   &quot;{s.cancellationRequest.reason}&quot;
                                 </span>
                               </div>
@@ -1252,7 +1275,22 @@ export default function SalesPage() {
 
                       <div className="flex items-center justify-between pt-1 border-t border-border/60 text-xs">
                         <div>
-                          {isVoided ? (
+                          {s.cancellationRequest?.status === "PENDING" ? (
+                            <div className="space-y-0.5">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-500 border border-amber-500/30 animate-pulse">
+                                <AlertOctagon className="w-2.5 h-2.5" />
+                                Cancel Pending
+                              </span>
+                              {s.cancellationRequest.requester?.name && (
+                                <span className="text-[10px] text-amber-500 font-semibold block">
+                                  Worker: {s.cancellationRequest.requester.name}
+                                </span>
+                              )}
+                              <span className="text-[10px] text-muted-foreground block truncate max-w-[180px]" title={s.cancellationRequest.reason}>
+                                &quot;{s.cancellationRequest.reason}&quot;
+                              </span>
+                            </div>
+                          ) : isVoided ? (
                             <span className="text-destructive font-medium text-[11px]">Voided</span>
                           ) : isPartial ? (
                             <div className="space-y-0.5">
@@ -1286,6 +1324,16 @@ export default function SalesPage() {
                         </div>
 
                         <div className="flex items-center gap-1.5">
+                          {s.cancellationRequest?.status === "PENDING" && (
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs h-7 px-2 cursor-pointer"
+                              onClick={() => setActiveTab("cancellations")}
+                            >
+                              Review
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"
@@ -1763,6 +1811,40 @@ export default function SalesPage() {
       >
         {selectedSaleDetail && (
           <div className="space-y-4 pt-2 text-xs">
+            {/* Pending Worker Cancellation Request Alert */}
+            {selectedSaleDetail.cancellationRequest?.status === "PENDING" && (
+              <div className="p-3.5 rounded-xl border-2 border-amber-500/60 bg-amber-500/10 space-y-2 text-xs animate-in fade-in">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 font-bold text-amber-500">
+                    <AlertOctagon className="w-4 h-4" />
+                    <span>Cancellation Requested by Worker</span>
+                  </div>
+                  <Badge variant="warning">PENDING REVIEW</Badge>
+                </div>
+                <div className="text-foreground">
+                  <span className="text-muted-foreground">Requested by: </span>
+                  <span className="font-semibold text-foreground">
+                    {selectedSaleDetail.cancellationRequest.requester?.name || selectedSaleDetail.cancellationRequest.requester?.email || "Worker"}
+                  </span>
+                </div>
+                <div className="p-2.5 rounded-lg bg-card border border-border text-foreground">
+                  <span className="text-muted-foreground text-[11px] block mb-0.5">Worker Message / Stated Reason:</span>
+                  <p className="italic font-medium">&quot;{selectedSaleDetail.cancellationRequest.reason}&quot;</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold cursor-pointer"
+                  onClick={() => {
+                    setSelectedSaleDetail(null);
+                    setActiveTab("cancellations");
+                  }}
+                >
+                  Review in Cancellation Queue
+                </Button>
+              </div>
+            )}
+
             {/* Quick Summary Pill */}
             <div className="p-3 rounded-2xl bg-muted/40 border border-border space-y-2">
               <div className="flex justify-between">

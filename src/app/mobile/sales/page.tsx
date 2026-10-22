@@ -18,11 +18,13 @@ import {
 import { Sheet } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useToast } from "@/components/ui/ToastProvider";
 import { MobileSaleSummary } from "@/lib/mobile/types";
 import { getSaleReceiptWhatsAppUrl } from "@/lib/mobile/whatsapp";
 import { triggerClientSync } from "@/lib/sync/client-sync";
 
 export default function MobileSalesPage() {
+  const toast = useToast();
   const [sales, setSales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -80,11 +82,13 @@ export default function MobileSalesPage() {
     setSubmittingCancel(true);
     setCancelMessage(null);
 
+    const reasonText = cancelReason.trim();
+
     try {
       const res = await fetch(`/api/sales/${selectedSale.id}/cancel-request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: cancelReason.trim() }),
+        body: JSON.stringify({ reason: reasonText }),
       });
 
       const json = await res.json();
@@ -92,16 +96,38 @@ export default function MobileSalesPage() {
         throw new Error(json.error || "Failed to submit cancellation request");
       }
 
-      setCancelMessage("Cancellation request submitted to the Owner for review.");
+      setCancelMessage("✓ Cancellation request sent to the Owner! Awaiting review.");
+      toast.success(
+        `Cancellation request sent to owner for review: "${reasonText}"`,
+        "Request Sent"
+      );
 
       // Optimistically update local selected sale state immediately
-      setSelectedSale({
-        ...selectedSale,
-        cancellationRequest: {
-          status: "PENDING",
-          reason: cancelReason.trim(),
+      const newCancelReq = {
+        id: json.data?.id || `req_${Date.now()}`,
+        status: "PENDING",
+        reason: reasonText,
+        createdAt: new Date().toISOString(),
+        requester: json.data?.requester || {
+          id: "worker",
+          name: "You (Worker)",
+          email: "",
         },
-      });
+      };
+
+      setSelectedSale((prev: any) =>
+        prev && prev.id === selectedSale.id
+          ? {
+              ...prev,
+              cancellationRequest: newCancelReq,
+            }
+          : prev
+      );
+
+      // Optimistically update sales list state so the card immediately displays the pending status
+      setSales((prev) =>
+        prev.map((s) => (s.id === selectedSale.id ? { ...s, cancellationRequest: newCancelReq } : s))
+      );
 
       // Broadcast instant live sync to owner OP dashboard & cancellation queue across all tabs & devices
       triggerClientSync("cancellations");
@@ -112,9 +138,11 @@ export default function MobileSalesPage() {
         setCancelReason("");
         setCancelMessage(null);
         fetchSales();
-      }, 1500);
+      }, 1200);
     } catch (err: any) {
-      setCancelMessage(err.message || "Error submitting request");
+      const errMsg = err.message || "Error submitting request";
+      setCancelMessage(errMsg);
+      toast.error(errMsg, "Submission Failed");
     } finally {
       setSubmittingCancel(false);
     }
@@ -245,8 +273,9 @@ export default function MobileSalesPage() {
                     {sale.paymentStatus}
                   </span>
                   {sale.cancellationRequest?.status === "PENDING" && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-500 border border-amber-500/30">
-                      Cancellation Pending
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 border border-amber-500/30 flex items-center gap-1">
+                      <Clock className="w-2.5 h-2.5 shrink-0" />
+                      <span>Pending Cancellation: &quot;{sale.cancellationRequest.reason}&quot;</span>
                     </span>
                   )}
                 </div>
@@ -286,9 +315,27 @@ export default function MobileSalesPage() {
           <div className="space-y-4 pt-1">
             {/* Status alerts */}
             {selectedSale.cancellationRequest?.status === "PENDING" && (
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs font-medium flex items-center gap-2">
-                <Clock className="w-4 h-4 shrink-0" />
-                <span>Cancellation request submitted. Awaiting owner review.</span>
+              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs space-y-2">
+                <div className="flex items-center justify-between font-bold">
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 shrink-0" />
+                    <span>Cancellation Request Sent</span>
+                  </div>
+                  <span className="text-[10px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/40">
+                    Awaiting Owner Review
+                  </span>
+                </div>
+                <div className="text-foreground text-[11px]">
+                  <span className="text-muted-foreground">Requested By: </span>
+                  <span className="font-semibold">{selectedSale.cancellationRequest.requester?.name || "You (Worker)"}</span>
+                </div>
+                <div className="p-2.5 rounded-lg bg-card border border-border/80 text-foreground text-[11px]">
+                  <span className="text-muted-foreground text-[10px] block mb-0.5">Your Sent Message / Reason:</span>
+                  <p className="italic font-medium">&quot;{selectedSale.cancellationRequest.reason}&quot;</p>
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-tight">
+                  The owner has been notified on the main OP portal. When approved, this sale will be voided and inventory returned to stock automatically.
+                </p>
               </div>
             )}
 

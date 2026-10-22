@@ -355,17 +355,24 @@ export default function MobileHomePage() {
                   <p className="text-xs font-bold text-foreground tabular-nums">
                     GH₵{sale.totalAmount.toFixed(2)}
                   </p>
-                  <span
-                    className={`inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                      sale.paymentStatus === "PAID"
-                        ? "bg-emerald-500/10 text-success"
-                        : sale.paymentStatus === "PARTIAL"
-                        ? "bg-amber-500/10 text-warning"
-                        : "bg-red-500/10 text-destructive"
-                    }`}
-                  >
-                    {sale.paymentStatus}
-                  </span>
+                  <div className="flex items-center gap-1.5 justify-end">
+                    {(sale as any).cancellationRequest?.status === "PENDING" && (
+                      <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                        Cancel Pending
+                      </span>
+                    )}
+                    <span
+                      className={`inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                        sale.paymentStatus === "PAID"
+                          ? "bg-emerald-500/10 text-success"
+                          : sale.paymentStatus === "PARTIAL"
+                          ? "bg-amber-500/10 text-warning"
+                          : "bg-red-500/10 text-destructive"
+                      }`}
+                    >
+                      {sale.paymentStatus}
+                    </span>
+                  </div>
                 </div>
               </div>
             ))}

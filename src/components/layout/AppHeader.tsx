@@ -29,6 +29,39 @@ export function AppHeader() {
   const pathname = usePathname();
   const settings = useOptionalSettings();
   const isSettingsMode = pathname === "/settings" || pathname.startsWith("/settings/");
+  const [pendingCancellations, setPendingCancellations] = React.useState(0);
+
+  React.useEffect(() => {
+    let mounted = true;
+    const fetchPending = async () => {
+      try {
+        const res = await fetch("/api/sales/cancellations?status=PENDING");
+        if (res.ok) {
+          const json = await res.json();
+          if (mounted && json.success && Array.isArray(json.data)) {
+            setPendingCancellations(json.data.length);
+          }
+        }
+      } catch {
+        // silent fail
+      }
+    };
+
+    fetchPending();
+
+    const handleSync = () => {
+      fetchPending();
+    };
+
+    window.addEventListener("avencia:sync:cancellations", handleSync);
+    window.addEventListener("avencia:sync:all", handleSync);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener("avencia:sync:cancellations", handleSync);
+      window.removeEventListener("avencia:sync:all", handleSync);
+    };
+  }, []);
 
   const current = isSettingsMode && settings
     ? {
@@ -92,6 +125,19 @@ export function AppHeader() {
 
         {/* Right Side: Quick Action Notifications & Profile Menu */}
         <div className="flex items-center gap-2 flex-shrink-0">
+          {pendingCancellations > 0 && (
+            <Link
+              href="/sales?tab=cancellations"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-500 hover:bg-amber-500/25 transition-colors text-xs font-medium cursor-pointer"
+              title={`${pendingCancellations} pending worker cancellation request${pendingCancellations > 1 ? "s" : ""} awaiting review`}
+            >
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping inline-block" />
+              <span className="font-semibold hidden sm:inline">Cancellations</span>
+              <span className="bg-amber-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                {pendingCancellations}
+              </span>
+            </Link>
+          )}
           <NotificationBell />
           <ProfileDropdown />
         </div>

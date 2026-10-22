@@ -98,7 +98,12 @@ export async function getSalesReport(businessId: string, filter?: ReportFilter) 
       customer: { select: { id: true, name: true, phone: true } },
       creator: { select: { id: true, name: true, email: true } },
       lastEditor: { select: { id: true, name: true, email: true } },
-      cancellationRequest: true,
+      cancellationRequest: {
+        include: {
+          requester: { select: { id: true, name: true, email: true } },
+          reviewer: { select: { id: true, name: true, email: true } },
+        },
+      },
       saleItems: {
         include: {
           product: { select: { id: true, name: true, sku: true, barcode: true } },

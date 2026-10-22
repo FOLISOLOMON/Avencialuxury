@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -46,9 +46,31 @@ export function InteractiveDashboard({
   const toast = useToast();
   const currency = settings?.currency || "GHS";
 
-  // Auto-refresh server props on real-time sync events
+  // Live cancellation requests tracking
+  const [liveCancellationsCount, setLiveCancellationsCount] = useState<number>(
+    cancellationRequests?.length || 0
+  );
+
+  const fetchLiveCancellations = useCallback(async () => {
+    try {
+      const res = await fetch("/api/sales/cancellations?status=PENDING");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          setLiveCancellationsCount(json.data.length);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
+  // Auto-refresh server props & live cancellations on real-time sync events
   useEffect(() => {
+    fetchLiveCancellations();
+
     const handleSync = () => {
+      fetchLiveCancellations();
       router.refresh();
     };
     window.addEventListener("avencia:sync", handleSync);
@@ -59,7 +81,7 @@ export function InteractiveDashboard({
       window.removeEventListener("avencia:sync:cancellations", handleSync);
       window.removeEventListener("avencia:sync:sales", handleSync);
     };
-  }, [router]);
+  }, [router, fetchLiveCancellations]);
 
   // Quick Action Modal states
   const [isQuickProductOpen, setIsQuickProductOpen] = useState(false);
@@ -265,9 +287,15 @@ export function InteractiveDashboard({
       </div>
 
       {/* ⚠️ PENDING CANCELLATION REQUESTS QUEUE - OWNER ACTION REQUIRED */}
-      {cancellationRequests && cancellationRequests.length > 0 && (
+      {liveCancellationsCount > 0 && (
         <div className="rounded-2xl border-2 border-amber-500/50 bg-card overflow-hidden shadow-xl animate-in fade-in duration-300">
-          <CancellationQueueCard compact={false} onProcessed={() => router.refresh()} />
+          <CancellationQueueCard
+            compact={false}
+            onProcessed={() => {
+              fetchLiveCancellations();
+              router.refresh();
+            }}
+          />
         </div>
       )}
 

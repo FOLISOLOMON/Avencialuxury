@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getNotifications, NotificationCategory } from "@/lib/services/notifications";
 import { DEFAULT_BUSINESS_ID } from "@/lib/db/prisma";
+import { requireAuth } from "@/lib/auth/session";
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,8 +11,11 @@ export async function GET(req: NextRequest) {
     const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : 20;
     const cursor = searchParams.get("cursor") || undefined;
 
+    const { auth } = await requireAuth(req);
+    const businessId = auth?.businessId || DEFAULT_BUSINESS_ID;
+
     const result = await getNotifications({
-      businessId: DEFAULT_BUSINESS_ID,
+      businessId,
       unreadOnly,
       category,
       limit,

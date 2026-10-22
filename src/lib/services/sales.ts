@@ -558,7 +558,16 @@ export async function getSales(businessId: string, filter?: { creatorId?: string
       lastEditor: {
         select: { id: true, name: true, email: true },
       },
-      cancellationRequest: true,
+      cancellationRequest: {
+        include: {
+          requester: {
+            select: { id: true, name: true, email: true },
+          },
+          reviewer: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      },
       saleItems: {
         include: {
           product: true,
@@ -735,6 +744,7 @@ export async function requestSaleCancellation(params: {
       status: "PENDING",
     },
     update: {
+      requesterId: params.requester.id,
       reason: params.reason.trim(),
       status: "PENDING",
       reviewerId: null,
@@ -745,6 +755,12 @@ export async function requestSaleCancellation(params: {
       requester: { select: { id: true, name: true, email: true } },
       sale: true,
     },
+  });
+
+  // Touch the sale so that incremental sync, caches and list ordering detect the change immediately
+  await prisma.sale.update({
+    where: { id: sale.id },
+    data: { updatedAt: new Date() },
   });
 
   // Notify the owner
